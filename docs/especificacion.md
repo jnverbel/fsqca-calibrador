@@ -653,14 +653,10 @@ devuelve eso es una prueba que siempre pasa y nunca detecta nada.
 **Cambiar la constante 2,944 en el código debe poner algo en rojo.** Si no, la prueba de
 calibración no está probando la calibración. Lo mismo con:
 
+**Pasos 1 a 3:**
+
 | Mutación | Debe fallar |
 |---|---|
-| `2.944` → `2.9` | `test-calibracion.R` (puntos que la fórmula obliga) |
-| `idm` 0,95 → 0,90 | `test-calibracion.R` |
-| umbral de efecto techo 85 % → 90 % | `test-alertas.R::A-18 se dispara` |
-| umbral PRI 0,70 → 0,60 | `test-alertas.R::A-26 se dispara` |
-| `+0.001` → `+0.01` | `test-correccion-050.R` |
-| desviación típica 0,15 → 0,05 en `A-20` | `test-alertas.R::A-20 se dispara` |
 | `MIN_CARACTERES_NOTA` 40 → 2 | `test-compuertas.R::una nota corta o vacia es rechazada` |
 | `UMBRAL_NA_ITEM` 0,10 → 0,20 | `test-ingesta.R::A-04 se dispara` |
 | `ALFA_MINIMO` 0,70 → 0,50 | `test-validacion.R::A-06 se dispara` |
@@ -673,6 +669,26 @@ calibración no está probando la calibración. Lo mismo con:
 | `PROPORCION_MINIMA_ITEMS` 0,5 → 0,2 | `test-agregacion.R::demasiados NA` |
 | `ICC1_MINIMO` 0,05 → −1 | `test-agregacion.R::cada umbral del ICC manda por separado` |
 | `ICC2_MINIMO` 0,70 → 0,10 | `test-agregacion.R::cada umbral del ICC manda por separado` |
+
+**Pasos 4 y 5:**
+
+| Mutación | Debe fallar |
+|---|---|
+| `IDM_POR_DEFECTO` 0,95 → 0,90 | `test-calibracion.R::los tres puntos que la formula obliga` |
+| umbrales `e`/`i` invertidos en `calibrar()` | `test-calibracion.R::coincide con QCA::calibrate` |
+| `MIN_CARACTERES_JUSTIFICACION` 30 → 2 | `test-calibracion.R::A-14 se dispara` |
+| `CORRECCION_050` 0,001 → 0,01 | `test-correccion-050.R::A-17 se dispara` |
+| `UMBRAL_TECHO` 0,85 → 0,95 | `test-semaforo.R::A-18 se dispara` |
+| `UMBRAL_PISO` 0,85 → 0,95 | `test-semaforo.R::A-19 se dispara` |
+| `SD_MINIMA` 0,15 → 0,01 | `test-semaforo.R::A-20 se dispara` |
+| `ASIMETRIA_MAXIMA` 2 → 10 | `test-semaforo.R::A-21 se dispara` |
+| `CORRELACION_MAXIMA` 0,80 → 0,999 **y** → 0,50 | `test-semaforo.R::cada predicado marca su limite` |
+| `DIVISOR_DIVERSIDAD` 4 → 100 | `test-semaforo.R::A-23 se dispara` |
+
+**La constante 2,944 no aparece en esta tabla, y es correcto:** vive dentro de
+`QCA::calibrate()`, que es lo que se quería. Lo que la prueba verifica en su lugar es que
+la envoltura pasa las anclas en el orden debido y que los tres puntos obligados dan 0,05 /
+0,50 / 0,95 — invertir los umbrales `e` e `i` produce 0,95 donde debe haber 0,05.
 
 **Lección de la primera ronda, que se repitió dos veces:** cuatro de estas constantes
 sobrevivieron su mutación porque la prueba que supuestamente las cubría decidía por otro
