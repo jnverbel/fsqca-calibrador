@@ -101,5 +101,10 @@ memoria al cerrar la herramienta. Lo único que se guarda es lo que usted descar
 todo su trabajo metodológico, no los datos. Con él puede retomar donde lo dejó y volver a
 generar el informe.
 
-**El informe sale en Word.** Está pensado para que copie de ahí las tablas y el texto a su
-tesis.
+**El informe lo ve dentro de la herramienta.** En el último paso aparece completo, y puede
+descargarlo en HTML para abrirlo en el navegador o imprimirlo.
+
+**Para la versión en Word**, envíe el archivo `proyecto.json` a quien le entregó la
+herramienta y se lo devolverá en `.docx`, listo para copiar tablas y texto a su tesis. Ese
+archivo lleva sus anclas, sus justificaciones y el cierre de cada alerta — **no lleva sus
+datos**.
