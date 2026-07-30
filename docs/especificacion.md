@@ -98,11 +98,9 @@ guarda y se imprime en el informe.
 promete el informe es falsa: un cambio de valor por defecto en `QCA` altera los
 resultados numéricos.
 
-⚠️ **A verificar contra la versión instalada antes de escribir el paso 7:** los nombres
-exactos de las funciones de robustez de `SetMethods` (la familia `rob.*` de Oana &
-Schneider). La especificación se compromete con *el protocolo publicado*, no con una
-firma de función escrita de memoria. Primera tarea del paso 7: abrir la documentación
-instalada y fijar las firmas reales.
+✅ **Verificado contra `SetMethods` 4.1 instalado** (2026-07-30). La familia `rob.*` existe
+y cubre el protocolo completo; las firmas reales están en el paso 7. No hizo falta inventar
+nada.
 
 ---
 
@@ -438,6 +436,19 @@ sistemáticos de ±0,25 y ±0,50 sobre cada ancla.
 **El protocolo se apoya en las funciones ya publicadas de `SetMethods`** (Oana y
 Schneider), no en una ocurrencia propia. Esto es una restricción de diseño, no una
 preferencia: el objetivo es que el capítulo de robustez tenga referencia bibliográfica.
+
+Firmas verificadas contra `SetMethods` 4.1, no escritas de memoria:
+
+| Función | Para qué |
+|---|---|
+| `rob.calibrange(raw.data, calib.data, test.cond.raw, test.cond.calib, test.thresholds, type, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | **el barrido de anclas** — es exactamente el escenario que este paso necesita |
+| `rob.inclrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido del umbral de consistencia |
+| `rob.ncutrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido de la frecuencia mínima |
+| `rob.fit(test_sol, initial_sol, outcome)` | ajuste de la solución alternativa frente a la original |
+| `rob.cases(test_sol, initial_sol, outcome)` | qué casos cambian de estatus |
+| `rob.corefit(test_sol, initial_sol, outcome)` | ajuste de las configuraciones centrales |
+| `rob.singletest(test_sol, initial_sol, outcome)` | comparación contra un único escenario |
+| `rob.xyplot(test_sol, initial_sol, outcome, ...)` | gráfico de la comparación |
 
 Se reporta, para cada escenario:
 - si las configuraciones de la solución se mantienen;
