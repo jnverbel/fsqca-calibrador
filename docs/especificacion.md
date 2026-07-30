@@ -1,7 +1,8 @@
 # Especificación — Calibrador fsQCA para datos Likert
 
-**Versión:** 1.0 · **Fecha:** 2026-07-30
-**Estado:** diseño aprobado; sin código.
+**Versión:** 1.1 · **Fecha:** 2026-07-30
+**Estado:** pasos 1 a 8 implementados en `pkg/calibraqca` (373 pruebas, sin skips).
+Falta la interfaz Shiny, el informe Quarto y el despliegue — plan 04.
 **Documento fuente:** `docs/referencias/Propuesta-herramienta-calibracion-fsQCA.pdf`
 
 ---
@@ -40,8 +41,10 @@ El archivo en `docs/referencias/` **es otra ruta metodológica**, no el punto de
 del motor: implementa Delphi difuso con números triangulares para ponderar enunciados por
 consenso de actores. De él se reutiliza **una sola idea**: el control de validez que
 compara el orden difuso contra la media Likert simple con rho de Spearman y reporta con
-honestidad cuando la fuzzificación no cambió nada. Ese control aparece aquí como la
-alerta `A-13` del paso 4.
+honestidad cuando la fuzzificación no cambió nada.
+
+**Ojo: trasladar ese control tal cual fue un error que hubo que corregir.** La calibración
+directa es monótona, así que aquí el orden se conserva siempre. Ver `A-13` en el paso 4.
 
 ---
 
