@@ -26,8 +26,6 @@ test_that("el reparto por paso coincide con la especificacion", {
 })
 
 test_that("toda alerta del catalogo tiene un caso que la dispara y uno que no", {
-  skip("las alertas de los pasos 6-7 llegan en el plan 03")
-
   archivos <- list.files(testthat::test_path("."), pattern = "^test-.*\\.R$",
                          full.names = TRUE)
   expect_gt(length(archivos), 1)
@@ -47,32 +45,6 @@ test_that("toda alerta del catalogo tiene un caso que la dispara y uno que no", 
 
   # Este mensaje es el que aparecera cuando alguien agregue una alerta
   # y se olvide de probarla.
-  expect_identical(sin_positivo, character())
-  expect_identical(sin_negativo, character())
-})
-
-test_that("las alertas de los pasos 1 a 5 ya tienen sus dos casos", {
-  # Version acotada de la prueba completa: cubre lo que implementan los
-  # planes 01 y 02. Aqui NO hay skip.
-  archivos <- list.files(testthat::test_path("."), pattern = "^test-.*\\.R$",
-                         full.names = TRUE)
-  expect_gt(length(archivos), 1)
-
-  texto <- unlist(lapply(archivos, readLines, warn = FALSE))
-  cat_al <- catalogo_alertas()
-  codigos <- cat_al$codigo[cat_al$paso <= 5]
-
-  sin_positivo <- character()
-  sin_negativo <- character()
-  for (codigo in codigos) {
-    if (!any(grepl(paste0(codigo, " se dispara"), texto, fixed = TRUE))) {
-      sin_positivo <- c(sin_positivo, codigo)
-    }
-    if (!any(grepl(paste0(codigo, " no se dispara"), texto, fixed = TRUE))) {
-      sin_negativo <- c(sin_negativo, codigo)
-    }
-  }
-
   expect_identical(sin_positivo, character())
   expect_identical(sin_negativo, character())
 })
