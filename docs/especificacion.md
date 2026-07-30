@@ -323,16 +323,26 @@ Conviene no confundir dos problemas distintos con el punto medio:
 
 | Cód. | Alerta | Disparo | Severidad |
 |---|---|---|---|
-| `A-13` | La calibración no reordenó | rho de Spearman entre membresía y promedio crudo ≈ 1 y ningún caso cambia de rango | informativa |
+| `A-13` | La calibración alteró el orden de los casos | rho de Spearman entre membresía y promedio crudo < 1 | informativa |
 | `A-14` | Ancla sin justificación | falta fuente o texto | bloqueante |
 | `A-15` | Anclas por percentiles | fuente = `distribución muestral` | advertencia + obliga paso 7 |
 | `A-16` | Anclas no monótonas | no se cumple `θ_nula < c < θ_plena` | bloqueante |
 | `A-17` | Casos en 0,50 exacto | existe al menos uno antes de la corrección | informativa (se corrige e informa) |
 
-`A-13` es la idea rescatada de `fuzzy_likert_5.R`: si el orden no cambió, la calibración no
-inventó información. Eso **no invalida el método** — su aporte es el umbral formal y la
-interpretación de conjuntos — pero hay que reportarlo con honestidad en lugar de vender un
-orden "nuevo".
+**Sobre `A-13` y la idea rescatada de `fuzzy_likert_5.R`.** El control de validez de aquel
+script comparaba el orden difuso contra la media Likert simple para reportar con honestidad
+cuando la fuzzificación no cambiaba nada. Trasladarlo tal cual aquí sería un error: **la
+calibración directa es una transformación monótona creciente del promedio, así que el orden
+se conserva por construcción y rho vale exactamente 1 siempre.** Una alerta que se dispara
+en el 100 % de los casos es ruido, no diagnóstico.
+
+Por eso la alerta se invierte: `A-13` se dispara cuando rho **< 1**, que indicaría un fallo
+del cálculo —anclas mal ordenadas, NA mal manejados— y no un hallazgo del estudio.
+
+La honestidad que buscaba el control original se conserva, pero como **declaración
+obligatoria del informe** y no como alerta: *la calibración no reordena los casos; su aporte
+es el umbral formal y la lectura en términos de pertenencia a un conjunto, no un orden
+nuevo.* Se imprime siempre, con el rho como evidencia.
 
 **Se guarda:** por condición, las tres anclas, la fuente, la justificación, `idm`, si se
 aplicó la corrección de 0,001 y a qué casos.
@@ -608,8 +618,9 @@ pegar texto y tablas dentro de la tesis.
 8. **NCA**, si se ejecutó.
 9. **Robustez** — escenarios y comparación, o la declaración de por qué se omitió.
 10. **Declaraciones obligatorias** — la corrección de +0,001 con los casos afectados; la
-    nota sobre `idm` y las diferencias en el tercer decimal frente a fs/QCA; el control de
-    validez `A-13` cuando la calibración no reordenó.
+    nota sobre `idm` y las diferencias en el tercer decimal frente a fs/QCA; y el control de
+    validez: *la calibración no reordena los casos, su aporte es el umbral formal y la
+    lectura en términos de pertenencia*, con el rho de Spearman como evidencia.
 11. **Referencias** — las citas de los paquetes usados (vía `citation()`, generadas desde
     el propio análisis y no escritas a mano) más el corpus metodológico fijo, que es el de
     la sección 8 del PDF de la propuesta. Los DOI se comprueban antes de incorporarlos al
