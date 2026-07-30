@@ -12,9 +12,11 @@ cada ancla se justifique y dejar rastro escrito de esa justificación en el info
 
 ## Estado
 
-**Motor completo y probado** (los ocho pasos, 373 pruebas sin `skip`), interfaz Shiny de
-ocho pasos e informe Quarto en HTML y Word. Falta desplegarlo en Fly.io: la configuración
-está escrita y solo requiere las credenciales del titular de la cuenta.
+**Completo y funcionando.** Motor con 373 pruebas sin `skip`, interfaz Shiny de ocho pasos
+e informe Quarto en HTML y Word.
+
+**Se ejecuta en el equipo del investigador**, con doble clic. Instrucciones para él, sin
+jerga, en [`INSTALAR.md`](INSTALAR.md). El único requisito previo es instalar R una vez.
 
 ## Ejecutar
 
@@ -33,7 +35,8 @@ Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/
 | Documento | Contenido |
 |---|---|
 | [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 32 alertas, esquema del archivo de proyecto, informe y plan de pruebas |
-| [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Ejecutar en local, generar el informe y desplegar |
+| [`INSTALAR.md`](INSTALAR.md) | Para el investigador: instalar R y abrir la herramienta |
+| [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Para desarrollo: ejecutar, generar el informe y desplegar |
 | [`docs/preguntas-al-investigador.md`](docs/preguntas-al-investigador.md) | Las 8 preguntas para dimensionar el trabajo |
 | [`docs/referencias/`](docs/referencias/) | PDF de la propuesta técnica y `fuzzy_likert_5.R` |
 
