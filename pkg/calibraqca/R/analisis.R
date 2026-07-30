@@ -167,3 +167,84 @@ alertas_tabla_verdad <- function(tabla) {
   }
   do.call(rbind, encontradas)
 }
+
+COBERTURA_MINIMA <- 0.50
+
+#' Extrae el ajuste de una solucion de QCA::minimize.
+.ajuste_solucion <- function(sol) {
+  ic <- sol$IC$incl.cov
+  global <- sol$IC$sol.incl.cov
+
+  configuraciones <- data.frame(
+    configuracion = rownames(ic),
+    consistencia = as.numeric(ic$inclS),
+    pri = as.numeric(ic$PRI),
+    cobertura_bruta = as.numeric(ic$covS),
+    cobertura_unica = as.numeric(ic$covU),
+    casos = as.character(ic$cases),
+    stringsAsFactors = FALSE
+  )
+  rownames(configuraciones) <- NULL
+
+  list(
+    terminos = unlist(sol$solution),
+    configuraciones = configuraciones,
+    ajuste = list(consistencia = as.numeric(global$inclS[1]),
+                  pri = as.numeric(global$PRI[1]),
+                  cobertura = as.numeric(global$covS[1]))
+  )
+}
+
+#' Las tres soluciones.
+#'
+#' Se producen siempre las tres -- conservadora, intermedia y parsimoniosa --
+#' porque presentar solo una es una de las observaciones habituales de los
+#' evaluadores. La intermedia necesita expectativas direccionales; sin ellas
+#' no se inventa una.
+minimizar <- function(tt, expectativas = NULL) {
+  conservadora <- .ajuste_solucion(QCA::minimize(tt, details = TRUE))
+  parsimoniosa <- .ajuste_solucion(QCA::minimize(tt, include = "?",
+                                                 details = TRUE))
+  intermedia <- if (is.null(expectativas)) {
+    NULL
+  } else {
+    .ajuste_solucion(QCA::minimize(tt, include = "?", dir.exp = expectativas,
+                                   details = TRUE))
+  }
+
+  list(conservadora = conservadora, intermedia = intermedia,
+       parsimoniosa = parsimoniosa)
+}
+
+#' Una solucion que explica menos de la mitad del resultado.
+cobertura_baja <- function(cobertura) {
+  !is.na(cobertura) && cobertura < COBERTURA_MINIMA
+}
+
+#' Paso 6, tercera parte.
+diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
+  soluciones <- minimizar(tt, expectativas)
+  encontradas <- list()
+
+  for (nombre in names(soluciones)) {
+    sol <- soluciones[[nombre]]
+    if (is.null(sol)) next
+    if (cobertura_baja(sol$ajuste$cobertura)) {
+      encontradas[[length(encontradas) + 1]] <- alerta(
+        "A-29", contexto = nombre,
+        detalle = sprintf(paste("La solucion %s cubre %.3f del resultado:",
+                                "por debajo de %.2f explica menos de la mitad",
+                                "de los casos con el resultado."),
+                          nombre, sol$ajuste$cobertura, COBERTURA_MINIMA)
+      )
+    }
+  }
+
+  alertas <- if (length(encontradas) == 0) {
+    alerta("A-29")[0, , drop = FALSE]
+  } else {
+    do.call(rbind, encontradas)
+  }
+
+  list(soluciones = soluciones, alertas = alertas)
+}
