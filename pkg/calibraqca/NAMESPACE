@@ -1,1 +1,8 @@
 # Generado a mano, sin roxygen.
+export(alerta)
+export(alertas_pendientes)
+export(catalogo_alertas)
+export(cerrar_alerta)
+export(nueva_bitacora)
+export(puede_avanzar)
+export(registrar_alertas)
