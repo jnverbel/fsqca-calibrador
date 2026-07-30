@@ -99,7 +99,11 @@ informe_html <- function(inf) {
       shiny::tags$tr(
         shiny::tags$td(class = "num", nec$condicion[i]),
         shiny::tags$td(class = "num", fmt(nec$consistencia[i])),
-        shiny::tags$td(class = if (nec$ron[i] < RON_MINIMO) "num mal" else "num",
+        # La decision de que es "RoN baja" vive en el motor. Repetir aqui
+        # el umbral crearia dos verdades que se separan con el tiempo.
+        shiny::tags$td(class = if (necesidad_trivial(nec$consistencia[i],
+                                                     nec$ron[i]))
+                         "num mal" else "num",
                        fmt(nec$ron[i])),
         shiny::tags$td(class = "num", fmt(nec$cobertura[i])))))
 

@@ -329,7 +329,9 @@ panel_analisis <- function(e) {
         shiny::tags$tr(
           shiny::tags$td(class = "num", nec$condicion[i]),
           shiny::tags$td(class = "num", sprintf("%.3f", nec$consistencia[i])),
-          shiny::tags$td(class = if (nec$ron[i] < 0.60) "num mal" else "num",
+          shiny::tags$td(class = if (necesidad_trivial(nec$consistencia[i],
+                                                       nec$ron[i]))
+                           "num mal" else "num",
                          sprintf("%.3f", nec$ron[i])),
           shiny::tags$td(class = "num", sprintf("%.3f", nec$cobertura[i])))
       }))),
