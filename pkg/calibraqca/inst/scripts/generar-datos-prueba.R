@@ -40,13 +40,19 @@ techo <- data.frame(
 utils::write.csv(techo, file.path(destino, "techo.csv"), row.names = FALSE)
 
 # --- degenerada.csv: un item suelto, fiabilidad mala, casos repetidos ---
+# Los defectos de esta base son DELIBERADOS y acotados a CAP_ABS y SOLO.
+# REDES tiene que salir fiable: es el contraste dentro de la misma base, y
+# sin el las pruebas no podrian distinguir "esta roto" de "todo esta roto".
+# De ahi la base comun base_red_deg, en vez de dos rnorm independientes.
 m <- 40
 ruido_puro <- function() sample(1:5, m, replace = TRUE)
+base_red_deg <- stats::rnorm(m, 0, 1.2)
 degenerada <- data.frame(
   id_empresa = c(sprintf("E%03d", 1:(m - 2)), "E001", "E002"),  # duplicados
   CAP01 = ruido_puro(), CAP02 = ruido_puro(), CAP03 = ruido_puro(),  # alfa bajo
   SOLO01 = ruido_puro(),                                              # un solo item
-  RED01 = item(stats::rnorm(m), 3), RED02 = item(stats::rnorm(m), 3)
+  RED01 = item(base_red_deg, 3, 0.4), RED02 = item(base_red_deg, 3, 0.4),
+  RED03 = item(base_red_deg, 3, 0.4)
 )
 degenerada$CAP02[1:6] <- NA          # no respuesta abundante
 
