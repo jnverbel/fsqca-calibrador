@@ -84,7 +84,8 @@ guarda y se imprime en el informe.
 |---|---|---|
 | `QCA` (Dușa) | `calibrate()`, `truthTable()`, `minimize()`, `pof()`, `superSubset()` | riesgo metodológico inaceptable |
 | `SetMethods` (Oana & Schneider) | protocolo de robustez publicado | inventar un protocolo propio sin cita |
-| `psych` | alfa de Cronbach, ítem-total corregida, ICC | trivial pero no citable |
+| `psych` | alfa de Cronbach, ítem-total corregida | trivial pero no citable |
+| `multilevel` (Bliese) | ICC(1) e ICC(2) con grupos desbalanceados | ver el paso 3 |
 | `lavaan` | factorial confirmatorio (opcional) | absurdo |
 | `NCA` (Dul) | análisis de condiciones necesarias | absurdo |
 | `readxl` / `readr` | ingesta | — |
@@ -188,9 +189,17 @@ constructo tiene un solo ítem, esta herramienta no puede hacer nada honesto con
 - **Correlación ítem-total corregida** para cada ítem, y el alfa que resultaría *si se
   elimina el ítem*.
 - **Factorial confirmatorio con `lavaan::cfa`, solo si la muestra da.** La regla se fija
-  aquí y no se negocia en caliente: se ofrece el CFA si `n_casos ≥ 5 × n_parámetros
-  libres` y `n_casos ≥ 100`. Si no se cumple, el paso **omite el CFA explicando por qué**,
-  en vez de mostrar un modelo que no ajusta. Ese texto entra en el informe.
+  aquí y no se negocia en caliente: se ofrece el CFA si `n_casos ≥ 100` **y**
+  `n_casos ≥ 5 × parámetros`, donde
+
+  ```
+  parámetros = 2 × n_ítems + n_factores × (n_factores − 1) / 2
+  ```
+
+  es decir, una carga y una varianza de error por ítem más las covarianzas entre factores,
+  con la varianza de cada factor fijada en 1 para identificar el modelo. Si no se cumple,
+  el paso **omite el CFA explicando por qué**, en vez de mostrar un modelo que no ajusta.
+  Ese texto entra en el informe.
 
 **Diagnósticos:**
 
@@ -214,8 +223,13 @@ ejecutó (χ², gl, CFI, TLI, RMSEA, SRMR).
 **Qué hace:**
 - Promedio de los ítems de cada constructo, por respuesta.
 - **Si hay varios encuestados por caso**, la agregación de personas a caso exige
-  justificación estadística, no basta con promediar: se calcula **ICC(1) e ICC(2)**
-  (`psych::ICC`) y se reporta el número de encuestados por caso (mínimo, mediana, máximo).
+  justificación estadística, no basta con promediar: se calcula **ICC(1) e ICC(2)** y se
+  reporta el número de encuestados por caso (mínimo, mediana, máximo).
+
+  El cálculo va con **`multilevel::ICC1()` e `ICC2()`** (Bliese), no con `psych::ICC`:
+  `psych::ICC` espera una matriz de casos por jueces con los mismos jueces para todos los
+  casos, y aquí el número de encuestados varía de un caso a otro. `multilevel` trabaja
+  sobre un ANOVA de un factor con grupos desbalanceados, que es exactamente este diseño.
 - Manejo declarado de NA: promedio sobre ítems presentes si el constructo conserva al
   menos la mitad de sus ítems; en caso contrario el caso queda como NA en ese constructo y
   se informa.
@@ -636,6 +650,17 @@ calibración no está probando la calibración. Lo mismo con:
 | umbral PRI 0,70 → 0,60 | `test-alertas.R::A-26 se dispara` |
 | `+0.001` → `+0.01` | `test-correccion-050.R` |
 | desviación típica 0,15 → 0,05 en `A-20` | `test-alertas.R::A-20 se dispara` |
+| `MIN_CARACTERES_NOTA` 40 → 2 | `test-compuertas.R::una nota corta o vacia es rechazada` |
+| `UMBRAL_NA_ITEM` 0,10 → 0,20 | `test-ingesta.R::A-04 se dispara` |
+| `ALFA_MINIMO` 0,70 → 0,50 | `test-validacion.R::A-06 se dispara` |
+| `ALFA_DUDOSO` 0,80 → 0,90 | `test-validacion.R::clasificar_alfa` |
+| `ALFA_INFLADO` 0,95 → 0,99 | `test-validacion.R::A-09 se dispara` |
+| `ITEM_TOTAL_MINIMO` 0,30 → 0,10 | `test-validacion.R::A-08 se dispara` |
+| `CASOS_POR_PARAMETRO` 5 → 2 | `test-validacion.R::A-10 se dispara` |
+| `CASOS_MINIMOS_CFA` 100 → 30 | `test-validacion.R::A-10 se dispara` |
+| `PROPORCION_MINIMA_ITEMS` 0,5 → 0,2 | `test-agregacion.R::demasiados NA` |
+| `ICC1_MINIMO` 0,05 → 0,00 | `test-agregacion.R::A-11 se dispara` |
+| `ICC2_MINIMO` 0,70 → 0,10 | `test-agregacion.R::A-11 se dispara` |
 
 Esta tabla se mantiene viva: **cada constante numérica del motor debe aparecer en ella**.
 Una constante que no está en la tabla es una constante sin prueba.
