@@ -638,7 +638,9 @@ pegar texto y tablas dentro de la tesis.
 11. **Referencias** — las citas de los paquetes usados (vía `citation()`, generadas desde
     el propio análisis y no escritas a mano) más el corpus metodológico fijo, que es el de
     la sección 8 del PDF de la propuesta. Los DOI se comprueban antes de incorporarlos al
-    documento final.
+    documento final. **La herramienta no se cita a sí misma**: la tesis no reclama
+    contribución metodológica, así que el crédito va a Ragin, Dușa, Oana y Schneider, Dul,
+    y Pappas y Woodside (sección 9.2).
 
 ### 5.3. El script reproducible
 
@@ -883,15 +885,29 @@ sesión. El único artefacto que sobrevive es el que el investigador descarga.
 
 **La ingesta se construyó genérica a propósito para no bloquearse ante ninguna de ellas.**
 
-### 9.2. La que más pesa
+### 9.2. La que más pesaba — RESPONDIDA el 2026-07-30
 
-**¿La tesis reclama contribución metodológica?** Si sí, la herramienta es publicable por sí
-misma — paquete en CRAN o nota de software — porque no hay nada equivalente: los 19
-programas de la lista de COMPASSS son gratuitos y ninguno cubre calibración de datos de
-encuesta. Si no, es apoyo instrumental y **no debe entrar en el argumento de la tesis**.
+**La tesis NO reclama contribución metodológica.** Aplica un método existente.
 
-Esta respuesta no bloquea el desarrollo, pero sí determina cuánto se invierte en
-documentación pública y en la calidad del paquete como artefacto citable.
+Consecuencias, que rigen de aquí en adelante:
+
+- **La herramienta es apoyo instrumental y no entra en el argumento de la tesis.**
+  Presentarla como aporte cuando el capítulo no lo sostiene es de las cosas que se detectan
+  en la defensa.
+- **No se publica**: ni CRAN, ni nota de software, ni documentación pública. Ese trabajo
+  sale del alcance (sección 10).
+- **El capítulo metodológico describe el procedimiento, no el software.** Lo que se defiende
+  es la calibración directa sobre el promedio del constructo, con sus anclas justificadas y
+  sus umbrales declarados. Que esos pasos los haya ejecutado una aplicación propia es
+  irrelevante para el argumento, igual que lo sería haberlos ejecutado a mano en R.
+- **Las citas van a los paquetes y a las obras**, nunca a la herramienta: Ragin para la
+  calibración directa, Dușa para `QCA`, Oana y Schneider para `SetMethods` y el protocolo
+  de robustez, Dul para NCA, Pappas y Woodside para calibrar datos de encuesta.
+
+**Lo que NO cambia, y conviene subrayarlo:** el informe y el rastro de decisiones siguen
+siendo la razón de ser de la herramienta. Que la tesis no reclame aporte metodológico no
+relaja ni un punto la exigencia de justificar cada ancla ni de declarar cada umbral — esas
+son preguntas del jurado sobre el *método*, y llegan igual, con herramienta o sin ella.
 
 ### 9.3. Sugerencia pendiente al investigador
 
@@ -910,6 +926,10 @@ qué le resulta natural y qué no en una interfaz que ya existe ahorra rehacer l
   ruta metodológica; si el objetivo analítico resulta ser multicriterio (pregunta 1), esto
   se replantea de cero.
 - **No hay cuentas de usuario ni multiusuario.** Una contraseña, un investigador.
-- **No se publica como aplicación web en TypeScript.** Es viable *después* de la defensa,
-  envolviendo el motor de R como servicio, y solo si la herramienta se publica como aporte
-  abierto a la comunidad.
+- **No se publica como aplicación web en TypeScript.** Solo tenía sentido si la herramienta
+  se publicaba como aporte abierto a la comunidad, y la tesis no reclama contribución
+  metodológica (sección 9.2). Descartado.
+- **No se prepara el paquete para CRAN.** Sin contribución metodológica que defender, no hay
+  razón para invertir en `roxygen2` completo, viñetas, `R CMD check` limpio ni el trámite de
+  publicación. **Las pruebas se mantienen íntegras**: no son para el jurado, son para que el
+  cálculo sea correcto.
