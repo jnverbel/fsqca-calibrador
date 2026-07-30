@@ -1,0 +1,462 @@
+/* Calibrador fsQCA — hoja de estilo.
+ *
+ * Regla tipografica: el tipo declara la naturaleza del contenido.
+ *   serif  -> titulos de paso y justificaciones (son prosa que acaba impresa)
+ *   sans   -> controles y navegacion (son herramienta)
+ *   mono   -> TODO numero (se comparan en columna; con proporcional no alinean)
+ *
+ * Los colores de estado estan validados con el script del skill dataviz.
+ * La primera tentativa (#A32F2F rojo con #9A5B2D cobre) fallo: DeltaE 9,6 en
+ * vision normal y 4,9 en deuteranopia. Estos pasan las cinco comprobaciones.
+ */
+
+:root {
+  --bloqueante: #C4342B;
+  --advertencia: #C98A0A;
+  --informativa: #2E6FD0;
+  --resuelta: #1E8A63;
+
+  --tinta: #16202E;
+  --tinta-2: #4A5666;
+  --tinta-3: #7C8797;
+  --azul: #1F3A5F;
+
+  --papel: #FCFCFB;
+  --panel: #F2F3F5;
+  --linea: #DDE1E6;
+
+  /* Escala divergente de la membresia. NO es secuencial a proposito: en
+   * teoria de conjuntos difusos 0,50 es maxima ambiguedad, no un punto
+   * medio cualquiera. Cobre = fuera del conjunto, azul = dentro. */
+  --fuera: #B06A1F;
+  --neutro: #9AA1AB;
+  --dentro: #2E6FD0;
+
+  --serif: Charter, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: "SF Mono", SFMono-Regular, Menlo, "JetBrains Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Encabezado ------------------------------------------------------ */
+
+.cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.cabecera h1 {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--azul);
+}
+
+.cabecera .archivo {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-3);
+}
+
+/* --- Regla de pasos --------------------------------------------------
+ * Se numeran porque SON una secuencia real: no se puede calibrar antes de
+ * agregar. El numero encoda algo verdadero, no decora.
+ */
+
+.pasos {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--linea);
+  background: var(--panel);
+  overflow-x: auto;
+}
+
+.paso-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px 10px;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--tinta-3);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.paso-tab .n {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--linea);
+  color: var(--tinta-2);
+}
+
+.paso-tab:hover { color: var(--tinta); }
+.paso-tab[aria-current="step"] {
+  color: var(--azul);
+  font-weight: 600;
+  border-bottom-color: var(--azul);
+  background: var(--papel);
+}
+.paso-tab[aria-current="step"] .n { background: var(--azul); color: #fff; }
+.paso-tab[data-estado="hecho"] .n { background: var(--resuelta); color: #fff; }
+.paso-tab[data-estado="frenado"] .n { background: var(--bloqueante); color: #fff; }
+.paso-tab:focus-visible { outline: 2px solid var(--informativa); outline-offset: -2px; }
+
+/* --- Cuerpo a dos columnas ------------------------------------------- */
+
+.cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 0;
+  min-height: calc(100vh - 112px);
+}
+
+.trabajo { padding: 26px 28px 80px; min-width: 0; }
+
+.titulo-paso {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 2px;
+  color: var(--tinta);
+}
+.subtitulo-paso {
+  color: var(--tinta-2);
+  margin: 0 0 26px;
+  max-width: 62ch;
+}
+
+/* --- Bitacora: fija a la derecha, en todos los pasos ------------------
+ * No es un panel que se abre. Esconderla contradiria la regla de la
+ * compuerta: se puede avanzar con un problema, pero no en silencio.
+ */
+
+.bitacora {
+  border-left: 1px solid var(--linea);
+  background: var(--panel);
+  padding: 22px 20px 60px;
+  overflow-y: auto;
+}
+
+.bitacora h2 {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  margin: 0 0 14px;
+}
+
+.sin-alertas {
+  font-size: 13px;
+  color: var(--tinta-3);
+  padding: 12px 0;
+}
+
+.alerta {
+  background: var(--papel);
+  border: 1px solid var(--linea);
+  border-left: 3px solid var(--linea);
+  border-radius: 3px;
+  padding: 11px 13px;
+  margin-bottom: 10px;
+}
+
+.alerta[data-sev="bloqueante"]  { border-left-color: var(--bloqueante); }
+.alerta[data-sev="advertencia"] { border-left-color: var(--advertencia); }
+.alerta[data-sev="informativa"] { border-left-color: var(--informativa); }
+.alerta[data-estado="reconocida"],
+.alerta[data-estado="resuelta"] { border-left-color: var(--resuelta); opacity: 0.75; }
+
+.alerta .fila {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+
+/* El estado nunca va solo por color: simbolo + codigo + etiqueta. */
+.alerta .simbolo { font-size: 12px; line-height: 1; }
+.alerta .codigo {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+.alerta .contexto {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tinta-3);
+  margin-left: auto;
+}
+.alerta .titulo { font-size: 13px; font-weight: 600; }
+.alerta .detalle { font-size: 12px; color: var(--tinta-2); margin-top: 4px; }
+
+.alerta .etiqueta-estado {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 2px;
+  margin-top: 7px;
+  background: var(--linea);
+  color: var(--tinta-2);
+}
+.alerta[data-estado="reconocida"] .etiqueta-estado,
+.alerta[data-estado="resuelta"] .etiqueta-estado {
+  background: var(--resuelta); color: #fff;
+}
+
+.alerta textarea {
+  width: 100%;
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 9px;
+  border: 1px solid var(--linea);
+  border-radius: 3px;
+  background: var(--papel);
+  color: var(--tinta);
+  resize: vertical;
+}
+.alerta textarea:focus-visible {
+  outline: 2px solid var(--informativa);
+  outline-offset: 1px;
+}
+
+.alerta .nota-guardada {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tinta-2);
+  margin-top: 7px;
+  padding-left: 9px;
+  border-left: 2px solid var(--linea);
+}
+
+.contador-nota {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--tinta-3);
+  margin-top: 3px;
+}
+
+/* --- La firma: tira de membresia -------------------------------------
+ * Cada caso es una marca vertical en su posicion de pertenencia. Ver 110
+ * de 120 marcas apiladas contra el borde derecho comunica el efecto techo
+ * mejor que un histograma y mucho mejor que un numero.
+ */
+
+.tira {
+  position: relative;
+  height: 52px;
+  /* El fondo tiene que declarar la escala: fuera a la izquierda, dentro a
+   * la derecha, y el 0,50 como un valle claro. Con un gradiente tenue la
+   * tira parece un rectangulo blanco y la divergencia no comunica nada. */
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--fuera) 30%, var(--papel)) 0%,
+    color-mix(in oklab, var(--fuera) 12%, var(--papel)) 38%,
+    var(--papel) 50%,
+    color-mix(in oklab, var(--dentro) 12%, var(--papel)) 62%,
+    color-mix(in oklab, var(--dentro) 30%, var(--papel)) 100%);
+  border: 1px solid var(--linea);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.tira .marca {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  opacity: 0.85;
+}
+
+/* El eje conceptual del metodo: 0,50 no es el medio de una escala, es
+ * maxima ambiguedad respecto de la pertenencia. Se marca como tal. */
+.tira .cruce {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 0;
+  border-left: 1px dashed var(--tinta-2);
+  opacity: 0.75;
+}
+.tira .cruce::before,
+.tira .cruce::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  width: 5px; height: 5px;
+  background: var(--tinta-2);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.tira .cruce::before { top: 0; }
+.tira .cruce::after  { bottom: 0; transform: rotate(180deg); }
+
+.tira-eje {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--tinta-3);
+  margin-top: 3px;
+}
+.tira-eje .medio { color: var(--tinta-2); }
+
+.tira-resumen {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tinta-2);
+  margin-top: 6px;
+}
+.tira-resumen b { color: var(--tinta); font-weight: 600; }
+
+/* --- Bloque de condicion en el paso 4 -------------------------------- */
+
+.condicion {
+  border: 1px solid var(--linea);
+  border-radius: 4px;
+  padding: 18px 20px 20px;
+  margin-bottom: 22px;
+  background: var(--papel);
+}
+
+.condicion h3 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 14px;
+  color: var(--azul);
+}
+
+.justificacion textarea {
+  width: 100%;
+  max-width: 66ch;          /* medida de lectura: es prosa, no un input */
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 12px 14px;
+  border: 1px solid var(--linea);
+  border-radius: 3px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.etiqueta {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tinta-2);
+  margin-bottom: 5px;
+}
+.ayuda { font-size: 12px; color: var(--tinta-3); margin-top: 5px; max-width: 66ch; }
+
+/* --- Numeros: siempre monoespaciados --------------------------------- */
+
+.num, table td.num, .valor {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+table.datos { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.datos th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  font-weight: 600;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--linea);
+}
+table.datos td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--linea);
+}
+table.datos td.mal { color: var(--bloqueante); font-weight: 600; }
+
+/* --- Barra de avance -------------------------------------------------- */
+
+.pie {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 12px 28px;
+  background: var(--papel);
+  border-top: 1px solid var(--linea);
+}
+
+.motivo-frenado {
+  font-size: 13px;
+  color: var(--bloqueante);
+  margin-right: auto;
+}
+
+.btn {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 3px;
+  border: 1px solid var(--azul);
+  background: var(--azul);
+  color: #fff;
+  cursor: pointer;
+}
+.btn:disabled {
+  background: var(--panel);
+  border-color: var(--linea);
+  color: var(--tinta-3);
+  cursor: not-allowed;
+}
+.btn.secundario { background: none; color: var(--azul); }
+.btn:focus-visible { outline: 2px solid var(--informativa); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .paso-tab, .btn, .alerta { transition: background-color 120ms ease, color 120ms ease; }
+}
+
+@media (max-width: 1024px) {
+  .cuerpo { grid-template-columns: 1fr; }
+  .bitacora { border-left: 0; border-top: 1px solid var(--linea); }
+}
