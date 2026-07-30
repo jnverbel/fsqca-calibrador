@@ -696,6 +696,26 @@ calibración no está probando la calibración. Lo mismo con:
 | `CORRELACION_MAXIMA` 0,80 → 0,999 **y** → 0,50 | `test-semaforo.R::cada predicado marca su limite` |
 | `DIVISOR_DIVERSIDAD` 4 → 100 | `test-semaforo.R::A-23 se dispara` |
 
+**Pasos 6 y 7:**
+
+| Mutación | Debe fallar |
+|---|---|
+| `NECESIDAD_CONSISTENCIA` 0,90 → 0,50 | `test-necesidad.R::necesidad_trivial marca los limites` |
+| `RON_MINIMO` 0,60 → 0,10 | `test-necesidad.R::A-27 se dispara` |
+| `CONSISTENCIA_MINIMA` 0,80 → 0,50 | `test-tabla-verdad.R::A-26 se dispara` |
+| `PRI_MINIMO` 0,70 → 0,30 | `test-tabla-verdad.R::A-26 se dispara` |
+| `PROPORCION_DEGENERADA` 0,80 → 0,99 | `test-tabla-verdad.R::A-28 se dispara` |
+| `CONSISTENCIA_CONTRADICCION` 0,50 → 0,79 | `test-tabla-verdad.R::A-30 se dispara` |
+| `LIMITE_MUESTRA_PEQUENA` 50 → 5 | `test-tabla-verdad.R::umbral_frecuencia marca el limite` |
+| `COBERTURA_MINIMA` 0,50 → 0,10 | `test-minimizacion.R::A-29 se dispara` |
+
+**El bug que la lectura de la tabla de verdad evita.** En `QCA` 3.25 las columnas `incl` y
+`PRI` de `tt$tt` son **`character`**, y las filas no observadas traen `"-"`. Como
+`"-" < "0.7"` es `TRUE`, comparar sin convertir marca casi toda la tabla como PRI bajo:
+sobre el ejemplo de Lipset, **30 de 32 filas en vez de 7**. Por eso existe
+`leer_tabla_verdad()`, que convierte con `as.numeric()` y filtra las observadas, y por eso
+hay una prueba que contrasta la lectura ingenua con la correcta.
+
 **La constante 2,944 no aparece en esta tabla, y es correcto:** vive dentro de
 `QCA::calibrate()`, que es lo que se quería. Lo que la prueba verifica en su lugar es que
 la envoltura pasa las anclas en el orden debido y que los tres puntos obligados dan 0,05 /
