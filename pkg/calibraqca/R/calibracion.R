@@ -91,3 +91,88 @@ orden_conservado <- function(crudo, calibrado) {
   )
   list(rho = rho, conservado = !is.na(rho) && isTRUE(all.equal(rho, 1)))
 }
+
+#' Paso 4 completo: calibra todas las condiciones y emite sus diagnosticos.
+#'
+#' A-14 y A-16 no aparecen aqui: definir_anclas() ya impide construir un
+#' ancla sin justificacion o no monotona, asi que no pueden llegar vivas
+#' hasta este punto.
+diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
+                                     idm = IDM_POR_DEFECTO) {
+  condiciones <- setdiff(names(casos), columna_id)
+  sin_anclas <- setdiff(condiciones, names(anclas_por_condicion))
+  if (length(sin_anclas) > 0) {
+    stop("Estas condiciones no tienen anclas declaradas: ",
+         paste(sin_anclas, collapse = ", "),
+         ". No se puede pasar del paso 4 con una condicion sin justificar.",
+         call. = FALSE)
+  }
+
+  ids <- as.character(casos[[columna_id]])
+  membresias <- data.frame(ids, stringsAsFactors = FALSE)
+  names(membresias) <- columna_id
+
+  encontradas <- list()
+  correccion <- list()
+  orden <- list()
+
+  for (cond in condiciones) {
+    anclas <- anclas_por_condicion[[cond]]
+    crudo <- casos[[cond]]
+    calibrado <- calibrar(crudo, anclas, idm = idm)
+
+    orden[[cond]] <- orden_conservado(crudo, calibrado)
+    if (!orden[[cond]]$conservado) {
+      encontradas[[length(encontradas) + 1]] <- alerta(
+        "A-13", contexto = cond,
+        detalle = sprintf(paste("rho de Spearman = %.4f en %s: la calibracion",
+                                "altero el orden de los casos, lo que indica",
+                                "un fallo del calculo."),
+                          orden[[cond]]$rho, cond)
+      )
+    }
+
+    corregido <- corregir_050(stats::setNames(calibrado, ids), ids = ids)
+    correccion[[cond]] <- corregido$casos_afectados
+    membresias[[cond]] <- as.numeric(corregido$membresias)
+
+    if (length(corregido$casos_afectados) > 0) {
+      encontradas[[length(encontradas) + 1]] <- alerta(
+        "A-17", contexto = cond,
+        detalle = sprintf(paste("%d caso(s) en 0,50 exacto en %s: %s. Se suma",
+                                "%s y se declara en el informe."),
+                          length(corregido$casos_afectados), cond,
+                          paste(utils::head(corregido$casos_afectados, 10),
+                                collapse = ", "),
+                          format(CORRECCION_050))
+      )
+    }
+
+    if (identical(anclas$fuente, "distribucion muestral")) {
+      encontradas[[length(encontradas) + 1]] <- alerta(
+        "A-15", contexto = cond,
+        detalle = paste0(
+          "Las anclas de ", cond, " salen de la distribucion de la muestra. ",
+          "Es la salida mas rapida y la mas cuestionada: hace que la ",
+          "calibracion dependa de la muestra y no del concepto teorico. ",
+          "Obliga a ejecutar el analisis de robustez del paso 7.")
+      )
+    }
+  }
+
+  alertas <- if (length(encontradas) == 0) {
+    alerta("A-13")[0, , drop = FALSE]
+  } else {
+    do.call(rbind, encontradas)
+  }
+
+  list(membresias = membresias,
+       alertas = alertas,
+       correccion = correccion,
+       orden = orden,
+       idm = idm,
+       obliga_robustez = any(vapply(anclas_por_condicion,
+                                    function(a) identical(a$fuente,
+                                                          "distribucion muestral"),
+                                    logical(1))))
+}

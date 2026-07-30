@@ -26,7 +26,7 @@ test_that("el reparto por paso coincide con la especificacion", {
 })
 
 test_that("toda alerta del catalogo tiene un caso que la dispara y uno que no", {
-  skip("las alertas de los pasos 4-7 llegan en los planes 02 y 03")
+  skip("las alertas de los pasos 6-7 llegan en el plan 03")
 
   archivos <- list.files(testthat::test_path("."), pattern = "^test-.*\\.R$",
                          full.names = TRUE)
@@ -51,16 +51,16 @@ test_that("toda alerta del catalogo tiene un caso que la dispara y uno que no", 
   expect_identical(sin_negativo, character())
 })
 
-test_that("las alertas de los pasos 1 a 3 ya tienen sus dos casos", {
-  # Version acotada de la prueba anterior: cubre lo que implementa el plan 01.
-  # Aqui NO hay skip: A-01..A-12 estan todas implementadas y probadas.
+test_that("las alertas de los pasos 1 a 5 ya tienen sus dos casos", {
+  # Version acotada de la prueba completa: cubre lo que implementan los
+  # planes 01 y 02. Aqui NO hay skip.
   archivos <- list.files(testthat::test_path("."), pattern = "^test-.*\\.R$",
                          full.names = TRUE)
   expect_gt(length(archivos), 1)
 
   texto <- unlist(lapply(archivos, readLines, warn = FALSE))
   cat_al <- catalogo_alertas()
-  codigos <- cat_al$codigo[cat_al$paso <= 3]
+  codigos <- cat_al$codigo[cat_al$paso <= 5]
 
   sin_positivo <- character()
   sin_negativo <- character()
