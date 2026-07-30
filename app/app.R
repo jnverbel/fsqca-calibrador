@@ -24,6 +24,7 @@ suppressPackageStartupMessages({
                     export_all = FALSE)
 })
 
+`%||%` <- function(a, b) if (is.null(a)) b else a
 source(file.path("app", "R", "componentes.R"), local = FALSE)
 source(file.path("app", "R", "paneles.R"), local = FALSE)
 source(file.path("app", "R", "acceso.R"), local = FALSE)
@@ -91,7 +92,12 @@ server <- function(input, output, session) {
     semaforo = NULL,
     analisis = NULL,
     robustez = NULL,
-    obliga_robustez = FALSE
+    obliga_robustez = FALSE,
+    sugerencia = NULL,
+    columna_id = NULL,
+    encuestados = "uno",
+    mismo_cuestionario = FALSE,
+    roles = list()
   )
 
   # --- Modo desarrollo: precarga para poder capturar cualquier paso -----
@@ -265,12 +271,107 @@ server <- function(input, output, session) {
   observeEvent(input$archivo, {
     leido <- try(leer_datos(input$archivo$datapath), silent = TRUE)
     if (inherits(leido, "try-error")) {
-      showNotification("No se pudo leer el archivo.", type = "error")
+      showNotification(
+        paste("No se pudo leer el archivo. Compruebe que es un CSV o un",
+              "Excel y que no esta abierto en otro programa."),
+        type = "error", duration = 8)
       return()
     }
     leido$nombre_archivo <- input$archivo$name
     estado$leido <- leido
     estado$datos <- leido$datos
+    estado$columna_id <- sugerir_columna_id(leido$datos)
+    estado$sugerencia <- sugerir_mapeo(leido$datos, estado$columna_id)
+    # El ultimo grupo suele ser el resultado en los cuestionarios, pero es
+    # una propuesta: el investigador la ve y la corrige.
+    nombres <- names(estado$sugerencia$constructos)
+    estado$roles <- setNames(
+      as.list(c(rep("condicion", max(0, length(nombres) - 1)), "resultado")[
+        seq_along(nombres)]), nombres)
+    estado$mapeo <- NULL
+    estado$bitacora <- nueva_bitacora()
+  })
+
+  # Cambiar la columna de identificador rehace la propuesta: esa columna
+  # deja de ser un item y puede aparecer otro grupo.
+  observeEvent(input$columna_id, {
+    req(estado$datos, input$columna_id)
+    if (identical(input$columna_id, estado$columna_id)) return()
+    estado$columna_id <- input$columna_id
+    estado$sugerencia <- sugerir_mapeo(estado$datos, input$columna_id)
+  })
+
+  observeEvent(input$otro_archivo, {
+    estado$datos <- NULL
+    estado$leido <- NULL
+    estado$sugerencia <- NULL
+    estado$mapeo <- NULL
+    estado$bitacora <- nueva_bitacora()
+  })
+
+  # --- Confirmar el mapeo y correr los tres primeros pasos ---------------
+  observeEvent(input$confirmar_mapeo, {
+    req(estado$datos, estado$sugerencia)
+
+    nombres <- names(estado$sugerencia$constructos)
+    roles <- vapply(nombres, function(n) input[[paste0("rol_", n)]] %||% "condicion",
+                    character(1))
+    etiquetas <- vapply(nombres, function(n) {
+      v <- input[[paste0("nombre_", n)]]
+      if (is.null(v) || !nzchar(trimws(v))) n else trimws(v)
+    }, character(1))
+    estado$roles <- as.list(setNames(roles, nombres))
+
+    usados <- nombres[roles != "fuera"]
+    if (length(usados) == 0) {
+      showNotification("Marque al menos un constructo para usar.",
+                       type = "warning")
+      return()
+    }
+    if (sum(roles == "resultado") != 1) {
+      showNotification(
+        paste("Marque exactamente un constructo como resultado: es el",
+              "fenomeno que el analisis intenta explicar."),
+        type = "warning", duration = 8)
+      return()
+    }
+
+    constructos <- lapply(usados, function(n)
+      list(nombre = etiquetas[[n]], rol = roles[[n]],
+           items = estado$sugerencia$constructos[[n]]))
+
+    m <- try(definir_mapeo(
+      columna_id = input$columna_id %||% estado$columna_id,
+      encuestados_por_caso = input$encuestados %||% "uno",
+      constructos = constructos,
+      resultado_mismo_cuestionario = isTRUE(input$mismo_cuestionario)),
+      silent = TRUE)
+    if (inherits(m, "try-error")) {
+      showNotification(conditionMessage(attr(m, "condition")),
+                       type = "error", duration = 10)
+      return()
+    }
+
+    estado$mapeo <- m
+    estado$encuestados <- m$encuestados_por_caso
+    estado$mismo_cuestionario <- m$resultado_mismo_cuestionario
+    estado$resultado <- etiquetas[[nombres[roles == "resultado"]]]
+
+    # Los tres primeros pasos se ejecutan de una: dependen solo del mapeo.
+    bit <- registrar_alertas(nueva_bitacora(),
+                             diagnosticar_ingesta(estado$datos, m), 1)
+    estado$validacion <- diagnosticar_validacion(estado$datos, m)
+    bit <- registrar_alertas(bit, estado$validacion$alertas, 2)
+    estado$agregacion <- diagnosticar_agregacion(estado$datos, m)
+    bit <- registrar_alertas(bit, estado$agregacion$alertas, 3)
+    estado$bitacora <- bit
+
+    # Anclas de partida para el paso 4. Sin justificar todavia: el paso 4
+    # es donde se justifican, y no se puede pasar de ahi sin hacerlo.
+    condiciones <- setdiff(names(estado$agregacion$casos), m$columna_id)
+    estado$anclas <- setNames(vector("list", length(condiciones)), condiciones)
+
+    if (puede_avanzar(bit, 1)) estado$paso <- 2
   })
 }
 

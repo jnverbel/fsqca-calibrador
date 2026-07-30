@@ -154,8 +154,12 @@ guarda en el proyecto**.
   caso**. La ingesta se construye genérica a propósito: acepta ambos y lee el número de
   condiciones del archivo, sin depender de las respuestas a las preguntas abiertas de la
   sección 9.
-- **Mapeo de ítems a constructos**: una tabla editable ítem → constructo. Los constructos
-  son las condiciones (y posiblemente el resultado) del análisis.
+- **Mapeo de ítems a constructos**: se **propone automáticamente** agrupando los ítems por
+  su prefijo (`ABS1`, `ABS2`… → `ABS`), porque los cuestionarios los nombran así. El
+  investigador revisa la propuesta, renombra si quiere, marca cuál es el resultado y
+  descarta lo que no use. Convierte el paso de teclear un desplegable por columna a
+  corregir una tabla. La columna identificadora también se propone: la primera de texto
+  sin valores repetidos.
 - Declara el rango de la escala (por defecto 1–5) y los códigos de no respuesta.
 - Calcula y guarda la **huella SHA-256** del archivo, su número de filas y columnas, y los
   nombres de columna.
@@ -375,6 +379,13 @@ concentrar las respuestas en 4 y 5. Si tras calibrar más del 85 % de los casos 
 en una condición, esa condición deja de discriminar y **la tabla de verdad resultante es
 degenerada**. El paso ofrece dos salidas: volver al paso 4 y desplazar las anclas (4,5 /
 3,5 / 2,5), o reconocer el efecto por escrito. Ambas quedan en el informe.
+
+**`A-28` cubre los dos extremos, y el segundo lo destapó una encuesta de prueba.** Si casi
+todas las configuraciones son suficientes, no separan nada; pero si **ninguna** lo es, no hay
+nada que minimizar y `QCA::minimize()` aborta con *"None of the values in OUT is
+explained"*. Ese caso aparece de verdad con efecto techo fuerte, y sin la alerta el
+investigador solo vería un error en inglés. `diagnosticar_suficiencia()` recoge el fallo y
+devuelve `minimizacion_posible = FALSE` con su motivo, para que el paso siga vivo.
 
 Sobre `A-25`: se dispara por declaración, no por cálculo — el paso 1 pregunta si el
 resultado sale del mismo cuestionario. Si es así, la recomendación impresa es incorporar

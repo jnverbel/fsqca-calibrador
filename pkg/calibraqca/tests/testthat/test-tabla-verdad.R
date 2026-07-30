@@ -128,3 +128,28 @@ test_that("leer_tabla_verdad evita el bug del guion en las filas no observadas",
   expect_gt(ingenua, 20)     # el "-" de las no observadas se cuela
   expect_lte(correcta, 2)
 })
+
+test_that("A-28 se dispara tambien cuando NINGUNA configuracion es suficiente", {
+  # El extremo contrario al de arriba, y el que aparece de verdad con
+  # efecto techo fuerte: la tabla no tiene ni una fila con resultado 1.
+  # QCA::minimize() aborta ahi con "None of the values in OUT is explained",
+  # asi que sin esta alerta el investigador solo ve un error en ingles.
+  tabla <- data.frame(fila = 1:5, OUT = rep("0", 5),
+                      n = rep(3L, 5), incl = c(0.70, 0.65, 0.60, 0.40, 0.30),
+                      PRI = c(0.5, 0.4, 0.3, 0.2, 0.1),
+                      stringsAsFactors = FALSE)
+
+  alertas <- alertas_tabla_verdad(tabla)
+
+  expect_true("A-28" %in% alertas$codigo)
+  expect_match(alertas$detalle[alertas$codigo == "A-28"], "ninguna|Ninguna")
+})
+
+test_that("A-28 no se dispara con al menos una configuracion suficiente", {
+  tabla <- data.frame(fila = 1:5, OUT = c("1", rep("0", 4)),
+                      n = rep(3L, 5), incl = c(0.90, 0.40, 0.35, 0.30, 0.20),
+                      PRI = c(0.85, 0.2, 0.15, 0.1, 0.05),
+                      stringsAsFactors = FALSE)
+
+  expect_false("A-28" %in% alertas_tabla_verdad(tabla)$codigo)
+})

@@ -137,8 +137,23 @@ alertas_tabla_verdad <- function(tabla) {
     )
   }
 
+  # Una tabla degenerada lo es por CUALQUIERA de los dos extremos: si casi
+  # todas las configuraciones son suficientes no separan nada, y si ninguna
+  # lo es no hay nada que minimizar -- QCA::minimize() aborta ahi con
+  # "None of the values in OUT is explained".
   positivas <- sum(tabla$OUT == "1")
-  if (nrow(tabla) > 0 && positivas / nrow(tabla) > PROPORCION_DEGENERADA) {
+  if (nrow(tabla) > 0 && positivas == 0) {
+    encontradas[[length(encontradas) + 1]] <- alerta(
+      "A-28",
+      detalle = sprintf(paste("Ninguna de las %d configuraciones observadas",
+                              "alcanza el umbral de suficiencia: no hay nada",
+                              "que minimizar. Revise el umbral de",
+                              "consistencia o las anclas: con efecto techo",
+                              "fuerte, todos los casos caen del mismo lado."),
+                        nrow(tabla))
+    )
+  } else if (nrow(tabla) > 0 &&
+             positivas / nrow(tabla) > PROPORCION_DEGENERADA) {
     encontradas[[length(encontradas) + 1]] <- alerta(
       "A-28",
       detalle = sprintf(paste("%d de %d filas observadas tienen resultado 1",
@@ -222,8 +237,23 @@ cobertura_baja <- function(cobertura) {
 }
 
 #' Paso 6, tercera parte.
+#'
+#' Si no hay ninguna configuracion suficiente, QCA::minimize() aborta. Eso
+#' no es un fallo del programa: es un resultado, y A-28 ya lo explica en
+#' castellano. Aqui se recoge para que el paso siga vivo y el investigador
+#' vea el diagnostico en vez de un error en ingles.
 diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
-  soluciones <- minimizar(tt, expectativas)
+  intento <- try(minimizar(tt, expectativas), silent = TRUE)
+  if (inherits(intento, "try-error")) {
+    return(list(
+      soluciones = list(conservadora = NULL, intermedia = NULL,
+                        parsimoniosa = NULL),
+      minimizacion_posible = FALSE,
+      motivo = paste("No se pudo minimizar:",
+                     trimws(conditionMessage(attr(intento, "condition")))),
+      alertas = alerta("A-29")[0, , drop = FALSE]))
+  }
+  soluciones <- intento
   encontradas <- list()
 
   for (nombre in names(soluciones)) {
@@ -246,5 +276,6 @@ diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
     do.call(rbind, encontradas)
   }
 
-  list(soluciones = soluciones, alertas = alertas)
+  list(soluciones = soluciones, alertas = alertas,
+       minimizacion_posible = TRUE, motivo = NA_character_)
 }
