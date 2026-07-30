@@ -1,8 +1,9 @@
 # Especificación — Calibrador fsQCA para datos Likert
 
 **Versión:** 1.1 · **Fecha:** 2026-07-30
-**Estado:** pasos 1 a 8 implementados en `pkg/calibraqca` (373 pruebas, sin skips).
-Falta la interfaz Shiny, el informe Quarto y el despliegue — plan 04.
+**Estado:** completo y funcionando. Motor con 373 pruebas sin `skip`, interfaz Shiny de
+ocho pasos e informe Quarto en HTML y Word. **Se ejecuta en el equipo del investigador**
+(sección 8), con doble clic sobre `Ejecutar-en-Mac.command` o `Ejecutar-en-Windows.bat`.
 **Documento fuente:** `docs/referencias/Propuesta-herramienta-calibracion-fsQCA.pdf`
 
 ---
@@ -852,22 +853,65 @@ casos de prueba.
 
 ---
 
-## 8. Despliegue
+## 8. Despliegue — REVISADO el 2026-07-30
 
-**Contenedor Docker en Fly.io**, con contraseña y HTTPS.
+**La herramienta se ejecuta en el equipo del investigador.** No hay servidor.
 
-**Por qué no las alternativas:**
-- **Docker local:** el investigador trabaja solo; cada tropiezo dependería de la
-  disponibilidad de Javier.
-- **shinyapps.io:** la autenticación real está en un plan caro.
+Esto **invierte la decisión original**, que era un contenedor en Fly.io. Conviene dejar
+claro por qué se descartó entonces lo local y qué cambió:
 
-Al ser un contenedor, mudarlo a Cloud Run, a un VPS o a la máquina del investigador es un
-detalle de despliegue, no un rediseño.
+> El argumento en contra era que el investigador trabaja solo, y que ante cada tropiezo
+> —un contenedor que no arranca, un puerto ocupado— dependería de la disponibilidad de
+> Javier. **Ese riesgo sigue siendo real.** Lo que cambió no es el diagnóstico sino la
+> mitigación: en vez de pedirle que instale Docker y ejecute comandos, se le entrega un
+> archivo que abre con doble clic, con todos los mensajes en español y diciendo qué hacer
+> ante cada fallo previsible.
 
-**El servidor no persiste nada.** Los datos suben, se procesan en memoria y se van con la
-sesión. El único artefacto que sobrevive es el que el investigador descarga.
+A favor de lo local, y pesa: **los datos de la encuesta nunca salen de su equipo**, no hay
+costo mensual, y no hay una URL que alguien pueda encontrar.
 
----
+### Cómo arranca
+
+| Sistema | Archivo | Qué hace |
+|---|---|---|
+| Windows | `Ejecutar-en-Windows.bat` | busca R, instala paquetes la primera vez, abre el navegador |
+| macOS | `Ejecutar-en-Mac.command` | lo mismo, y detecta si faltan las Xcode Command Line Tools |
+
+Único requisito previo: **instalar R una vez**, desde el instalador oficial de CRAN. Las
+instrucciones para el investigador están en `INSTALAR.md`, escritas sin jerga.
+
+### El repositorio de paquetes es un snapshot con fecha, y no es un detalle
+
+`renv.lock` apunta a **`https://packagemanager.posit.co/cran/2026-07-30`**, no a CRAN.
+
+CRAN solo sirve como binario la **última** versión de cada paquete. En cuanto `QCA` pase
+de 3.25 a 3.26, un `renv::restore()` en Windows no encontraría el binario de la versión
+clavada e intentaría **compilar desde fuente**, lo que exige instalar Rtools; compilar
+`lavaan`, `stringi` o `Matrix` sin él falla en seco. El snapshot con fecha congela el
+estado del repositorio y sirve binarios de las versiones exactas del lockfile.
+
+Verificado: el snapshot declara `QCA 3.25` y entrega su binario de Windows.
+
+En macOS el snapshot entrega código fuente. Los paquetes de R puro se instalan igual; para
+los que llevan C hacen falta las Xcode Command Line Tools, y el guion de arranque lo
+detecta y explica cómo instalarlas.
+
+### Acceso
+
+`CLAVE_APP` protege la aplicación cuando escucha fuera de `127.0.0.1`. **En local no se
+usa**: la app solo escucha en loopback, así que no hay a quién proteger, y el aviso de
+"aplicación abierta" solo aparece si se expone a la red. Sacarlo en local sería alarmar
+sin motivo.
+
+### El contenedor sigue existiendo
+
+`Dockerfile` y `fly.toml` se conservan. Publicar en Fly.io queda a un `flyctl deploy
+--remote-only` de distancia si más adelante hiciera falta —por ejemplo, si el investigador
+cambia de equipo a menudo o quiere trabajar desde varios sitios—. Al ser un contenedor,
+mudarlo a Cloud Run o a un VPS es un detalle de despliegue, no un rediseño.
+
+**El servidor no persiste nada**, se ejecute donde se ejecute. Los datos se procesan en
+memoria y desaparecen al cerrar. Lo único que sobrevive es lo que el investigador descarga.
 
 ## 9. Preguntas abiertas
 
