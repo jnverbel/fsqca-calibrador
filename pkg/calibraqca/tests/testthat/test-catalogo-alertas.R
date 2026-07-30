@@ -53,9 +53,7 @@ test_that("toda alerta del catalogo tiene un caso que la dispara y uno que no", 
 
 test_that("las alertas de los pasos 1 a 3 ya tienen sus dos casos", {
   # Version acotada de la prueba anterior: cubre lo que implementa el plan 01.
-  # El skip se retira en la Tarea 6, cuando A-01..A-12 estan todas probadas.
-  skip("se retira al terminar la Tarea 6 (agregacion)")
-
+  # Aqui NO hay skip: A-01..A-12 estan todas implementadas y probadas.
   archivos <- list.files(testthat::test_path("."), pattern = "^test-.*\\.R$",
                          full.names = TRUE)
   expect_gt(length(archivos), 1)

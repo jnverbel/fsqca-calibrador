@@ -103,14 +103,17 @@ test_that("A-06 no se dispara con fiabilidad buena", {
   expect_false("A-06" %in% diagnosticar_validacion(d, mapeo_val())$alertas$codigo)
 })
 
-test_that("A-07 se dispara en la franja dudosa, y no se dispara fuera de ella", {
+test_that("A-07 se dispara en la franja dudosa de fiabilidad", {
   # El escenario se controla dando el alfa directamente, sin usar
   # diagnosticar_validacion para fabricarlo.
   expect_identical(clasificar_alfa(0.74), "A-07")
   expect_identical(clasificar_alfa(0.70), "A-07")   # el limite entra en la franja
-  expect_identical(clasificar_alfa(0.62), "A-06")
+})
+
+test_that("A-07 no se dispara fuera de la franja dudosa", {
+  expect_identical(clasificar_alfa(0.62), "A-06")   # por debajo: es A-06
   expect_identical(clasificar_alfa(0.88), NA_character_)
-  expect_identical(clasificar_alfa(0.80), NA_character_)
+  expect_identical(clasificar_alfa(0.80), NA_character_)  # el limite sale
 })
 
 test_that("A-08 se dispara con un item que resta", {
