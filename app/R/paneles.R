@@ -199,44 +199,74 @@ panel_agregacion <- function(e) {
 # --- Paso 4, el corazon ------------------------------------------------
 
 panel_calibracion <- function(e) {
-  if (is.null(e$membresias)) return(panel_en_construccion(4))
-  condiciones <- setdiff(names(e$membresias), e$mapeo$columna_id)
+  if (is.null(e$agregacion)) {
+    return(shiny::tagList(
+      ui_encabezado(4, "Antes hay que cargar un archivo y confirmar el mapeo."),
+      shiny::tags$p(class = "ayuda", "Vuelva al paso 1.")))
+  }
+  condiciones <- setdiff(names(e$agregacion$casos), e$mapeo$columna_id)
 
   shiny::tagList(
     ui_encabezado(4, paste(
       "Fije las tres anclas de cada condicion y justifique de donde salen.",
       "Esta es la decision que se defiende ante el jurado, y sale impresa",
       "en el informe tal como la escriba.")),
+
     lapply(condiciones, function(cond) {
-      anclas <- e$anclas[[cond]]
+      b <- e$borrador[[cond]]
+      if (is.null(b)) b <- list(plena = 4, cruce = 3, nula = 2,
+                                fuente = "teoria", justificacion = "")
+      # La membresia se calcula con el borrador, sin exigir justificacion:
+      # ver el efecto de mover un ancla no puede depender de haber escrito
+      # el texto todavia.
+      membresia <- try(calibrar(e$agregacion$casos[[cond]], b), silent = TRUE)
+
       shiny::tags$div(
         class = "condicion",
         shiny::tags$h3(cond),
         shiny::fluidRow(
           shiny::column(4, shiny::sliderInput(
-            paste0("plena_", cond), "Pertenencia plena", 1, 5,
-            anclas$plena, step = 0.1)),
+            paste0("plena_", cond), "Pertenencia plena", 1, 5, b$plena,
+            step = 0.1)),
           shiny::column(4, shiny::sliderInput(
-            paste0("cruce_", cond), "Punto de cruce", 1, 5,
-            anclas$cruce, step = 0.1)),
+            paste0("cruce_", cond), "Punto de cruce", 1, 5, b$cruce,
+            step = 0.1)),
           shiny::column(4, shiny::sliderInput(
-            paste0("nula_", cond), "No pertenencia", 1, 5,
-            anclas$nula, step = 0.1))
-        ),
-        ui_tira_membresia(e$membresias[[cond]], "Membresia calibrada"),
+            paste0("nula_", cond), "No pertenencia", 1, 5, b$nula,
+            step = 0.1))),
+
+        if (inherits(membresia, "try-error")) {
+          shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                        paste("Las anclas tienen que ir en orden:",
+                              "no pertenencia < cruce < pertenencia plena."))
+        } else {
+          ui_tira_membresia(membresia, "Membresia calibrada")
+        },
+
         shiny::tags$div(
           class = "justificacion", style = "margin-top:18px",
-          shiny::tags$span(class = "etiqueta",
-                           sprintf("Fuente: %s · justificacion",
-                                   anclas$fuente)),
-          shiny::tags$textarea(rows = 3, id = paste0("just_", cond),
-                               anclas$justificacion),
+          shiny::selectInput(paste0("fuente_", cond), "Fuente del ancla",
+                             choices = stats::setNames(FUENTES_ANCLA,
+                                                       FUENTES_ANCLA),
+                             selected = b$fuente, width = "260px"),
+          shiny::tags$span(class = "etiqueta", "Justificacion"),
+          shiny::tags$textarea(
+            id = paste0("just_", cond), rows = 3,
+            placeholder = "De donde sale este umbral y por que. Sale integro en el anexo.",
+            b$justificacion),
           shiny::tags$p(class = "ayuda", paste(
-            "Sale integra en el anexo. Es lo primero que revisa un evaluador",
-            "con experiencia en el metodo."))
-        )
-      )
-    })
+            "Minimo 30 caracteres. Es lo primero que revisa un evaluador",
+            "con experiencia en el metodo."))))
+    }),
+
+    shiny::tags$div(
+      style = "margin-top:8px",
+      shiny::actionButton("confirmar_calibracion",
+                          "Confirmar anclas y diagnosticar", class = "btn"),
+      shiny::tags$p(class = "ayuda", style = "margin-top:8px",
+                    paste("Al confirmar se comprueban las anclas, se corrigen",
+                          "los casos en 0,50 exacto y se registran las",
+                          "alertas del paso.")))
   )
 }
 
@@ -327,6 +357,10 @@ panel_analisis <- function(e) {
 
     shiny::tags$h3(class = "etiqueta", style = "margin-top:26px",
                    "Soluciones"),
+    if (isFALSE(e$analisis$suficiencia$minimizacion_posible)) {
+      shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                    e$analisis$suficiencia$motivo)
+    } else NULL,
     lapply(names(sol), function(nombre) {
       s <- sol[[nombre]]
       if (is.null(s)) return(NULL)
@@ -382,7 +416,10 @@ panel_exportacion <- function(e) {
       "Cuatro artefactos: la tabla de calibracion para el anexo, la base",
       "calibrada, el informe y el guion de R que reproduce todo desde el",
       "archivo crudo.")),
-    if (length(e$anclas) > 0) {
+    # Sin anclas confirmadas no hay tabla que enseñar. Antes esto reventaba
+    # con "values must be length 1, but FUN(X[[1]]) result is length 0",
+    # porque la lista existia pero con NULL dentro.
+    if (length(e$anclas) > 0 && !any(vapply(e$anclas, is.null, logical(1)))) {
       tabla <- tabla_calibracion(e$anclas, idm = 0.95)
       shiny::tagList(
         shiny::tags$h3(class = "etiqueta", "Tabla de calibracion"),
@@ -402,7 +439,12 @@ panel_exportacion <- function(e) {
               shiny::tags$td(style = "font-family:var(--serif);max-width:46ch",
                              tabla$justificacion[i]))
           }))))
-    } else NULL,
+    } else {
+      shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                    paste("Todavia no hay anclas confirmadas. Vuelva al paso 4,",
+                          "fije las anclas de cada condicion, escriba su",
+                          "justificacion y pulse Confirmar."))
+    },
     shiny::tags$div(
       style = "display:flex;gap:12px;margin-top:24px;flex-wrap:wrap",
       shiny::downloadButton("bajar_proyecto", "Proyecto (.json)",

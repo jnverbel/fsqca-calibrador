@@ -94,6 +94,8 @@ server <- function(input, output, session) {
     robustez = NULL,
     obliga_robustez = FALSE,
     sugerencia = NULL,
+    borrador = list(),
+    resultado = NULL,
     columna_id = NULL,
     encuestados = "uno",
     mismo_cuestionario = FALSE,
@@ -162,7 +164,25 @@ server <- function(input, output, session) {
 
   # --- Navegacion -------------------------------------------------------
 
-  puede <- reactive(puede_avanzar(estado$bitacora, estado$paso))
+  # La bitacora sola no basta para dejar avanzar: si un paso todavia no se
+  # ha EJECUTADO no ha disparado alertas, y la compuerta lo daria por
+  # superado. Eso permitia pasar del 4 al 5 sin haber confirmado ni una
+  # sola ancla.
+  requisito_pendiente <- reactive({
+    switch(as.character(estado$paso),
+      "1" = if (is.null(estado$mapeo))
+        "Confirme el mapeo de items a constructos para continuar." else NULL,
+      "4" = if (length(estado$anclas) == 0)
+        paste("Fije las anclas de cada condicion, escriba su justificacion",
+              "y pulse Confirmar anclas.") else NULL,
+      "5" = if (is.null(estado$semaforo))
+        "El semaforo se calcula al confirmar las anclas del paso 4." else NULL,
+      NULL)
+  })
+
+  puede <- reactive({
+    is.null(requisito_pendiente()) && puede_avanzar(estado$bitacora, estado$paso)
+  })
   pendientes <- reactive(alertas_pendientes(estado$bitacora, estado$paso))
 
   observeEvent(input$siguiente, {
@@ -204,6 +224,7 @@ server <- function(input, output, session) {
     req(autorizado())
     estados <- vapply(seq_along(PASOS), function(i) {
       if (i > estado$paso) "pendiente"
+      else if (i == estado$paso && !is.null(requisito_pendiente())) "frenado"
       else if (!puede_avanzar(estado$bitacora, i)) "frenado"
       else "hecho"
     }, character(1))
@@ -216,7 +237,8 @@ server <- function(input, output, session) {
   })
   output$panel_pie <- renderUI({
     req(autorizado())
-    ui_pie(estado$paso, puede(), pendientes(), CATALOGO)
+    ui_pie(estado$paso, puede(), pendientes(), CATALOGO,
+           requisito = requisito_pendiente())
   })
 
   output$panel_paso <- renderUI({
@@ -235,16 +257,94 @@ server <- function(input, output, session) {
     )
   })
 
+  # --- Paso 4: borrador de anclas y confirmacion ------------------------
+
+  observe({
+    req(estado$borrador, length(estado$borrador) > 0)
+    for (cond in names(estado$borrador)) {
+      nuevos <- list(
+        plena = input[[paste0("plena_", cond)]],
+        cruce = input[[paste0("cruce_", cond)]],
+        nula = input[[paste0("nula_", cond)]],
+        fuente = input[[paste0("fuente_", cond)]],
+        justificacion = input[[paste0("just_", cond)]])
+      for (campo in names(nuevos)) {
+        v <- nuevos[[campo]]
+        if (!is.null(v) && !identical(v, estado$borrador[[cond]][[campo]])) {
+          estado$borrador[[cond]][[campo]] <- v
+        }
+      }
+    }
+  })
+
+  observeEvent(input$confirmar_calibracion, {
+    req(estado$agregacion, length(estado$borrador) > 0)
+
+    anclas <- list()
+    for (cond in names(estado$borrador)) {
+      b <- estado$borrador[[cond]]
+      a <- try(definir_anclas(b$plena, b$cruce, b$nula, b$fuente,
+                              b$justificacion %||% ""), silent = TRUE)
+      if (inherits(a, "try-error")) {
+        showNotification(
+          paste0(cond, ": ", conditionMessage(attr(a, "condition"))),
+          type = "warning", duration = 10)
+        return()
+      }
+      anclas[[cond]] <- a
+    }
+
+    cal <- diagnosticar_calibracion(estado$agregacion$casos, anclas,
+                                    estado$mapeo$columna_id)
+    estado$anclas <- anclas
+    estado$membresias <- cal$membresias
+    estado$obliga_robustez <- cal$obliga_robustez
+    estado$bitacora <- registrar_alertas(estado$bitacora, cal$alertas, 4)
+
+    estado$semaforo <- diagnosticar_semaforo(
+      cal$membresias, estado$mapeo$columna_id,
+      isTRUE(estado$mapeo$resultado_mismo_cuestionario))
+    estado$bitacora <- registrar_alertas(estado$bitacora,
+                                         estado$semaforo$alertas, 5)
+
+    showNotification("Anclas confirmadas. Revise el semaforo.",
+                     type = "message", duration = 5)
+  })
+
+  # --- Paso 6: el analisis se calcula al llegar -------------------------
+
+  observeEvent(estado$paso, {
+    if (estado$paso != 6) return()
+    req(estado$membresias, estado$resultado)
+    if (!is.null(estado$analisis)) return()
+
+    condiciones <- setdiff(names(estado$membresias),
+                           c(estado$mapeo$columna_id, estado$resultado))
+    if (length(condiciones) == 0) return()
+
+    nec <- diagnosticar_necesidad(estado$membresias, estado$resultado,
+                                  condiciones)
+    tt <- construir_tabla_verdad(estado$membresias, estado$resultado,
+                                 condiciones)
+    tabla <- leer_tabla_verdad(tt)
+    suf <- diagnosticar_suficiencia(tt)
+    estado$analisis <- list(necesidad = nec, tabla_verdad = tabla,
+                            suficiencia = suf)
+    estado$bitacora <- registrar_alertas(
+      estado$bitacora,
+      rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas), 6)
+  })
+
   # --- Informe ----------------------------------------------------------
   # Se compone en R, sin Quarto: el equipo del investigador no lo tiene.
   informe_actual <- reactive({
-    req(estado$membresias, length(estado$anclas) > 0)
+    req(estado$membresias, length(estado$anclas) > 0, estado$resultado)
     reunir_informe(
       datos = estado$datos, mapeo = estado$mapeo, anclas = estado$anclas,
       bitacora = estado$bitacora,
       umbrales = list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
                       consistencia = 0.80, pri = 0.70),
-      resultado = "INNOV", leido = estado$leido)
+      resultado = estado$resultado, leido = estado$leido)
   })
 
   output$vista_informe <- renderUI({
@@ -366,10 +466,18 @@ server <- function(input, output, session) {
     bit <- registrar_alertas(bit, estado$agregacion$alertas, 3)
     estado$bitacora <- bit
 
-    # Anclas de partida para el paso 4. Sin justificar todavia: el paso 4
-    # es donde se justifican, y no se puede pasar de ahi sin hacerlo.
+    # Borrador de anclas para el paso 4. Son valores de partida SIN
+    # justificar: el paso 4 es donde se justifican, y definir_anclas() no
+    # deja construir un ancla sin texto. Por eso el borrador es una lista
+    # simple y solo se convierte en anclas al confirmar.
     condiciones <- setdiff(names(estado$agregacion$casos), m$columna_id)
-    estado$anclas <- setNames(vector("list", length(condiciones)), condiciones)
+    estado$borrador <- setNames(lapply(condiciones, function(x)
+      list(plena = 4, cruce = 3, nula = 2, fuente = "teoria",
+           justificacion = "")), condiciones)
+    estado$anclas <- list()
+    estado$membresias <- NULL
+    estado$semaforo <- NULL
+    estado$analisis <- NULL
 
     if (puede_avanzar(bit, 1)) estado$paso <- 2
   })
