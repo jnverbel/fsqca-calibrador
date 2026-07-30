@@ -111,3 +111,52 @@ comparar_huella <- function(proyecto, huella_actual) {
     )
   )
 }
+
+#' Arma el archivo de proyecto desde el estado de una sesion.
+#'
+#' Vive en el motor y no en la aplicacion porque es la pieza que decide
+#' QUE se conserva del trabajo del investigador. Lo que no entre aqui, se
+#' pierde al cerrar; y lo que entre de mas, sale del equipo cuando el
+#' archivo se envia por correo. Merece pruebas.
+construir_proyecto <- function(leido, mapeo, anclas, bitacora, umbrales,
+                               resultado, idm = IDM_POR_DEFECTO,
+                               correccion = NULL, robustez = NULL,
+                               fecha = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ",
+                                              tz = "UTC")) {
+  p <- nuevo_proyecto(fecha = fecha)
+
+  p$datos$nombre_archivo <- leido$nombre_archivo
+  p$datos$huella_sha256 <- leido$huella_sha256
+  p$datos$n_filas <- leido$n_filas
+  p$datos$n_columnas <- leido$n_columnas
+  p$datos$nombres_columnas <- leido$nombres_columnas
+  p$datos$resultado_autorreportado_mismo_cuestionario <-
+    isTRUE(mapeo$resultado_mismo_cuestionario)
+
+  constructos <- data.frame(
+    nombre = vapply(mapeo$constructos, function(x) x$nombre, character(1)),
+    rol = vapply(mapeo$constructos, function(x) x$rol, character(1)),
+    stringsAsFactors = FALSE)
+  constructos$items <- lapply(mapeo$constructos, function(x) x$items)
+  p$mapeo <- list(columna_id = mapeo$columna_id,
+                  encuestados_por_caso = mapeo$encuestados_por_caso,
+                  constructos = constructos)
+
+  p$calibracion$idm <- idm
+  p$calibracion$correccion_050 <- list(
+    aplicada = length(unlist(correccion)) > 0,
+    casos = as.character(unlist(correccion)))
+  p$calibracion$condiciones <- lapply(anclas, function(a)
+    list(anclas = list(plena = a$plena, cruce = a$cruce, nula = a$nula),
+         fuente = a$fuente, justificacion = a$justificacion))
+
+  p$analisis <- list(resultado = resultado, umbrales = umbrales)
+  p$robustez <- if (is.null(robustez)) {
+    list(ejecutado = FALSE, escenarios = list())
+  } else robustez
+  p$alertas <- bitacora
+  p$entorno$paquetes <- list(
+    QCA = tryCatch(as.character(utils::packageVersion("QCA")),
+                   error = function(e) NA_character_))
+  p
+}
