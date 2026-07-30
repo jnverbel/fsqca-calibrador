@@ -37,3 +37,9 @@ informe/*.docx
 # --- Sistema ---
 .DS_Store
 *.log
+
+**/*.quarto_ipynb
+
+# --- Quarto: los renders se regeneran, no se versionan ---
+informe/informe.html
+informe/informe.docx

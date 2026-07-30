@@ -1,0 +1,362 @@
+---
+title: "Calibración difusa de escalas Likert para fsQCA"
+subtitle: "Anexo metodológico reproducible"
+lang: es
+date: today
+date-format: long
+params:
+  proyecto: "informe/ejemplo/proyecto.json"
+  datos: "pkg/calibraqca/tests/testthat/datos/limpia.csv"
+format:
+  html:
+    toc: true
+    toc-title: Contenido
+    number-sections: true
+    theme: none
+    css: informe.css
+    embed-resources: true
+  docx:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: preparacion
+pkgload::load_all("pkg/calibraqca", quiet = TRUE, export_all = FALSE)
+
+proyecto <- cargar_proyecto(params$proyecto)
+leido <- leer_datos(params$datos)
+datos <- leido$datos
+
+# El mapeo, las anclas y los umbrales salen del archivo de proyecto, no de
+# este documento: si un numero del informe no se puede rastrear hasta un
+# campo del JSON, es un defecto.
+mapeo <- definir_mapeo(
+  columna_id = proyecto$mapeo$columna_id,
+  encuestados_por_caso = proyecto$mapeo$encuestados_por_caso,
+  constructos = lapply(seq_len(nrow(proyecto$mapeo$constructos)), function(i) {
+    fila <- proyecto$mapeo$constructos[i, ]
+    list(nombre = fila$nombre, rol = fila$rol,
+         items = unlist(fila$items))
+  }),
+  resultado_mismo_cuestionario =
+    isTRUE(proyecto$datos$resultado_autorreportado_mismo_cuestionario))
+
+anclas <- lapply(proyecto$calibracion$condiciones, function(a)
+  definir_anclas(a$anclas$plena, a$anclas$cruce, a$anclas$nula,
+                 a$fuente, a$justificacion))
+idm <- proyecto$calibracion$idm
+umbrales <- proyecto$analisis$umbrales
+resultado <- proyecto$analisis$resultado
+condiciones <- setdiff(names(anclas), resultado)
+
+validacion <- diagnosticar_validacion(datos, mapeo)
+agregacion <- diagnosticar_agregacion(datos, mapeo)
+calibracion <- diagnosticar_calibracion(agregacion$casos, anclas,
+                                        mapeo$columna_id, idm = idm)
+membresias <- calibracion$membresias
+semaforo <- diagnosticar_semaforo(membresias, mapeo$columna_id,
+                                  mapeo$resultado_mismo_cuestionario)
+necesidad <- diagnosticar_necesidad(membresias, resultado, condiciones)
+tt <- construir_tabla_verdad(membresias, resultado, condiciones,
+                             consistencia = umbrales$consistencia,
+                             pri = umbrales$pri,
+                             frecuencia = umbrales$frecuencia)
+tabla_tv <- leer_tabla_verdad(tt)
+suficiencia <- diagnosticar_suficiencia(tt)
+bitacora <- proyecto$alertas
+catalogo <- catalogo_alertas()
+
+tabla_kable <- function(x, ...) knitr::kable(x, ...)
+```
+
+## Ficha de reproducibilidad
+
+```{r}
+#| label: ficha
+paquetes <- c("QCA", "SetMethods", "psych", "multilevel", "lavaan", "NCA")
+versiones <- vapply(paquetes, function(p)
+  tryCatch(as.character(utils::packageVersion(p)),
+           error = function(e) "no instalado"), character(1))
+
+tabla_kable(data.frame(
+  Elemento = c("Versión de R", "Archivo de datos", "Huella SHA-256",
+               "Casos", "Grado de inclusión (`idm`)",
+               paste("Paquete", paquetes)),
+  Valor = c(proyecto$entorno$r_version,
+            proyecto$datos$nombre_archivo,
+            substr(proyecto$datos$huella_sha256, 1, 32),
+            format(nrow(agregacion$casos)),
+            format(idm),
+            versiones)))
+```
+
+::: {.callout-note}
+El argumento `idm` de `QCA::calibrate()` parametriza el grado de inclusión que define
+la pertenencia plena. Su valor por defecto es 0,95, y **es la razón por la que puede
+haber diferencias en el tercer decimal frente al programa fs/QCA de Ragin**. Se declara
+aquí para que los resultados sean reproducibles por terceros.
+:::
+
+```{r}
+#| label: huella
+huella_actual <- leido$huella_sha256
+comparacion <- comparar_huella(proyecto, huella_actual)
+```
+
+`r if (!comparacion$coincide) paste("**Advertencia.**", comparacion$mensaje)`
+
+## Muestra y mapeo de ítems
+
+```{r}
+#| label: mapeo
+tabla_kable(data.frame(
+  Constructo = vapply(mapeo$constructos, function(x) x$nombre, character(1)),
+  Rol = vapply(mapeo$constructos, function(x) x$rol, character(1)),
+  Ítems = vapply(mapeo$constructos,
+                 function(x) paste(x$items, collapse = ", "), character(1)),
+  N = vapply(mapeo$constructos, function(x) length(x$items), integer(1))))
+```
+
+La calibración opera sobre el **promedio de los ítems de cada constructo**, no sobre
+ítems individuales. Un ítem Likert de cinco puntos genera únicamente cinco valores
+posibles: calibrar sobre él produce empates masivos entre casos y deja las anclas sin
+margen de maniobra.
+
+## Validación de medida
+
+```{r}
+#| label: fiabilidad
+filas <- lapply(names(validacion$resultados), function(nom) {
+  v <- validacion$resultados[[nom]]
+  data.frame(Constructo = nom,
+             Alfa = sprintf("%.3f", v$alfa),
+             `IC 95 %` = if (anyNA(v$alfa_ic)) "—" else
+               sprintf("[%.2f, %.2f]", v$alfa_ic[1], v$alfa_ic[2]),
+             `Ítem-total mínima` = sprintf("%.2f", min(v$item_total, na.rm = TRUE)),
+             check.names = FALSE)
+})
+tabla_kable(do.call(rbind, filas))
+```
+
+```{r}
+#| label: cfa
+#| results: asis
+if (!is.null(validacion$cfa) && !validacion$cfa$viable) {
+  cat("**Factorial confirmatorio.** ", validacion$cfa$motivo,
+      " Se omite explícitamente en lugar de presentar un modelo que no ajusta.\n",
+      sep = "")
+}
+```
+
+## Agregación
+
+```{r}
+#| label: agregacion
+tabla_kable(data.frame(
+  Constructo = condiciones,
+  Mínimo = sprintf("%.2f", vapply(condiciones, function(c)
+    min(agregacion$casos[[c]], na.rm = TRUE), numeric(1))),
+  Mediana = sprintf("%.2f", vapply(condiciones, function(c)
+    stats::median(agregacion$casos[[c]], na.rm = TRUE), numeric(1))),
+  Máximo = sprintf("%.2f", vapply(condiciones, function(c)
+    max(agregacion$casos[[c]], na.rm = TRUE), numeric(1))),
+  `Sin dato` = vapply(condiciones, function(c)
+    sum(is.na(agregacion$casos[[c]])), integer(1)),
+  check.names = FALSE, row.names = NULL))
+```
+
+## Tabla de calibración
+
+Es la pieza central del anexo, y lo primero que revisa un evaluador con experiencia en
+el método. Cada fila declara las tres anclas de una condición, de dónde salen y por qué.
+
+```{r}
+#| label: calibracion
+tc <- tabla_calibracion(anclas, idm = idm)
+tabla_kable(data.frame(
+  Condición = tc$condicion,
+  `Plena` = sprintf("%.2f", tc$plena),
+  `Cruce` = sprintf("%.2f", tc$cruce),
+  `Nula` = sprintf("%.2f", tc$nula),
+  Fuente = tc$fuente,
+  check.names = FALSE))
+```
+
+### Justificación de cada ancla
+
+```{r}
+#| label: justificaciones
+#| results: asis
+for (i in seq_len(nrow(tc))) {
+  # Integra, sin recortar: es la decision que se defiende ante el jurado.
+  cat("**", tc$condicion[i], "** (", tc$fuente[i], "). ",
+      tc$justificacion[i], "\n\n", sep = "")
+}
+```
+
+## Diagnósticos
+
+```{r}
+#| label: alertas
+#| results: asis
+if (nrow(bitacora) == 0) {
+  cat("No se disparó ninguna alerta.\n")
+} else {
+  orden <- order(match(bitacora$severidad,
+                       c("bloqueante", "advertencia", "informativa")))
+  for (i in orden) {
+    a <- bitacora[i, ]
+    titulo <- catalogo$titulo[match(a$codigo, catalogo$codigo)]
+    cat("**", a$codigo, " · ", titulo,
+        if (nzchar(a$contexto)) paste0(" (", a$contexto, ")") else "",
+        "** — ", a$severidad, ". ", a$detalle, "\n\n", sep = "")   # sep="" es
+    # correcto aqui: cada pieza ya trae su espacio o su puntuacion.
+    if (identical(a$estado, "reconocida") && !is.na(a$nota)) {
+      # La nota sale INTEGRA. Es la razon de ser de la compuerta: se puede
+      # avanzar con un problema, pero no en silencio.
+      cat("> *Reconocida por escrito:* ", a$nota, "\n\n", sep = "")
+    } else if (identical(a$estado, "resuelta")) {
+      cat("> *Resuelta:* dejó de dispararse tras corregir el paso.\n\n")
+    }
+  }
+}
+```
+
+## Análisis
+
+### Condiciones necesarias
+
+```{r}
+#| label: necesidad
+tabla_kable(data.frame(
+  Condición = necesidad$tabla$condicion,
+  Consistencia = sprintf("%.3f", necesidad$tabla$consistencia),
+  RoN = sprintf("%.3f", necesidad$tabla$ron),
+  Cobertura = sprintf("%.3f", necesidad$tabla$cobertura)))
+```
+
+Se reporta la **cobertura de relevancia (RoN)** junto a la consistencia: una condición
+necesaria trivial tiene consistencia alta y RoN baja, porque está presente en casi todos
+los casos, tengan o no el resultado.
+
+### Tabla de verdad
+
+Umbrales declarados: frecuencia mínima `r umbrales$frecuencia`, consistencia
+`r format(umbrales$consistencia)`, **consistencia PRI `r format(umbrales$pri)`**.
+
+```{r}
+#| label: tabla-verdad
+tabla_kable(data.frame(
+  Fila = tabla_tv$fila,
+  Resultado = tabla_tv$OUT,
+  Casos = tabla_tv$n,
+  Consistencia = sprintf("%.3f", tabla_tv$incl),
+  PRI = sprintf("%.3f", tabla_tv$PRI)))
+```
+
+El PRI se reporta siempre. Es el umbral que con más frecuencia se omite, y el que evita
+relaciones de subconjunto simultáneas.
+
+### Suficiencia
+
+```{r}
+#| label: soluciones
+#| results: asis
+for (nombre in names(suficiencia$soluciones)) {
+  s <- suficiencia$soluciones[[nombre]]
+  if (is.null(s)) {
+    cat("**Solución ", nombre, ".** No se produjo: exige expectativas",
+        " direccionales, y no se declararon.\n\n", sep = "")
+    next
+  }
+  cat("**Solución ", nombre, ".** `", paste(s$terminos, collapse = " + "),
+      "`\n\n", sep = "")
+  cat("Consistencia ", sprintf("%.3f", s$ajuste$consistencia),
+      " · PRI ", sprintf("%.3f", s$ajuste$pri),
+      " · cobertura ", sprintf("%.3f", s$ajuste$cobertura), "\n\n", sep = "")
+}
+```
+
+Se presentan las tres soluciones. Mostrar solo una es una de las observaciones
+habituales de los evaluadores.
+
+## Robustez
+
+```{r}
+#| label: robustez
+#| results: asis
+if (isTRUE(proyecto$robustez$ejecutado)) {
+  cat("Se ejecutaron ", length(proyecto$robustez$escenarios),
+      " escenarios alternativos de anclas.\n\n", sep = "")
+} else {
+  cat("**No se ejecutó el análisis de robustez.**",
+      if (isTRUE(calibracion$obliga_robustez))
+        paste("Las anclas salen de la distribución muestral, así que este",
+              "análisis era obligatorio; su ausencia es una limitación del",
+              "estudio.")
+      else
+        paste("Las anclas provienen de fuentes teóricas o normativas, no de",
+              "la distribución de la muestra."), "\n\n")
+}
+```
+
+## Declaraciones obligatorias
+
+```{r}
+#| label: declaraciones
+#| results: asis
+# Los parrafos se arman con paste() y se emiten de una sola pieza. Con
+# cat(..., sep = "") las lineas del codigo fuente se pegaban entre si y
+# salia "monotonacreciente"; con sep = " " sobraba espacio antes de los
+# signos de puntuacion.
+emitir <- function(...) cat(paste0(paste(...), "\n\n"))
+
+afectados <- unlist(calibracion$correccion)
+if (length(afectados) > 0) {
+  emitir("**Corrección del punto de cruce.** Todo caso con pertenencia",
+         "exactamente igual a 0,50 queda excluido de los análisis de necesidad",
+         "y de suficiencia. Se sumó 0,001 a esos valores. Casos afectados:",
+         paste0(paste(unique(afectados), collapse = ", "), "."))
+} else {
+  emitir("**Corrección del punto de cruce.** Ningún caso quedó en 0,50 exacto.")
+}
+
+rhos <- vapply(calibracion$orden, function(o) o$rho, numeric(1))
+emitir("**Control de validez.** La calibración directa es una transformación",
+       "monótona creciente del promedio, de modo que **no reordena los casos**:",
+       "el rho de Spearman entre la membresía y el promedio crudo vale",
+       paste0(paste(sprintf("%.4f", rhos), collapse = ", "), "."),
+       "Su aporte no es un orden nuevo, sino el umbral formal y la lectura en",
+       "términos de pertenencia a un conjunto. Se reporta con honestidad en",
+       "lugar de presentar un orden distinto que no existe.")
+
+if (isTRUE(mapeo$resultado_mismo_cuestionario)) {
+  emitir("**Sesgo de método común.** El resultado es autorreportado y proviene",
+         "del mismo cuestionario que las condiciones. Se incorpora una prueba",
+         "de sesgo de método común al capítulo metodológico.")
+}
+```
+
+## Referencias
+
+```{r}
+#| label: referencias
+#| results: asis
+for (p in c("QCA", "SetMethods", "psych", "multilevel", "NCA")) {
+  ok <- requireNamespace(p, quietly = TRUE)
+  if (!ok) next
+  cit <- utils::capture.output(print(utils::citation(p), style = "text"))
+  cit <- cit[nzchar(trimws(cit))]
+  cat("- ", paste(trimws(cit), collapse = " "), "\n", sep = "")
+}
+```
+
+Obras metodológicas de referencia: Ragin (2008) para la calibración directa; Schneider
+y Wagemann (2012) para los métodos de conjuntos; Pappas y Woodside (2021) para la
+calibración de datos de encuesta; Oana, Schneider y Thomann (2021) para el protocolo de
+robustez; Dul (2016) para el análisis de condiciones necesarias.

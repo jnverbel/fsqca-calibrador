@@ -1,0 +1,8 @@
+# El informe se ejecuta desde la RAIZ del repositorio, no desde informe/:
+# ahi viven .Rprofile (que activa renv), el paquete calibraqca y los datos.
+# Sin execute-dir el chunk de preparacion no encuentra nada.
+project:
+  type: default
+  execute-dir: project
+  render:
+    - informe/informe.qmd
