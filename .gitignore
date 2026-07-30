@@ -22,12 +22,17 @@ informe/*.docx
 
 # --- Datos del investigador ---
 # NUNCA se versionan datos reales de la encuesta.
-datos/
-*.sav
-*.dta
+#
+# Las reglas van ANCLADAS a la raiz del repo. Sin la barra inicial, "datos/"
+# se aplicaria a cualquier carpeta con ese nombre en cualquier nivel, e
+# ignoraria las bases sinteticas de prueba en
+# pkg/calibraqca/tests/testthat/datos/ — que si se versionan. Una excepcion
+# con "!" no las rescataria: git no reabre un directorio ya excluido.
+/datos/
 /*.csv
 /*.xlsx
-!tests/testthat/datos/*.csv
+*.sav
+*.dta
 
 # --- Sistema ---
 .DS_Store
