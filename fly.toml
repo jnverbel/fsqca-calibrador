@@ -1,0 +1,33 @@
+# Despliegue del Calibrador fsQCA en Fly.io.
+#
+# El nombre de la aplicacion lo fija `fly launch` la primera vez; si se
+# edita a mano tiene que coincidir con el que exista en la cuenta.
+
+app = "calibrador-fsqca"
+primary_region = "bog"          # Bogota: el investigador trabaja en Colombia
+
+[build]
+
+[env]
+  HOST_APP = "0.0.0.0"
+  PUERTO = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true            # HTTPS obligatorio
+  auto_stop_machines = "stop"   # se apaga sin uso: el investigador trabaja solo
+  auto_start_machines = true    # y vuelve sola con la primera visita
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    # Shiny mantiene un websocket por sesion. Una sola persona usa esto,
+    # asi que el limite es holgado a proposito.
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  # R con QCA, lavaan y NCA cargados no cabe comodo en 512 MB.
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2
