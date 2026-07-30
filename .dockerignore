@@ -1,0 +1,25 @@
+# La libreria de renv NO se copia: la imagen la reconstruye desde
+# renv.lock con los binarios de Posit para Ubuntu. Copiarla meteria
+# compilados de macOS que no sirven en Linux, y cientos de MB.
+renv/library/
+renv/staging/
+renv/local/
+renv/cellar/
+
+.git/
+.Rproj.user/
+.Rhistory
+.RData
+
+docs/
+informe/informe.html
+informe/informe.docx
+**/*.quarto_ipynb
+.quarto/
+
+# Datos reales del investigador: nunca entran en la imagen.
+datos/
+*.sav
+*.dta
+/*.csv
+/*.xlsx

@@ -12,13 +12,29 @@ cada ancla se justifique y dejar rastro escrito de esa justificación en el info
 
 ## Estado
 
-Especificación escrita. **Sin código todavía.**
+**Motor completo y probado** (los ocho pasos, 373 pruebas sin `skip`), interfaz Shiny de
+ocho pasos e informe Quarto en HTML y Word. Falta desplegarlo en Fly.io: la configuración
+está escrita y solo requiere las credenciales del titular de la cuenta.
+
+## Ejecutar
+
+Siempre desde la raíz del repositorio — ahí vive el `.Rprofile` que activa `renv`.
+
+```bash
+Rscript app/app.R                                   # la aplicación
+Rscript -e 'testthat::test_local("pkg/calibraqca")' # las pruebas
+quarto render informe/informe.qmd                   # el informe
+```
+
+Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/como-ejecutar.md).
 
 ## Documentación
 
 | Documento | Contenido |
 |---|---|
 | [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 32 alertas, esquema del archivo de proyecto, informe y plan de pruebas |
+| [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Ejecutar en local, generar el informe y desplegar |
+| [`docs/preguntas-al-investigador.md`](docs/preguntas-al-investigador.md) | Las 8 preguntas para dimensionar el trabajo |
 | [`docs/referencias/`](docs/referencias/) | PDF de la propuesta técnica y `fuzzy_likert_5.R` |
 
 > `fuzzy_likert_5.R` es **otra ruta metodológica** (Delphi difuso con números

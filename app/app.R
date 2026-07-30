@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
 
 source(file.path("app", "R", "componentes.R"), local = FALSE)
 source(file.path("app", "R", "paneles.R"), local = FALSE)
+source(file.path("app", "R", "acceso.R"), local = FALSE)
 shiny::addResourcePath("estatico", file.path("app", "www"))
 
 CATALOGO <- catalogo_alertas()
@@ -57,6 +58,22 @@ ui <- function(request) {
 }
 
 server <- function(input, output, session) {
+
+  # --- Puerta de acceso -------------------------------------------------
+  CLAVE <- clave_configurada()
+  autorizado <- reactiveVal(is.null(CLAVE))
+
+  if (!is.null(CLAVE)) {
+    showModal(ui_acceso())
+    observeEvent(input$entrar, {
+      if (clave_correcta(input$clave, CLAVE)) {
+        autorizado(TRUE)
+        removeModal()
+      } else {
+        showModal(ui_acceso("Clave incorrecta. Intente de nuevo."))
+      }
+    })
+  }
 
   estado <- reactiveValues(
     paso = if (DEV_PASO > 0) DEV_PASO else 1,
@@ -175,6 +192,7 @@ server <- function(input, output, session) {
   })
 
   output$regla_pasos <- renderUI({
+    req(autorizado())
     estados <- vapply(seq_along(PASOS), function(i) {
       if (i > estado$paso) "pendiente"
       else if (!puede_avanzar(estado$bitacora, i)) "frenado"
@@ -183,11 +201,17 @@ server <- function(input, output, session) {
     ui_regla_pasos(estado$paso, estados)
   })
 
-  output$panel_bitacora <- renderUI(ui_bitacora(estado$bitacora, CATALOGO))
-  output$panel_pie <- renderUI(
-    ui_pie(estado$paso, puede(), pendientes(), CATALOGO))
+  output$panel_bitacora <- renderUI({
+    req(autorizado())
+    ui_bitacora(estado$bitacora, CATALOGO)
+  })
+  output$panel_pie <- renderUI({
+    req(autorizado())
+    ui_pie(estado$paso, puede(), pendientes(), CATALOGO)
+  })
 
   output$panel_paso <- renderUI({
+    req(autorizado())
     switch(
       as.character(estado$paso),
       "1" = panel_ingesta(estado),
@@ -220,6 +244,11 @@ server <- function(input, output, session) {
 }
 
 if (sys.nframe() == 0L) {
-  shiny::runApp(shinyApp(ui, server), host = "127.0.0.1", port = PUERTO,
+  if (is.null(clave_configurada())) {
+    message("AVISO: CLAVE_APP no esta definida. La aplicacion arranca ABIERTA.")
+  }
+  # En el contenedor hay que escuchar en 0.0.0.0; en local basta 127.0.0.1.
+  host <- Sys.getenv("HOST_APP", "127.0.0.1")
+  shiny::runApp(shinyApp(ui, server), host = host, port = PUERTO,
                 launch.browser = FALSE)
 }
