@@ -2168,9 +2168,10 @@ constructo, diagnosticada y serializable. Lo que falta:
 | Plan | Alcance | Por qué va separado |
 |---|---|---|
 | **02 — Calibración y semáforo** (pasos 4-5) | `calibrar()` contra `QCA::calibrate()`, corrección del 0,50, alertas `A-13`…`A-25` | es el corazón del método y merece su propio ciclo de revisión; depende de que el catálogo de alertas ya exista |
-| **03 — Análisis, robustez y exportación** (pasos 6-8) | necesidad, tabla de verdad, minimización, NCA, barrido de robustez, alertas `A-26`…`A-32` | primero hay que verificar las firmas reales de las funciones `rob.*` de `SetMethods`; hasta entonces no se puede escribir el plan sin inventar nombres |
+| **03 — Análisis, robustez y exportación** (pasos 6-8) | necesidad, tabla de verdad, minimización, NCA, barrido de robustez, alertas `A-26`…`A-32` | **desbloqueado**: las firmas `rob.*` de `SetMethods` 4.1 quedaron verificadas y están en el paso 7 de la especificación |
 | **04 — Interfaz, informe y despliegue** | Shiny paso a paso, informe Quarto en HTML y Word, script reproducible, Docker y Fly.io | no toca el motor; se verifica a ojo y con una sesión real del investigador, no con `testthat` |
 
-**El plan 03 no se escribe todavía.** Escribirlo hoy exigiría inventar las firmas de las
-funciones de robustez de `SetMethods`, que es exactamente lo que la especificación prohíbe.
-Se escribe después de instalar el paquete y leer su documentación.
+**El plan 02 quedó ejecutado** el 2026-07-30 (ver `docs/plan-02-calibracion-semaforo.md`).
+**El plan 03 ya se puede escribir**: `SetMethods` 4.1 está instalado y sus ocho funciones
+`rob.*` quedaron verificadas y documentadas en el paso 7 de la especificación, incluida
+`rob.calibrange`, que hace exactamente el barrido de anclas que el módulo necesita.
