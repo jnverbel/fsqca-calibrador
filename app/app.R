@@ -357,8 +357,54 @@ server <- function(input, output, session) {
     intento
   })
 
+  # --- Descargas --------------------------------------------------------
+  # Los cuatro botones tienen manejador. Antes solo lo tenia el informe:
+  # los otros tres estaban dibujados y no descargaban nada.
+
+  umbrales_actuales <- reactive({
+    req(estado$agregacion)
+    list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
+         consistencia = 0.80, pri = 0.70)
+  })
+
+  proyecto_actual <- reactive({
+    req(estado$leido, estado$mapeo, length(estado$anclas) > 0,
+        estado$resultado)
+    construir_proyecto(
+      leido = estado$leido, mapeo = estado$mapeo, anclas = estado$anclas,
+      bitacora = estado$bitacora, umbrales = umbrales_actuales(),
+      resultado = estado$resultado, robustez = estado$robustez)
+  })
+
+  nombre_base <- reactive({
+    base <- if (is.null(estado$leido)) "proyecto"
+            else tools::file_path_sans_ext(estado$leido$nombre_archivo)
+    gsub("[^A-Za-z0-9_-]", "-", base)
+  })
+
+  output$bajar_proyecto <- downloadHandler(
+    filename = function() paste0(nombre_base(), "-proyecto.json"),
+    content = function(archivo) guardar_proyecto(proyecto_actual(), archivo))
+
+  output$bajar_base <- downloadHandler(
+    filename = function() paste0(nombre_base(), "-calibrada.csv"),
+    content = function(archivo) {
+      req(estado$membresias)
+      exportar_base_calibrada(estado$membresias, archivo)
+    })
+
+  output$bajar_guion <- downloadHandler(
+    filename = function() paste0(nombre_base(), "-reproducir.R"),
+    content = function(archivo) {
+      req(estado$mapeo, length(estado$anclas) > 0, estado$resultado)
+      writeLines(guion_reproducible(
+        ruta_datos = estado$leido$nombre_archivo, mapeo = estado$mapeo,
+        anclas = estado$anclas, idm = 0.95, umbrales = umbrales_actuales(),
+        resultado = estado$resultado), archivo)
+    })
+
   output$bajar_informe <- downloadHandler(
-    filename = function() "informe-calibracion.html",
+    filename = function() paste0(nombre_base(), "-informe.html"),
     content = function(archivo) {
       writeLines(pagina_informe(informe_actual(), CSS_INFORME), archivo)
     })
