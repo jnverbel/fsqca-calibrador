@@ -249,8 +249,14 @@ diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
       soluciones = list(conservadora = NULL, intermedia = NULL,
                         parsimoniosa = NULL),
       minimizacion_posible = FALSE,
-      motivo = paste("No se pudo minimizar:",
-                     trimws(conditionMessage(attr(intento, "condition")))),
+      # En castellano: el mensaje de QCA llega en ingles y el investigador
+      # no tiene por que leerlo. El original va detras, para quien depure.
+      motivo = paste0(
+        "No hay ninguna configuracion suficiente que minimizar. Revise el ",
+        "umbral de consistencia o las anclas: con efecto techo fuerte todos ",
+        "los casos caen del mismo lado y la tabla de verdad se queda sin ",
+        "filas positivas. (Mensaje de QCA: ",
+        trimws(conditionMessage(attr(intento, "condition"))), ")"),
       alertas = alerta("A-29")[0, , drop = FALSE]))
   }
   soluciones <- intento

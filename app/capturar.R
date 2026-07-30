@@ -91,6 +91,21 @@ bit <- registrar_alertas(bit,
                                suf$alertas), 6)
 e$bitacora <- bit
 
+# ESTADO_CAPTURA=borrador deja el estado como queda justo despues de
+# confirmar el mapeo: anclas sin justificar y sin membresias. Es donde el
+# recorrido real se rompia, y por eso hay que poder mirarlo.
+if (identical(Sys.getenv("ESTADO_CAPTURA"), "borrador")) {
+  e$borrador <- stats::setNames(lapply(condiciones, function(x)
+    list(plena = 4, cruce = 3, nula = 2, fuente = "teoria",
+         justificacion = "")), condiciones)
+  e$anclas <- list()
+  e$membresias <- NULL
+  e$semaforo <- NULL
+  e$analisis <- NULL
+  bit <- bit[bit$paso <= 3, , drop = FALSE]
+  e$bitacora <- bit
+}
+
 # --- Render -----------------------------------------------------------
 
 # El paso 1 necesita la sugerencia de mapeo, que es lo que se mira.
@@ -111,6 +126,15 @@ panel <- switch(as.character(paso),
                 panel_en_construccion(paso))
 
 catalogo <- catalogo_alertas()
+requisito <- switch(
+  as.character(paso),
+  "4" = if (length(e$anclas) == 0)
+    paste("Fije las anclas de cada condicion, escriba su justificacion y",
+          "pulse Confirmar anclas.") else NULL,
+  "5" = if (is.null(e$semaforo))
+    "El semaforo se calcula al confirmar las anclas del paso 4." else NULL,
+  NULL)
+
 estados <- vapply(seq_along(PASOS), function(i) {
   if (i > paso) "pendiente"
   else if (!puede_avanzar(bit, i)) "frenado" else "hecho"
@@ -130,8 +154,8 @@ cuerpo <- tagList(
   tags$div(class = "cuerpo",
            tags$main(class = "trabajo", panel),
            ui_bitacora(bit, catalogo)),
-  ui_pie(paso, puede_avanzar(bit, paso), alertas_pendientes(bit, paso),
-         catalogo))
+  ui_pie(paso, puede_avanzar(bit, paso) && is.null(requisito),
+         alertas_pendientes(bit, paso), catalogo, requisito = requisito))
 
 writeLines(c(
   "<!doctype html>",

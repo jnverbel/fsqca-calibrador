@@ -99,7 +99,10 @@ test_that("sin configuraciones suficientes el paso 6 sigue vivo", {
   res <- diagnosticar_suficiencia(tt)
 
   expect_false(res$minimizacion_posible)
-  expect_match(res$motivo, "No se pudo minimizar")
+  # El motivo va en castellano: el mensaje de QCA llega en ingles y el
+  # investigador no tiene por que leerlo.
+  expect_match(res$motivo, "No hay ninguna configuracion suficiente")
+  expect_match(res$motivo, "efecto techo")
   expect_null(res$soluciones$conservadora)
 })
 

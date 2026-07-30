@@ -142,8 +142,10 @@ ui_bitacora <- function(bitacora, catalogo) {
 }
 
 #' Barra de avance. La compuerta dice por que frena, no solo que frena.
-ui_pie <- function(paso, puede, pendientes, catalogo) {
-  motivo <- if (!puede && nrow(pendientes) > 0) {
+ui_pie <- function(paso, puede, pendientes, catalogo, requisito = NULL) {
+  motivo <- if (!is.null(requisito)) {
+    requisito
+  } else if (!puede && nrow(pendientes) > 0) {
     titulos <- catalogo$titulo[match(pendientes$codigo, catalogo$codigo)]
     sprintf("Resuelva o reconozca por escrito: %s",
             paste(unique(paste0(pendientes$codigo, " ", titulos)),
