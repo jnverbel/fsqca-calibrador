@@ -654,13 +654,22 @@ calibración no está probando la calibración. Lo mismo con:
 | `UMBRAL_NA_ITEM` 0,10 → 0,20 | `test-ingesta.R::A-04 se dispara` |
 | `ALFA_MINIMO` 0,70 → 0,50 | `test-validacion.R::A-06 se dispara` |
 | `ALFA_DUDOSO` 0,80 → 0,90 | `test-validacion.R::clasificar_alfa` |
-| `ALFA_INFLADO` 0,95 → 0,99 | `test-validacion.R::A-09 se dispara` |
+| `ALFA_INFLADO` 0,95 → 0,99 | `test-validacion.R::alfa_inflado marca el limite exacto` |
+| `ITEMS_PARA_ALFA_INFLADO` 6 → 3 | `test-validacion.R::alfa_inflado marca el limite exacto` |
 | `ITEM_TOTAL_MINIMO` 0,30 → 0,10 | `test-validacion.R::A-08 se dispara` |
 | `CASOS_POR_PARAMETRO` 5 → 2 | `test-validacion.R::A-10 se dispara` |
-| `CASOS_MINIMOS_CFA` 100 → 30 | `test-validacion.R::A-10 se dispara` |
+| `CASOS_MINIMOS_CFA` 100 → 30 | `test-validacion.R::el minimo absoluto de casos manda` |
 | `PROPORCION_MINIMA_ITEMS` 0,5 → 0,2 | `test-agregacion.R::demasiados NA` |
-| `ICC1_MINIMO` 0,05 → 0,00 | `test-agregacion.R::A-11 se dispara` |
-| `ICC2_MINIMO` 0,70 → 0,10 | `test-agregacion.R::A-11 se dispara` |
+| `ICC1_MINIMO` 0,05 → −1 | `test-agregacion.R::cada umbral del ICC manda por separado` |
+| `ICC2_MINIMO` 0,70 → 0,10 | `test-agregacion.R::cada umbral del ICC manda por separado` |
+
+**Lección de la primera ronda, que se repitió dos veces:** cuatro de estas constantes
+sobrevivieron su mutación porque la prueba que supuestamente las cubría decidía por otro
+camino. `ALFA_INFLADO` no mordía porque el escenario de `A-09` superaba cualquier umbral
+razonable; `CASOS_MINIMOS_CFA` no mordía porque el otro criterio siempre era mayor; y los
+dos umbrales del ICC no mordían porque en datos reales fallan juntos y la disyunción tapaba
+cuál mandó. **Cuando una constante vive dentro de una condición compuesta, se aísla en su
+propia función y se prueba en el límite** — así nacieron `alfa_inflado()` e `icc_respalda()`.
 
 Esta tabla se mantiene viva: **cada constante numérica del motor debe aparecer en ella**.
 Una constante que no está en la tabla es una constante sin prueba.
