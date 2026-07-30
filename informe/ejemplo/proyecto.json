@@ -1,0 +1,178 @@
+{
+  "version_esquema": "1.0",
+  "version_app": "0.1.0",
+  "creado": "2026-07-30T12:00:00Z",
+  "modificado": "2026-07-30T12:00:00Z",
+  "datos": {
+    "nombre_archivo": "limpia.csv",
+    "huella_sha256": "5c714809351fb721418fee9e299567cf7d61098fea5c213d5a2c675e3bb48e19",
+    "n_filas": 120,
+    "n_columnas": 10,
+    "nombres_columnas": ["id_empresa", "CAP01", "CAP02", "CAP03", "RED01", "RED02", "RED03", "INN01", "INN02", "INN03"],
+    "escala": {
+      "min": 1,
+      "max": 5,
+      "codigos_na": []
+    },
+    "resultado_autorreportado_mismo_cuestionario": false
+  },
+  "mapeo": {
+    "columna_id": "id_empresa",
+    "encuestados_por_caso": "uno",
+    "constructos": [
+      {
+        "nombre": "CAP_ABS",
+        "rol": "condicion",
+        "items": ["CAP01", "CAP02", "CAP03"]
+      },
+      {
+        "nombre": "REDES",
+        "rol": "condicion",
+        "items": ["RED01", "RED02", "RED03"]
+      },
+      {
+        "nombre": "INNOV",
+        "rol": "resultado",
+        "items": ["INN01", "INN02", "INN03"]
+      }
+    ]
+  },
+  "validacion": [],
+  "agregacion": [],
+  "calibracion": {
+    "idm": 0.95,
+    "correccion_050": {
+      "aplicada": true,
+      "casos": ["E005", "E018", "E020", "E022", "E026", "E040", "E063", "E066", "E082", "E087", "E089", "E100", "E101", "E107", "E109", "E032", "E035", "E039", "E053", "E057", "E068", "E069", "E072", "E077", "E091", "E095", "E096", "E098", "E106", "E108", "E111", "E115", "E006", "E014", "E030", "E032", "E068", "E070", "E074", "E086", "E089"]
+    },
+    "condiciones": {
+      "CAP_ABS": {
+        "anclas": {
+          "plena": 4,
+          "cruce": 3,
+          "nula": 2
+        },
+        "fuente": "teoria",
+        "justificacion": "El umbral de 4 corresponde al punto en que la literatura sectorial situa la capacidad de absorcion plena (Zahra y George, 2002), y coincide con el corte del programa nacional de fomento a la innovacion empresarial."
+      },
+      "REDES": {
+        "anclas": {
+          "plena": 4,
+          "cruce": 3,
+          "nula": 2
+        },
+        "fuente": "teoria",
+        "justificacion": "El umbral de 4 se toma de la definicion operativa de vinculacion efectiva del manual sectorial: una empresa se considera vinculada cuando sostiene al menos tres relaciones activas con actores del sistema."
+      },
+      "INNOV": {
+        "anclas": {
+          "plena": 4,
+          "cruce": 3,
+          "nula": 2
+        },
+        "fuente": "teoria",
+        "justificacion": "El umbral de 4 corresponde al nivel a partir del cual la encuesta nacional clasifica a una empresa como innovadora en sentido estricto."
+      }
+    }
+  },
+  "analisis": {
+    "resultado": "INNOV",
+    "umbrales": {
+      "frecuencia": 3,
+      "consistencia": 0.8,
+      "pri": 0.7
+    }
+  },
+  "robustez": {
+    "ejecutado": false,
+    "escenarios": []
+  },
+  "alertas": [
+    {
+      "codigo": "A-07",
+      "paso": 2,
+      "severidad": "advertencia",
+      "contexto": "INNOV",
+      "detalle": "alfa = 0.710 en INNOV",
+      "estado": "reconocida",
+      "nota": "La escala de resultado es corta y el constructo es exploratorio; se reporta la limitacion en el apartado de medida y se contrasta con el indicador objetivo de patentes.",
+      "cerrada": "2026-07-30T12:00:00Z"
+    },
+    {
+      "codigo": "A-17",
+      "paso": 4,
+      "severidad": "informativa",
+      "contexto": "CAP_ABS",
+      "detalle": "15 caso(s) en 0,50 exacto en CAP_ABS: E005, E018, E020, E022, E026, E040, E063, E066, E082, E087. Se suma 0.001 y se declara en el informe.",
+      "estado": "abierta",
+      "nota": null,
+      "cerrada": null
+    },
+    {
+      "codigo": "A-17",
+      "paso": 4,
+      "severidad": "informativa",
+      "contexto": "REDES",
+      "detalle": "17 caso(s) en 0,50 exacto en REDES: E032, E035, E039, E053, E057, E068, E069, E072, E077, E091. Se suma 0.001 y se declara en el informe.",
+      "estado": "abierta",
+      "nota": null,
+      "cerrada": null
+    },
+    {
+      "codigo": "A-17",
+      "paso": 4,
+      "severidad": "informativa",
+      "contexto": "INNOV",
+      "detalle": "9 caso(s) en 0,50 exacto en INNOV: E006, E014, E030, E032, E068, E070, E074, E086, E089. Se suma 0.001 y se declara en el informe.",
+      "estado": "abierta",
+      "nota": null,
+      "cerrada": null
+    },
+    {
+      "codigo": "A-22",
+      "paso": 5,
+      "severidad": "advertencia",
+      "contexto": "",
+      "detalle": "10 caso(s) con membresias identicas en todas las condiciones: E043, E069, E072, E080, E090, E096, E097, E100, E107, E115.",
+      "estado": "reconocida",
+      "nota": "Los casos con membresias identicas corresponden a empresas del mismo subsector y tamano; se conservan porque su coincidencia es sustantiva y no un artefacto de la medida.",
+      "cerrada": "2026-07-30T12:00:00Z"
+    },
+    {
+      "codigo": "A-30",
+      "paso": 6,
+      "severidad": "informativa",
+      "contexto": "",
+      "detalle": "3 fila(s) con consistencia entre 0.50 y 0.80 (filas 1, 2, 3): ni suficientes ni claramente insuficientes.",
+      "estado": "abierta",
+      "nota": null,
+      "cerrada": null
+    },
+    {
+      "codigo": "A-29",
+      "paso": 6,
+      "severidad": "advertencia",
+      "contexto": "conservadora",
+      "detalle": "La solucion conservadora cubre 0.435 del resultado: por debajo de 0.50 explica menos de la mitad de los casos con el resultado.",
+      "estado": "reconocida",
+      "nota": "La cobertura moderada era esperable: el modelo explica una via de innovacion entre varias posibles, y no se pretende cobertura exhaustiva del resultado.",
+      "cerrada": "2026-07-30T12:00:00Z"
+    },
+    {
+      "codigo": "A-29",
+      "paso": 6,
+      "severidad": "advertencia",
+      "contexto": "parsimoniosa",
+      "detalle": "La solucion parsimoniosa cubre 0.435 del resultado: por debajo de 0.50 explica menos de la mitad de los casos con el resultado.",
+      "estado": "reconocida",
+      "nota": "La cobertura moderada era esperable: el modelo explica una via de innovacion entre varias posibles, y no se pretende cobertura exhaustiva del resultado.",
+      "cerrada": "2026-07-30T12:00:00Z"
+    }
+  ],
+  "entorno": {
+    "r_version": "R version 4.6.1 (2026-06-24)",
+    "paquetes": {
+      "QCA": "3.25"
+    }
+  }
+}
