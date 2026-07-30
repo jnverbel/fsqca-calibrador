@@ -1,0 +1,34 @@
+# --- R ---
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+.Renviron
+
+# --- renv ---
+# renv.lock SÍ se versiona: es la promesa de reproducibilidad del informe.
+renv/library/
+renv/local/
+renv/cellar/
+renv/lock/
+renv/python/
+renv/staging/
+
+# --- Quarto ---
+/.quarto/
+informe/*_files/
+informe/*.html
+informe/*.docx
+
+# --- Datos del investigador ---
+# NUNCA se versionan datos reales de la encuesta.
+datos/
+*.sav
+*.dta
+/*.csv
+/*.xlsx
+!tests/testthat/datos/*.csv
+
+# --- Sistema ---
+.DS_Store
+*.log
