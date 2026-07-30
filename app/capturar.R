@@ -29,14 +29,33 @@ destino <- if (length(args) >= 2) args[2] else sprintf("paso%d.html", paso)
 # --- Estado de ejemplo, el mismo que precarga DEV_PASO -----------------
 
 e <- new.env()
-leido <- leer_datos(file.path("pkg", "calibraqca", "tests", "testthat",
-                              "datos", "limpia.csv"))
+# DATOS_CAPTURA permite mirar el paso 1 con un archivo de verdad.
+ruta_datos <- Sys.getenv("DATOS_CAPTURA",
+                         file.path("pkg", "calibraqca", "tests", "testthat",
+                                   "datos", "limpia.csv"))
+leido <- leer_datos(ruta_datos)
 e$leido <- leido
 e$datos <- leido$datos
-e$mapeo <- definir_mapeo("id_empresa", "uno", list(
-  list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01","CAP02","CAP03")),
-  list(nombre = "REDES",   rol = "condicion", items = c("RED01","RED02","RED03")),
-  list(nombre = "INNOV",   rol = "resultado", items = c("INN01","INN02","INN03"))))
+# El mapeo se DERIVA del archivo, no se escribe a mano: asi este guion
+# sirve para cualquier encuesta, no solo para limpia.csv.
+e$columna_id <- sugerir_columna_id(e$datos)
+e$sugerencia <- sugerir_mapeo(e$datos, e$columna_id)
+e$encuestados <- "uno"
+e$mismo_cuestionario <- FALSE
+
+nombres_sug <- names(e$sugerencia$constructos)
+roles_sug <- c(rep("condicion", max(0, length(nombres_sug) - 1)),
+               "resultado")[seq_along(nombres_sug)]
+e$roles <- stats::setNames(as.list(roles_sug), nombres_sug)
+
+e$mapeo <- definir_mapeo(
+  e$columna_id, "uno",
+  lapply(seq_along(nombres_sug), function(i)
+    list(nombre = nombres_sug[i], rol = roles_sug[i],
+         items = e$sugerencia$constructos[[nombres_sug[i]]])))
+
+resultado <- nombres_sug[roles_sug == "resultado"]
+condiciones_analisis <- setdiff(nombres_sug, resultado)
 
 bit <- registrar_alertas(nueva_bitacora(),
                          diagnosticar_ingesta(e$datos, e$mapeo), 1)
@@ -46,9 +65,8 @@ e$agregacion <- diagnosticar_agregacion(e$datos, e$mapeo)
 bit <- registrar_alertas(bit, e$agregacion$alertas, 3)
 
 just <- paste("El umbral de 4 corresponde al punto en que la literatura",
-              "sectorial situa la capacidad de absorcion plena (Zahra y",
-              "George, 2002), y coincide con el corte normativo del programa",
-              "de fomento.")
+              "sectorial situa la capacidad plena del constructo, y coincide",
+              "con el corte normativo del programa de fomento.")
 condiciones <- setdiff(names(e$agregacion$casos), e$mapeo$columna_id)
 e$anclas <- stats::setNames(
   lapply(condiciones, function(x) definir_anclas(4, 3, 2, "teoria", just)),
@@ -62,9 +80,8 @@ bit <- registrar_alertas(bit, cal$alertas, 4)
 e$semaforo <- diagnosticar_semaforo(e$membresias, e$mapeo$columna_id)
 bit <- registrar_alertas(bit, e$semaforo$alertas, 5)
 
-condiciones_analisis <- c("CAP_ABS", "REDES")
-nec <- diagnosticar_necesidad(e$membresias, "INNOV", condiciones_analisis)
-tt <- construir_tabla_verdad(e$membresias, "INNOV", condiciones_analisis)
+nec <- diagnosticar_necesidad(e$membresias, resultado, condiciones_analisis)
+tt <- construir_tabla_verdad(e$membresias, resultado, condiciones_analisis)
 suf <- diagnosticar_suficiencia(tt)
 e$analisis <- list(necesidad = nec, tabla_verdad = leer_tabla_verdad(tt),
                    suficiencia = suf)
@@ -75,6 +92,16 @@ bit <- registrar_alertas(bit,
 e$bitacora <- bit
 
 # --- Render -----------------------------------------------------------
+
+# El paso 1 necesita la sugerencia de mapeo, que es lo que se mira.
+e$columna_id <- sugerir_columna_id(e$datos)
+e$sugerencia <- sugerir_mapeo(e$datos, e$columna_id)
+e$encuestados <- "uno"
+e$mismo_cuestionario <- FALSE
+nombres_sug <- names(e$sugerencia$constructos)
+e$roles <- stats::setNames(
+  as.list(c(rep("condicion", max(0, length(nombres_sug) - 1)),
+            "resultado")[seq_along(nombres_sug)]), nombres_sug)
 
 panel <- switch(as.character(paso),
                 "1" = panel_ingesta(e), "2" = panel_medida(e),

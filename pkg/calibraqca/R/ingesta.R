@@ -140,3 +140,42 @@ diagnosticar_ingesta <- function(datos, mapeo) {
   }
   do.call(rbind, encontradas)
 }
+
+#' Propone que columna identifica el caso.
+#'
+#' La primera de texto sin valores repetidos; si ninguna sirve, la primera
+#' de texto. Es una propuesta, no una decision: el investigador la ve y la
+#' corrige.
+sugerir_columna_id <- function(datos) {
+  texto <- names(datos)[!vapply(datos, is.numeric, logical(1))]
+  if (length(texto) == 0) return(names(datos)[1])
+
+  unicas <- texto[vapply(texto, function(col) !any(duplicated(datos[[col]])),
+                         logical(1))]
+  if (length(unicas) > 0) unicas[1] else texto[1]
+}
+
+#' Propone un mapeo agrupando los items por su prefijo.
+#'
+#' Los cuestionarios nombran los items con un prefijo comun y un numero
+#' (ABS1, ABS2...). Agrupar por ahi convierte el trabajo del paso 1 en
+#' revisar una propuesta en vez de teclear un desplegable por columna.
+#'
+#' Es una SUGERENCIA. Un item que no comparte prefijo queda en su propio
+#' grupo, y entonces el paso 1 avisa de que ese constructo tendria un solo
+#' item -- que es justo lo que A-03 existe para impedir.
+sugerir_mapeo <- function(datos, columna_id) {
+  numericas <- names(datos)[vapply(datos, is.numeric, logical(1))]
+  numericas <- setdiff(numericas, columna_id)
+  ignoradas <- setdiff(names(datos), c(numericas, columna_id))
+
+  # Quita el sufijo numerico, con o sin separador: ABS1 -> ABS, cap_2 -> cap
+  prefijos <- sub("[._-]?[0-9]+$", "", numericas)
+  prefijos[!nzchar(prefijos)] <- numericas[!nzchar(prefijos)]
+
+  constructos <- split(numericas, factor(prefijos, levels = unique(prefijos)))
+
+  list(constructos = constructos,
+       ignoradas = ignoradas,
+       columna_id = columna_id)
+}

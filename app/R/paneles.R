@@ -1,3 +1,5 @@
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
 # Paneles de cada paso. Funciones puras de dibujo: reciben el estado ya
 # calculado y devuelven tags. No llaman al motor para decidir nada; el
 # servidor les pasa lo que el motor ya resolvio.
@@ -22,23 +24,101 @@ panel_en_construccion <- function(paso) {
 # --- Paso 1 -----------------------------------------------------------
 
 panel_ingesta <- function(e) {
+  if (is.null(e$datos)) {
+    return(shiny::tagList(
+      ui_encabezado(1, paste(
+        "Cargue el archivo de respuestas. Una fila por respuesta, una",
+        "columna por item.")),
+      shiny::fileInput("archivo", "Archivo de respuestas",
+                       accept = c(".csv", ".xls", ".xlsx"),
+                       buttonLabel = "Elegir...", placeholder = "CSV o Excel"),
+      shiny::tags$p(class = "ayuda", paste(
+        "Se admiten CSV y Excel. El archivo no se envia a ningun sitio: se",
+        "lee en este equipo y desaparece al cerrar la herramienta."))))
+  }
+
+  columnas <- names(e$datos)
+  sugerencia <- e$sugerencia
+  numericas <- setdiff(names(e$datos)[vapply(e$datos, is.numeric, logical(1))],
+                       e$columna_id)
+  grupos <- c("(sin usar)", names(sugerencia$constructos))
+
   shiny::tagList(
     ui_encabezado(1, paste(
-      "Cargue el archivo de respuestas y diga que items componen cada",
-      "constructo. La calibracion necesita el promedio de varios items: un",
-      "item Likert solo tiene cinco valores y deja las anclas sin margen.")),
-    shiny::fileInput("archivo", "Archivo de respuestas",
-                     accept = c(".csv", ".xls", ".xlsx"),
-                     buttonLabel = "Elegir...", placeholder = "CSV o Excel"),
-    if (!is.null(e$datos)) {
-      shiny::tagList(
-        shiny::tags$span(class = "etiqueta",
-                         "Primeras filas, tal como se leyeron"),
-        shiny::tags$p(class = "ayuda",
-                      "Confirme con los ojos que el archivo se interpreto bien."),
-        shiny::tableOutput("vista_datos")
-      )
-    } else NULL
+      "Diga que items componen cada constructo. La calibracion necesita el",
+      "promedio de VARIOS items: uno solo tiene cinco valores posibles y",
+      "deja las anclas sin margen.")),
+
+    shiny::tags$div(
+      class = "condicion",
+      shiny::fluidRow(
+        shiny::column(5, shiny::selectInput(
+          "columna_id", "Columna que identifica el caso",
+          choices = columnas, selected = e$columna_id)),
+        shiny::column(4, shiny::selectInput(
+          "encuestados", "Encuestados por caso",
+          choices = c("Uno" = "uno", "Varios" = "varios"),
+          selected = e$encuestados))),
+      shiny::checkboxInput(
+        "mismo_cuestionario",
+        "El resultado se preguntó en el mismo cuestionario que las condiciones",
+        value = isTRUE(e$mismo_cuestionario)),
+      shiny::tags$p(class = "ayuda", paste(
+        "Si es asi, habra que incorporar una prueba de sesgo de metodo comun",
+        "al capitulo metodologico. La herramienta lo recordara."))),
+
+    shiny::tags$h3(class = "etiqueta", style = "margin-top:24px",
+                   "Constructos"),
+    shiny::tags$p(class = "ayuda", paste(
+      "Se propuso una agrupacion a partir del nombre de los items.",
+      "Corrijala si no coincide con su cuestionario, y marque cual es el",
+      "resultado.")),
+
+    shiny::tags$table(
+      class = "datos",
+      shiny::tags$thead(shiny::tags$tr(lapply(
+        c("Constructo", "Items", "N", "Papel en el analisis"), shiny::tags$th))),
+      shiny::tags$tbody(lapply(names(sugerencia$constructos), function(nom) {
+        items <- sugerencia$constructos[[nom]]
+        pocos <- length(items) < 2
+        shiny::tags$tr(
+          shiny::tags$td(shiny::textInput(paste0("nombre_", nom), NULL,
+                                          value = nom, width = "130px")),
+          shiny::tags$td(class = "num", paste(items, collapse = ", ")),
+          shiny::tags$td(class = if (pocos) "num mal" else "num", length(items)),
+          shiny::tags$td(shiny::selectInput(
+            paste0("rol_", nom), NULL,
+            choices = c("Condición" = "condicion", "Resultado" = "resultado",
+                        "No usar" = "fuera"),
+            selected = e$roles[[nom]] %||% "condicion", width = "150px")))
+      }))),
+
+    if (any(vapply(sugerencia$constructos, length, integer(1)) < 2)) {
+      shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                    paste("Hay constructos con un solo item. Marquelos como",
+                          "'No usar', o vuelva a cargar el archivo con los",
+                          "items agrupados."))
+    } else NULL,
+
+    if (length(sugerencia$ignoradas) > 0) {
+      shiny::tags$p(class = "ayuda", style = "margin-top:14px",
+                    paste("Columnas que no son numericas y quedan fuera del",
+                          "analisis:",
+                          paste(sugerencia$ignoradas, collapse = ", ")))
+    } else NULL,
+
+    shiny::tags$div(
+      style = "margin-top:20px;display:flex;gap:12px;align-items:center",
+      shiny::actionButton("confirmar_mapeo", "Confirmar y diagnosticar",
+                          class = "btn"),
+      shiny::actionButton("otro_archivo", "Cargar otro archivo",
+                          class = "btn secundario")),
+
+    shiny::tags$h3(class = "etiqueta", style = "margin-top:28px",
+                   "Primeras filas, tal como se leyeron"),
+    shiny::tags$p(class = "ayuda",
+                  "Confirme con los ojos que el archivo se interpreto bien."),
+    shiny::tableOutput("vista_datos")
   )
 }
 

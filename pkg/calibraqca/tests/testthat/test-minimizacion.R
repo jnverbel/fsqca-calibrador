@@ -87,3 +87,26 @@ test_that("sin expectativas direccionales no hay solucion intermedia", {
   expect_false(is.null(obs$conservadora))
   expect_false(is.null(obs$parsimoniosa))
 })
+
+test_that("sin configuraciones suficientes el paso 6 sigue vivo", {
+  # Antes esto abortaba el analisis entero con un error de QCA en ingles.
+  # Lo destapo una encuesta de prueba con efecto techo fuerte.
+  d <- datos_lf3()
+  # Un umbral imposible: ninguna configuracion lo alcanza.
+  tt <- construir_tabla_verdad(d, "SURV", CONDS3, consistencia = 0.999,
+                               frecuencia = 1)
+
+  res <- diagnosticar_suficiencia(tt)
+
+  expect_false(res$minimizacion_posible)
+  expect_match(res$motivo, "No se pudo minimizar")
+  expect_null(res$soluciones$conservadora)
+})
+
+test_that("con configuraciones suficientes la minimizacion si es posible", {
+  res <- diagnosticar_suficiencia(tt_lf())
+
+  expect_true(res$minimizacion_posible)
+  expect_true(is.na(res$motivo))
+  expect_false(is.null(res$soluciones$conservadora))
+})
