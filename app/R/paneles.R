@@ -330,6 +330,16 @@ panel_exportacion <- function(e) {
       shiny::downloadButton("bajar_base", "Base calibrada (.csv)",
                             class = "btn secundario"),
       shiny::downloadButton("bajar_guion", "Guion de R (.R)",
-                            class = "btn secundario"))
+                            class = "btn secundario"),
+      shiny::downloadButton("bajar_informe", "Informe (.html)",
+                            class = "btn")),
+    shiny::tags$p(class = "ayuda", style = "margin-top:14px",
+                  paste("El informe en Word se genera aparte, con Quarto.",
+                        "Envie el archivo de proyecto a quien le entrego la",
+                        "herramienta y se lo devolvera en .docx para pegar",
+                        "en la tesis.")),
+    shiny::tags$h3(class = "etiqueta", style = "margin-top:30px",
+                   "Vista previa del informe"),
+    shiny::uiOutput("vista_informe")
   )
 }

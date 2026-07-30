@@ -27,6 +27,9 @@ suppressPackageStartupMessages({
 source(file.path("app", "R", "componentes.R"), local = FALSE)
 source(file.path("app", "R", "paneles.R"), local = FALSE)
 source(file.path("app", "R", "acceso.R"), local = FALSE)
+source(file.path("app", "R", "informe_html.R"), local = FALSE)
+CSS_INFORME <- paste(readLines(file.path("app", "www", "estilos.css"),
+                               warn = FALSE), collapse = "\n")
 shiny::addResourcePath("estatico", file.path("app", "www"))
 
 CATALOGO <- catalogo_alertas()
@@ -225,6 +228,34 @@ server <- function(input, output, session) {
       panel_en_construccion(estado$paso)
     )
   })
+
+  # --- Informe ----------------------------------------------------------
+  # Se compone en R, sin Quarto: el equipo del investigador no lo tiene.
+  informe_actual <- reactive({
+    req(estado$membresias, length(estado$anclas) > 0)
+    reunir_informe(
+      datos = estado$datos, mapeo = estado$mapeo, anclas = estado$anclas,
+      bitacora = estado$bitacora,
+      umbrales = list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
+                      consistencia = 0.80, pri = 0.70),
+      resultado = "INNOV", leido = estado$leido)
+  })
+
+  output$vista_informe <- renderUI({
+    req(autorizado())
+    intento <- try(informe_html(informe_actual()), silent = TRUE)
+    if (inherits(intento, "try-error")) {
+      return(tags$p(class = "ayuda",
+                    "El informe se compone cuando estan hechos los pasos anteriores."))
+    }
+    intento
+  })
+
+  output$bajar_informe <- downloadHandler(
+    filename = function() "informe-calibracion.html",
+    content = function(archivo) {
+      writeLines(pagina_informe(informe_actual(), CSS_INFORME), archivo)
+    })
 
   output$vista_datos <- renderTable({
     req(estado$datos)

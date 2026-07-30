@@ -460,3 +460,52 @@ table.datos td.mal { color: var(--bloqueante); font-weight: 600; }
   .cuerpo { grid-template-columns: 1fr; }
   .bitacora { border-left: 0; border-top: 1px solid var(--linea); }
 }
+
+/* --- Informe: se compone en R, sin Quarto ni pandoc -------------------
+ * El equipo del investigador tiene R pero no tiene Quarto, asi que la
+ * vista previa y la descarga en HTML salen de aqui. El Word para la tesis
+ * lo genera el apoyo tecnico con `quarto render`.
+ */
+
+.informe {
+  max-width: 46rem;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.65;
+}
+.informe h1 { font-size: 1.9rem; font-weight: 600; margin: 0 0 4px;
+              letter-spacing: -0.015em; color: var(--tinta); }
+.informe .subtitulo { color: var(--tinta-2); margin: 0 0 28px;
+                      font-style: italic; }
+.informe h2 { font-size: 1.3rem; font-weight: 600; color: var(--azul);
+              margin: 34px 0 10px; }
+.informe h3 { font-size: 1.05rem; font-weight: 600; margin: 22px 0 8px; }
+.informe p { margin: 0 0 12px; }
+.informe .nota-informe { font-size: 0.9rem; color: var(--tinta-2); }
+.informe table.datos { font-family: var(--sans); margin: 12px 0 18px; }
+
+.justificacion-informe { margin-bottom: 14px; }
+.justificacion-informe b { font-family: var(--mono); font-size: 0.85rem; }
+.justificacion-informe .fuente { color: var(--tinta-3); font-size: 0.85rem; }
+.justificacion-informe p { margin: 3px 0 0; }
+
+.alerta-informe { margin-bottom: 14px; padding-left: 12px;
+                  border-left: 3px solid var(--linea); }
+.alerta-informe[data-sev="bloqueante"]  { border-left-color: var(--bloqueante); }
+.alerta-informe[data-sev="advertencia"] { border-left-color: var(--advertencia); }
+.alerta-informe[data-sev="informativa"] { border-left-color: var(--informativa); }
+.alerta-informe b { font-family: var(--sans); font-size: 0.95rem; }
+.alerta-informe .sev { font-family: var(--sans); font-size: 0.8rem;
+                       color: var(--tinta-3); }
+.alerta-informe blockquote { margin: 8px 0 0; padding-left: 12px;
+                             border-left: 2px solid var(--linea);
+                             color: var(--tinta-2); font-size: 0.95rem; }
+
+.solucion { margin-bottom: 14px; }
+.solucion .terminos { font-size: 1rem; }
+.solucion .ajuste { font-family: var(--mono); font-size: 0.85rem;
+                    color: var(--tinta-2); }
+
+/* La descarga se abre sola en el navegador: necesita margenes propios. */
+body.pagina-informe { max-width: 46rem; margin: 0 auto;
+                      padding: 3rem 1.5rem 6rem; }
