@@ -25,6 +25,7 @@ suppressPackageStartupMessages({
 })
 
 source(file.path("app", "R", "componentes.R"), local = FALSE)
+source(file.path("app", "R", "paneles.R"), local = FALSE)
 shiny::addResourcePath("estatico", file.path("app", "www"))
 
 CATALOGO <- catalogo_alertas()
@@ -65,7 +66,12 @@ server <- function(input, output, session) {
     bitacora = nueva_bitacora(),
     agregacion = NULL,
     anclas = list(),
-    membresias = NULL
+    membresias = NULL,
+    validacion = NULL,
+    semaforo = NULL,
+    analisis = NULL,
+    robustez = NULL,
+    obliga_robustez = FALSE
   )
 
   # --- Modo desarrollo: precarga para poder capturar cualquier paso -----
@@ -85,9 +91,9 @@ server <- function(input, output, session) {
 
     estado$bitacora <- registrar_alertas(
       estado$bitacora, diagnosticar_ingesta(estado$datos, estado$mapeo), 1)
+    estado$validacion <- diagnosticar_validacion(estado$datos, estado$mapeo)
     estado$bitacora <- registrar_alertas(
-      estado$bitacora,
-      diagnosticar_validacion(estado$datos, estado$mapeo)$alertas, 2)
+      estado$bitacora, estado$validacion$alertas, 2)
     estado$agregacion <- diagnosticar_agregacion(estado$datos, estado$mapeo)
     estado$bitacora <- registrar_alertas(
       estado$bitacora, estado$agregacion$alertas, 3)
@@ -104,11 +110,27 @@ server <- function(input, output, session) {
       cal <- diagnosticar_calibracion(estado$agregacion$casos, estado$anclas,
                                       estado$mapeo$columna_id)
       estado$membresias <- cal$membresias
+      estado$obliga_robustez <- cal$obliga_robustez
       estado$bitacora <- registrar_alertas(estado$bitacora, cal$alertas, 4)
     }
     if (DEV_PASO >= 5 && !is.null(estado$membresias)) {
-      sem <- diagnosticar_semaforo(estado$membresias, estado$mapeo$columna_id)
-      estado$bitacora <- registrar_alertas(estado$bitacora, sem$alertas, 5)
+      estado$semaforo <- diagnosticar_semaforo(estado$membresias,
+                                               estado$mapeo$columna_id)
+      estado$bitacora <- registrar_alertas(estado$bitacora,
+                                           estado$semaforo$alertas, 5)
+    }
+    if (DEV_PASO >= 6 && !is.null(estado$membresias)) {
+      condiciones <- c("CAP_ABS", "REDES")
+      nec <- diagnosticar_necesidad(estado$membresias, "INNOV", condiciones)
+      tt <- construir_tabla_verdad(estado$membresias, "INNOV", condiciones)
+      suf <- diagnosticar_suficiencia(tt)
+      estado$analisis <- list(necesidad = nec,
+                              tabla_verdad = leer_tabla_verdad(tt),
+                              suficiencia = suf)
+      estado$bitacora <- registrar_alertas(
+        estado$bitacora,
+        rbind(nec$alertas, alertas_tabla_verdad(leer_tabla_verdad(tt)),
+              suf$alertas), 6)
     }
   })
 
@@ -169,122 +191,16 @@ server <- function(input, output, session) {
     switch(
       as.character(estado$paso),
       "1" = panel_ingesta(estado),
+      "2" = panel_medida(estado),
+      "3" = panel_agregacion(estado),
       "4" = panel_calibracion(estado),
       "5" = panel_semaforo(estado),
+      "6" = panel_analisis(estado),
+      "7" = panel_robustez(estado),
+      "8" = panel_exportacion(estado),
       panel_en_construccion(estado$paso)
     )
   })
-
-  # --- Paneles ----------------------------------------------------------
-
-  panel_en_construccion <- function(paso) {
-    tagList(
-      tags$h2(class = "titulo-paso", sprintf("Paso %d · %s", paso, PASOS[paso])),
-      tags$p(class = "subtitulo-paso", "Este paso todavia no tiene interfaz."),
-      tags$p(class = "ayuda",
-             "El calculo ya funciona en el motor y esta probado; falta la pantalla.")
-    )
-  }
-
-  panel_ingesta <- function(e) {
-    tagList(
-      tags$h2(class = "titulo-paso", "Paso 1 · Ingesta"),
-      tags$p(class = "subtitulo-paso",
-             paste("Cargue el archivo de respuestas y diga que items componen",
-                   "cada constructo. La calibracion necesita el promedio de",
-                   "varios items: un item Likert solo tiene cinco valores y",
-                   "deja las anclas sin margen.")),
-      fileInput("archivo", "Archivo de respuestas",
-                accept = c(".csv", ".xls", ".xlsx"),
-                buttonLabel = "Elegir...", placeholder = "CSV o Excel"),
-      if (!is.null(e$datos)) {
-        tagList(
-          tags$span(class = "etiqueta", "Primeras filas, tal como se leyeron"),
-          tags$p(class = "ayuda",
-                 "Confirme con los ojos que el archivo se interpreto bien."),
-          tableOutput("vista_datos")
-        )
-      } else NULL
-    )
-  }
-
-  panel_calibracion <- function(e) {
-    if (is.null(e$membresias)) return(panel_en_construccion(4))
-    condiciones <- setdiff(names(e$membresias), e$mapeo$columna_id)
-
-    tagList(
-      tags$h2(class = "titulo-paso", "Paso 4 · Calibracion"),
-      tags$p(class = "subtitulo-paso",
-             paste("Fije las tres anclas de cada condicion y justifique de",
-                   "donde salen. Esta es la decision que se defiende ante el",
-                   "jurado, y sale impresa en el informe tal como la escriba.")),
-      lapply(condiciones, function(cond) {
-        anclas <- e$anclas[[cond]]
-        tags$div(
-          class = "condicion",
-          tags$h3(cond),
-          fluidRow(
-            column(4, sliderInput(paste0("plena_", cond), "Pertenencia plena",
-                                  1, 5, anclas$plena, step = 0.1)),
-            column(4, sliderInput(paste0("cruce_", cond), "Punto de cruce",
-                                  1, 5, anclas$cruce, step = 0.1)),
-            column(4, sliderInput(paste0("nula_", cond), "No pertenencia",
-                                  1, 5, anclas$nula, step = 0.1))
-          ),
-          ui_tira_membresia(e$membresias[[cond]], "Membresia calibrada"),
-          tags$div(
-            class = "justificacion",
-            style = "margin-top:18px",
-            tags$span(class = "etiqueta",
-                      sprintf("Fuente: %s · justificacion", anclas$fuente)),
-            tags$textarea(rows = 3, anclas$justificacion),
-            tags$p(class = "ayuda",
-                   paste("Sale integra en el anexo. Es lo primero que revisa",
-                         "un evaluador con experiencia en el metodo."))
-          )
-        )
-      })
-    )
-  }
-
-  panel_semaforo <- function(e) {
-    if (is.null(e$membresias)) return(panel_en_construccion(5))
-    sem <- diagnosticar_semaforo(e$membresias, e$mapeo$columna_id)
-    condiciones <- setdiff(names(e$membresias), e$mapeo$columna_id)
-
-    tagList(
-      tags$h2(class = "titulo-paso", "Paso 5 · Semaforo de diagnostico"),
-      tags$p(class = "subtitulo-paso",
-             paste("Antes de analizar: si una condicion deja de discriminar,",
-                   "la tabla de verdad sale degenerada. Esto se comprueba",
-                   "ahora, no despues.")),
-      lapply(condiciones, function(cond) {
-        tags$div(class = "condicion",
-                 tags$h3(cond),
-                 ui_tira_membresia(e$membresias[[cond]]))
-      }),
-      tags$h3(style = "font-family:var(--sans);font-size:13px;margin-top:26px",
-              "Resumen por condicion"),
-      tags$table(
-        class = "datos",
-        tags$thead(tags$tr(lapply(
-          c("Condicion", "% > 0,50", "Desv. tipica", "Asimetria", "Min", "Max"),
-          tags$th))),
-        tags$tbody(lapply(seq_len(nrow(sem$resumen)), function(i) {
-          r <- sem$resumen[i, ]
-          tags$tr(
-            tags$td(class = "num", r$condicion),
-            tags$td(class = if (r$pct_sobre_050 > 85) "num mal" else "num",
-                    sprintf("%.1f", r$pct_sobre_050)),
-            tags$td(class = if (r$sd < 0.15) "num mal" else "num",
-                    sprintf("%.3f", r$sd)),
-            tags$td(class = "num", sprintf("%+.2f", r$asimetria)),
-            tags$td(class = "num", sprintf("%.3f", r$minimo)),
-            tags$td(class = "num", sprintf("%.3f", r$maximo)))
-        }))
-      )
-    )
-  }
 
   output$vista_datos <- renderTable({
     req(estado$datos)

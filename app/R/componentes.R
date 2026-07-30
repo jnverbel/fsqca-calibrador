@@ -155,10 +155,16 @@ ui_pie <- function(paso, puede, pendientes, catalogo) {
     if (!is.null(motivo)) shiny::tags$span(class = "motivo-frenado", motivo) else NULL,
     if (paso > 1)
       shiny::actionButton("atras", "← Atras", class = "btn secundario") else NULL,
+    # shiny::actionButton tiene su PROPIO parametro disabled y espera un
+    # logico; verificado contra la firma instalada. Pasarlo como atributo
+    # suelto no funciona: con NA htmltools lo omite y con "disabled" lo
+    # captura el parametro sin renderizarlo, asi que el boton salia
+    # habilitado con la compuerta cerrada. El avance seguia protegido en el
+    # servidor, pero la interfaz mentia.
     shiny::actionButton(
       "siguiente",
       if (paso < length(PASOS))
         sprintf("Continuar al paso %d →", paso + 1) else "Terminar",
-      class = "btn", disabled = if (!puede) NA else NULL)
+      class = "btn", disabled = !puede)
   )
 }
