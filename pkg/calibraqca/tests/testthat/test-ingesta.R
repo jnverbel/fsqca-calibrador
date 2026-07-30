@@ -109,7 +109,7 @@ test_that("A-03 se dispara con un constructo de un solo item", {
   m <- definir_mapeo("id_empresa", "uno", list(
     list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01", "CAP02", "CAP03")),
     list(nombre = "SOLO",    rol = "condicion", items = "SOLO01"),
-    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02"))
+    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02", "RED03"))
   ))
 
   alertas <- diagnosticar_ingesta(d, m)
@@ -128,7 +128,7 @@ test_that("A-04 se dispara con mas del 10 por ciento de no respuesta", {
   d <- read.csv(testthat::test_path("datos", "degenerada.csv"))
   m <- definir_mapeo("id_empresa", "uno", list(
     list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01", "CAP02", "CAP03")),
-    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02"))
+    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02", "RED03"))
   ))
 
   alertas <- diagnosticar_ingesta(d, m)
@@ -148,7 +148,7 @@ test_that("A-05 se dispara con identificadores repetidos y un encuestado por cas
   d <- read.csv(testthat::test_path("datos", "degenerada.csv"))
   m <- definir_mapeo("id_empresa", "uno", list(
     list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01", "CAP03")),
-    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02"))
+    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02", "RED03"))
   ))
 
   expect_true("A-05" %in% diagnosticar_ingesta(d, m)$codigo)
@@ -158,7 +158,7 @@ test_that("A-05 no se dispara si el diseno declara varios encuestados por caso",
   d <- read.csv(testthat::test_path("datos", "degenerada.csv"))
   m <- definir_mapeo("id_empresa", "varios", list(
     list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01", "CAP03")),
-    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02"))
+    list(nombre = "REDES",   rol = "resultado", items = c("RED01", "RED02", "RED03"))
   ))
 
   expect_false("A-05" %in% diagnosticar_ingesta(d, m)$codigo)
