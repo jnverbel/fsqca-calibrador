@@ -489,7 +489,11 @@ Firmas verificadas contra `SetMethods` 4.1 instalado, no escritas de memoria:
 
 #### Dos fallos de `SetMethods` 4.1 que hubo que rodear
 
-Verificados el 2026-07-31 contra `SetMethods` 4.1, `QCA` 3.25 y `admisc` 0.40.
+Verificados el 2026-07-31 contra `SetMethods` 4.1, `QCA` 3.25 y `admisc` 0.40. La
+reproducción mínima de ambos vive en `docs/referencias/setmethods-4.1-reprex.R`: es
+autocontenida —usa solo los datos `PAYF` que trae el propio paquete— y sirve para dos
+cosas, para el reporte a la autora y para volver a ejecutarla cuando salga una versión
+nueva y comprobar si los rodeos siguen haciendo falta.
 
 - **`rob.cases` no es utilizable.** Aborta con `Incorrect expression, some set names do not
   have brackets`, lanzado desde su interna `robust.intersections`. **Falla también con el
