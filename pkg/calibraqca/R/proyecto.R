@@ -82,32 +82,57 @@ guardar_proyecto <- function(proyecto, ruta,
 #' un objeto con nombres, y el archivo pasa a explicarse solo -- que es lo
 #' que hara falta si alguien lo abre dentro de tres anos.
 .robustez_para_json <- function(robustez) {
-  if (is.null(robustez) || length(robustez$escenarios) == 0) return(robustez)
+  if (is.null(robustez)) return(robustez)
+  # Una tabla sin filas se escribe como {} y al volver no tendria columnas;
+  # como [] vuelve vacia y el lector le devuelve las suyas.
+  for (tabla in c("rangos", "umbrales", "estatus_inicial")) {
+    if (is.data.frame(robustez[[tabla]]) && nrow(robustez[[tabla]]) == 0) {
+      robustez[[tabla]] <- list()
+    }
+  }
+  if (length(robustez$escenarios) == 0) return(robustez)
   robustez$escenarios <- lapply(robustez$escenarios, function(e) {
     e$ajuste <- as.list(e$ajuste)
+    if (is.data.frame(e$cambios) && nrow(e$cambios) == 0) e$cambios <- list()
     e
   })
   robustez
 }
 
-#' Devuelve los rangos de robustez como data.frame, con sus NA.
-.rangos_desde_json <- function(x) {
-  if (is.null(x) || length(x) == 0) return(data.frame())
-  campo <- function(nombre, vacio) {
+#' Reconstruye una tabla del paso 7 con sus columnas, tipos y NA.
+#'
+#' `columnas` es un vector con nombre: el nombre es la columna y el valor,
+#' el vacio de su tipo (NA_character_, NA_real_, …). Se declara explicito
+#' porque una tabla sin filas pierde sus columnas al pasar por JSON y el
+#' panel necesita encontrarlas igual.
+.tabla_desde_json <- function(x, columnas) {
+  vacia <- as.data.frame(lapply(columnas, function(v) v[0]),
+                         stringsAsFactors = FALSE)
+  names(vacia) <- names(columnas)
+  if (is.null(x) || length(x) == 0) return(vacia)
+
+  celdas <- lapply(names(columnas), function(nombre) {
+    vacio <- columnas[[nombre]]
     vapply(x, function(fila) {
       v <- fila[[nombre]]
       if (is.null(v) || length(v) == 0) vacio else v[[1]]
     }, vacio)
-  }
-  data.frame(
-    condicion = campo("condicion", NA_character_),
-    ancla = campo("ancla", NA_character_),
-    actual = campo("actual", NA_real_),
-    inferior = campo("inferior", NA_real_),
-    superior = campo("superior", NA_real_),
-    stringsAsFactors = FALSE
-  )
+  })
+  names(celdas) <- names(columnas)
+  as.data.frame(celdas, stringsAsFactors = FALSE)
 }
+
+COLUMNAS_RANGOS <- list(condicion = NA_character_, ancla = NA_character_,
+                        actual = NA_real_, inferior = NA_real_,
+                        superior = NA_real_)
+COLUMNAS_UMBRALES <- list(umbral = NA_character_, actual = NA_real_,
+                          inferior = NA_real_, superior = NA_real_,
+                          motivo = NA_character_)
+COLUMNAS_ESTATUS <- list(caso = NA_character_, estatus = NA_character_,
+                         pertenencia_solucion = NA_real_,
+                         pertenencia_resultado = NA_real_)
+COLUMNAS_CAMBIOS <- list(caso = NA_character_, antes = NA_character_,
+                         despues = NA_character_)
 
 #' Devuelve un escenario con su ajuste como vector nombrado.
 #'
@@ -134,6 +159,7 @@ guardar_proyecto <- function(proyecto, ruta,
     total = as.integer(escalar("total", NA_integer_)),
     cobertura = as.numeric(escalar("cobertura", NA_real_)),
     terminos = as.character(unlist(e$terminos)),
+    cambios = .tabla_desde_json(e$cambios, COLUMNAS_CAMBIOS),
     ajuste = ajuste
   )
 }
@@ -162,7 +188,9 @@ guardar_proyecto <- function(proyecto, ruta,
     paso = as.numeric(escalar("paso", NA_real_)),
     max_pasos = as.integer(escalar("max_pasos", NA_integer_)),
     terminos_iniciales = as.character(unlist(x$terminos_iniciales)),
-    rangos = .rangos_desde_json(x$rangos),
+    rangos = .tabla_desde_json(x$rangos, COLUMNAS_RANGOS),
+    umbrales = .tabla_desde_json(x$umbrales, COLUMNAS_UMBRALES),
+    estatus_inicial = .tabla_desde_json(x$estatus_inicial, COLUMNAS_ESTATUS),
     escenarios = lapply(x$escenarios %||% list(), .escenario_desde_json)
   )
 }

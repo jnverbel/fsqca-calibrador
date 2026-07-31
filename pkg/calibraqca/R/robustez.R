@@ -30,6 +30,18 @@ IDM_SETMETHODS <- 0.95
 ANCLAS_EN_ORDEN <- c("nula", "cruce", "plena")
 NOMBRES_AJUSTE <- c("RF_cov", "RF_cons", "RF_SC_minTS", "RF_SC_maxTS")
 
+# El umbral de consistencia se mueve en centesimas; la frecuencia minima
+# es un conteo de casos y solo puede moverse de uno en uno.
+PASO_CONSISTENCIA <- 0.05
+PASO_FRECUENCIA <- 1
+
+# Estatus de un caso frente a la solucion, segun Schneider y Rohlfing
+# (2013). El orden va de mas a menos favorable para la explicacion.
+ESTATUS_TIPICO <- "tipico"
+ESTATUS_DESVIADO_CONSISTENCIA <- "desviado por consistencia"
+ESTATUS_DESVIADO_COBERTURA <- "desviado por cobertura"
+ESTATUS_IRRELEVANTE <- "irrelevante"
+
 #' Analisis de condiciones necesarias (Dul). Complementa la necesidad.
 #'
 #' Si NCA falla, el paso lo declara y sigue: es un complemento opcional y
@@ -117,6 +129,136 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
   )
 }
 
+#' Rango de un umbral del paso 6 dentro del cual la solucion no cambia.
+#'
+#' rob.inclrange y rob.ncutrange devuelven la misma forma que
+#' rob.calibrange -- un data.frame con "Lower bound" y "Upper bound" --,
+#' asi que el envoltorio es uno solo y la diferencia es que funcion llamar.
+#' Un fallo del barrido se declara y no tumba el paso 7: rob.ncutrange
+#' compara `n.cut.tl == nrow(data)` despues de haber puesto NA en esa
+#' variable, asi que revienta con "missing value where TRUE/FALSE needed"
+#' en cuanto el barrido inferior agota max.runs. Es un fallo de
+#' SetMethods 4.1, no de los datos.
+.rango_umbral <- function(funcion, membresias, resultado, condiciones,
+                          consistencia, frecuencia, paso, max_pasos,
+                          etiqueta, actual) {
+  datos <- as.data.frame(membresias[, c(condiciones, resultado), drop = FALSE])
+
+  th <- NULL
+  intento <- try(utils::capture.output(
+    th <- funcion(data = datos, step = paso, max.runs = max_pasos,
+                  outcome = resultado, conditions = condiciones,
+                  incl.cut = consistencia, n.cut = frecuencia),
+    type = "output"), silent = TRUE)
+
+  if (inherits(intento, "try-error") || is.null(th)) {
+    return(data.frame(
+      umbral = etiqueta, actual = actual,
+      inferior = NA_real_, superior = NA_real_,
+      motivo = paste("El barrido del umbral no pudo completarse:",
+                     trimws(as.character(intento))),
+      stringsAsFactors = FALSE))
+  }
+
+  data.frame(
+    umbral = etiqueta,
+    actual = actual,
+    inferior = as.numeric(th["Lower bound", ]),
+    superior = as.numeric(th["Upper bound", ]),
+    motivo = NA_character_,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Hasta donde puede moverse el umbral de consistencia.
+rango_consistencia <- function(membresias, resultado, condiciones,
+                               consistencia, frecuencia,
+                               paso = PASO_CONSISTENCIA,
+                               max_pasos = MAX_PASOS_RANGO) {
+  .rango_umbral(SetMethods::rob.inclrange, membresias, resultado, condiciones,
+                consistencia, frecuencia, paso, max_pasos,
+                etiqueta = "consistencia", actual = consistencia)
+}
+
+#' Hasta donde puede moverse la frecuencia minima.
+rango_frecuencia <- function(membresias, resultado, condiciones,
+                             consistencia, frecuencia,
+                             paso = PASO_FRECUENCIA,
+                             max_pasos = MAX_PASOS_RANGO) {
+  .rango_umbral(SetMethods::rob.ncutrange, membresias, resultado, condiciones,
+                consistencia, frecuencia, paso, max_pasos,
+                etiqueta = "frecuencia", actual = frecuencia)
+}
+
+#' Clasifica cada caso frente a la solucion.
+#'
+#' La regla es la de Schneider y Rohlfing (2013): un caso es tipico si
+#' pertenece a la solucion y al resultado; desviado por consistencia si
+#' pertenece a la solucion pero no al resultado; desviado por cobertura si
+#' presenta el resultado sin pertenecer a la solucion.
+#'
+#' Las pertenencias NO se calculan aqui: vienen de SetMethods::pimdata.
+#' Lo unico propio es la clasificacion, que es la regla publicada.
+#'
+#' El limite es "> 0,5" y no ">= 0,5" a proposito: una pertenencia de 0,50
+#' exacta no es pertenencia. Como el paso 4 ya corrige esos casos, no
+#' deberia haber ninguno, pero la regla se escribe igual para que ningun
+#' caso quede sin clasificar.
+clasificar_casos <- function(pim, ids) {
+  pertenece_solucion <- pim$solution_formula > 0.5
+  pertenece_resultado <- pim$out > 0.5
+
+  estatus <- ifelse(
+    pertenece_solucion & pertenece_resultado, ESTATUS_TIPICO,
+    ifelse(pertenece_solucion & !pertenece_resultado,
+           ESTATUS_DESVIADO_CONSISTENCIA,
+           ifelse(!pertenece_solucion & pertenece_resultado,
+                  ESTATUS_DESVIADO_COBERTURA, ESTATUS_IRRELEVANTE)))
+
+  data.frame(caso = as.character(ids), estatus = estatus,
+             pertenencia_solucion = as.numeric(pim$solution_formula),
+             pertenencia_resultado = as.numeric(pim$out),
+             stringsAsFactors = FALSE)
+}
+
+#' Estatus de todos los casos ante una solucion.
+#'
+#' Sustituye a SetMethods::rob.cases, que no es utilizable: falla con
+#' "Incorrect expression, some set names do not have brackets" incluso
+#' sobre el ejemplo oficial de su propia documentacion. Ver el paso 7 de
+#' la especificacion.
+estatus_de_casos <- function(solucion, resultado, ids = NULL) {
+  vacio <- data.frame(caso = character(0), estatus = character(0),
+                      pertenencia_solucion = numeric(0),
+                      pertenencia_resultado = numeric(0),
+                      stringsAsFactors = FALSE)
+
+  pim <- try(suppressWarnings(
+    SetMethods::pimdata(results = solucion, outcome = resultado)),
+    silent = TRUE)
+  if (inherits(pim, "try-error") || is.null(pim$solution_formula)) return(vacio)
+
+  clasificar_casos(pim, if (is.null(ids)) rownames(pim) else ids)
+}
+
+#' Que casos cambian de estatus entre la solucion original y una alterna.
+cambios_de_estatus <- function(inicial, alterno) {
+  vacio <- data.frame(caso = character(0), antes = character(0),
+                      despues = character(0), stringsAsFactors = FALSE)
+  if (nrow(inicial) == 0 || nrow(alterno) == 0) return(vacio)
+
+  juntos <- merge(inicial[, c("caso", "estatus")],
+                  alterno[, c("caso", "estatus")],
+                  by = "caso", suffixes = c("_antes", "_despues"))
+  cambian <- juntos$estatus_antes != juntos$estatus_despues
+  if (!any(cambian)) return(vacio)
+
+  data.frame(caso = juntos$caso[cambian],
+             antes = juntos$estatus_antes[cambian],
+             despues = juntos$estatus_despues[cambian],
+             stringsAsFactors = FALSE)
+}
+
 #' Ejecuta un juego alternativo de anclas y lo compara con el original.
 #'
 #' Desplaza las condiciones, no el resultado: mover el resultado cambiaria
@@ -128,16 +270,18 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
 ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
                                resultado, desplazamiento, consistencia,
                                frecuencia, solucion_inicial,
-                               idm = IDM_POR_DEFECTO) {
+                               idm = IDM_POR_DEFECTO,
+                               estatus_inicial = NULL) {
   id <- sprintf("anclas %+.2f", desplazamiento)
   terminos_iniciales <- unlist(solucion_inicial$solution)
   total <- length(terminos_iniciales)
   condiciones <- setdiff(names(anclas_por_condicion), resultado)
+  sin_cambios <- cambios_de_estatus(data.frame(), data.frame())
 
   fallido <- function(motivo) {
     list(id = id, comparable = FALSE, motivo = motivo,
          mantenidas = 0L, total = total, cobertura = NA_real_,
-         terminos = character(0),
+         terminos = character(0), cambios = sin_cambios,
          ajuste = stats::setNames(rep(NA_real_, 4), NOMBRES_AJUSTE))
   }
 
@@ -177,11 +321,20 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
     stats::setNames(as.numeric(valores[NOMBRES_AJUSTE]), NOMBRES_AJUSTE)
   }
 
+  cambios <- if (is.null(estatus_inicial)) {
+    sin_cambios
+  } else {
+    cambios_de_estatus(estatus_inicial,
+                       estatus_de_casos(intento, resultado,
+                                        as.character(crudo[[columna_id]])))
+  }
+
   list(id = id, comparable = TRUE, motivo = NA_character_,
        mantenidas = sum(terminos_iniciales %in% terminos),
        total = total,
        cobertura = .ajuste_solucion(intento)$ajuste$cobertura,
        terminos = terminos,
+       cambios = cambios,
        ajuste = ajuste)
 }
 
@@ -225,14 +378,24 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
                  frecuencia = frecuencia, paso = paso, max_pasos = max_pasos)
   }))
 
+  umbrales <- rbind(
+    rango_consistencia(membresias, resultado, condiciones, consistencia,
+                       frecuencia, max_pasos = max_pasos),
+    rango_frecuencia(membresias, resultado, condiciones, consistencia,
+                     frecuencia, max_pasos = max_pasos))
+
+  estatus_inicial <- estatus_de_casos(inicial, resultado,
+                                      as.character(crudo[[columna_id]]))
+
   escenarios <- lapply(desplazamientos, function(d) {
     ejecutar_escenario(crudo, anclas_por_condicion, columna_id, resultado,
                        desplazamiento = d, consistencia = consistencia,
                        frecuencia = frecuencia, solucion_inicial = inicial,
-                       idm = idm)
+                       idm = idm, estatus_inicial = estatus_inicial)
   })
 
-  list(rangos = rangos, escenarios = escenarios, ejecutado = TRUE,
+  list(rangos = rangos, umbrales = umbrales, escenarios = escenarios,
+       estatus_inicial = estatus_inicial, ejecutado = TRUE,
        motivo = NA_character_, idm = idm, paso = paso, max_pasos = max_pasos,
        terminos_iniciales = unlist(inicial$solution))
 }

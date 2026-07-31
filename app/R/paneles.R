@@ -418,6 +418,35 @@ panel_robustez <- function(e) {
               shiny::tags$td(class = "num", limite(fila$superior)))
           }))))
     } else NULL,
+    if (!is.null(e$robustez) && !is.null(e$robustez$umbrales) &&
+        nrow(e$robustez$umbrales) > 0) {
+      shiny::tagList(
+        shiny::tags$h3("Hasta donde pueden moverse los umbrales del paso 6"),
+        shiny::tags$p(class = "ayuda", paste(
+          "Consistencia con rob.inclrange y frecuencia minima con",
+          "rob.ncutrange, ambos de SetMethods.")),
+        shiny::tags$table(
+          class = "datos",
+          shiny::tags$thead(shiny::tags$tr(lapply(
+            c("Umbral", "Limite inferior", "Valor actual", "Limite superior"),
+            shiny::tags$th))),
+          shiny::tags$tbody(lapply(seq_len(nrow(e$robustez$umbrales)), function(i) {
+            fila <- e$robustez$umbrales[i, ]
+            limite <- function(x) if (is.na(x)) "no cambia" else sprintf("%.2f", x)
+            shiny::tags$tr(
+              shiny::tags$td(fila$umbral),
+              shiny::tags$td(class = "num", limite(fila$inferior)),
+              shiny::tags$td(class = "num", sprintf("%.2f", fila$actual)),
+              shiny::tags$td(class = "num", limite(fila$superior)))
+          }))),
+        {
+          fallidos <- e$robustez$umbrales[!is.na(e$robustez$umbrales$motivo), ]
+          if (nrow(fallidos) > 0) {
+            shiny::tags$ul(class = "ayuda", lapply(seq_len(nrow(fallidos)),
+              function(i) shiny::tags$li(fallidos$motivo[i])))
+          } else NULL
+        })
+    } else NULL,
     if (!is.null(e$robustez) && length(e$robustez$escenarios) > 0) {
       shiny::tagList(
         shiny::tags$h3("Juegos alternativos de anclas"),
@@ -447,7 +476,26 @@ panel_robustez <- function(e) {
             shiny::tags$ul(class = "ayuda", lapply(fallidos, function(x)
               shiny::tags$li(x$motivo)))
           } else NULL
-        })
+        },
+        shiny::tags$h3("Casos que cambian de estatus"),
+        shiny::tags$p(class = "ayuda", paste(
+          "Tipico, desviado por consistencia o desviado por cobertura,",
+          "segun Schneider y Rohlfing (2013). Las pertenencias las calcula",
+          "SetMethods; aqui solo se clasifican y se comparan.")),
+        shiny::tags$ul(class = "ayuda", lapply(e$robustez$escenarios, function(esc) {
+          n <- if (is.data.frame(esc$cambios)) nrow(esc$cambios) else 0
+          total <- if (is.null(e$robustez$estatus_inicial)) 0
+                   else nrow(e$robustez$estatus_inicial)
+          if (!isTRUE(esc$comparable)) {
+            return(shiny::tags$li(sprintf(
+              "%s: no comparable, la solucion no sobrevive.", esc$id)))
+          }
+          shiny::tags$li(sprintf("%s: %d de %d caso(s) cambian%s",
+                                 esc$id, n, total,
+                                 if (n == 0) "." else paste0(" — ",
+                                   paste(utils::head(esc$cambios$caso, 8),
+                                         collapse = ", "), ".")))
+        })))
     } else NULL
   )
 }

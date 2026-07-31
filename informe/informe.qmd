@@ -284,6 +284,19 @@ if (isTRUE(inf$robustez$ejecutado)) {
       check.names = FALSE))
   }
 
+  u <- inf$robustez$umbrales
+  if (!is.null(u) && nrow(u) > 0) {
+    emitir("**Rango de los umbrales del paso 6.** Consistencia con",
+           "`rob.inclrange` y frecuencia mínima con `rob.ncutrange`.")
+    kb(data.frame(
+      Umbral = u$umbral,
+      `Límite inferior` = limite(u$inferior),
+      `Valor usado` = sprintf("%.2f", u$actual),
+      `Límite superior` = limite(u$superior),
+      check.names = FALSE))
+    for (m in u$motivo[!is.na(u$motivo)]) emitir("-", m)
+  }
+
   emitir("**Escenarios alternativos.** Se ejecutaron",
          length(inf$robustez$escenarios),
          "juegos alternativos de anclas.")
@@ -297,6 +310,29 @@ if (isTRUE(inf$robustez$ejecutado)) {
 
   fallidos <- Filter(function(e) !isTRUE(e$comparable), inf$robustez$escenarios)
   for (e in fallidos) emitir("-", e$motivo)
+
+  total_casos <- if (is.null(inf$robustez$estatus_inicial)) 0
+                 else nrow(inf$robustez$estatus_inicial)
+  if (total_casos > 0) {
+    emitir("**Casos que cambian de estatus.** Típico, desviado por",
+           "consistencia o desviado por cobertura, según Schneider y",
+           "Rohlfing (2013). Las pertenencias las calcula `SetMethods`; la",
+           "clasificación es la regla publicada.")
+    kb(do.call(rbind, lapply(inf$robustez$escenarios, function(e) {
+      n <- if (is.data.frame(e$cambios)) nrow(e$cambios) else 0
+      data.frame(
+        Escenario = e$id,
+        `Casos que cambian` = if (!isTRUE(e$comparable)) "no comparable"
+                              else sprintf("%d de %d", n, total_casos),
+        `Cuáles` = if (!isTRUE(e$comparable))
+                     "la solución no sobrevive a este escenario"
+                   else if (n == 0) "ninguno"
+                   else paste(sprintf("%s (%s → %s)", e$cambios$caso,
+                                      e$cambios$antes, e$cambios$despues),
+                              collapse = "; "),
+        check.names = FALSE)
+    })))
+  }
 } else {
   emitir("**No se ejecutó el análisis de robustez.**",
          if (isTRUE(inf$robustez$obligatorio))
@@ -356,4 +392,5 @@ for (p in names(inf$ficha$paquetes)) {
 Obras metodológicas de referencia: Ragin (2008) para la calibración directa; Schneider y
 Wagemann (2012) para los métodos de conjuntos; Pappas y Woodside (2021) para la
 calibración de datos de encuesta; Oana, Schneider y Thomann (2021) para el protocolo de
-robustez; Dul (2016) para el análisis de condiciones necesarias.
+robustez; Schneider y Rohlfing (2013) para el estatus de los casos; Dul (2016) para el
+análisis de condiciones necesarias.

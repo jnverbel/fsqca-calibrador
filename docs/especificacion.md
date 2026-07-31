@@ -479,12 +479,35 @@ Firmas verificadas contra `SetMethods` 4.1 instalado, no escritas de memoria:
 |---|---|---|
 | `rob.calibrange(raw.data, calib.data, test.cond.raw, test.cond.calib, test.thresholds, type, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | **el rango de cada ancla** — hasta dónde puede moverse sin que la solución cambie | **sí**, en `rango_anclas()` |
 | `rob.fit(test_sol, initial_sol, outcome)` | ajuste de la solución alternativa frente a la original | **sí**, en `ejecutar_escenario()` |
-| `rob.inclrange(...)` | barrido del umbral de consistencia | no |
-| `rob.ncutrange(...)` | barrido de la frecuencia mínima | no |
-| `rob.cases(test_sol, initial_sol, outcome)` | qué casos cambian de estatus | no |
+| `rob.inclrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido del umbral de consistencia | **sí**, en `rango_consistencia()` |
+| `rob.ncutrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido de la frecuencia mínima | **sí**, en `rango_frecuencia()` |
+| `pimdata(results, outcome)` | pertenencia de cada caso a la solución y al resultado | **sí**, en `estatus_de_casos()` |
+| `rob.cases(test_sol, initial_sol, outcome)` | qué casos cambian de estatus | **no — está roto**, ver abajo |
 | `rob.corefit(...)` | ajuste de las configuraciones centrales | no |
 | `rob.singletest(...)` | comparación contra un único escenario | no |
 | `rob.xyplot(...)` | gráfico de la comparación | no |
+
+#### Dos fallos de `SetMethods` 4.1 que hubo que rodear
+
+Verificados el 2026-07-31 contra `SetMethods` 4.1, `QCA` 3.25 y `admisc` 0.40.
+
+- **`rob.cases` no es utilizable.** Aborta con `Incorrect expression, some set names do not
+  have brackets`, lanzado desde su interna `robust.intersections`. **Falla también con el
+  ejemplo oficial de su propia documentación** (`?rob.cases` sobre `PAYF`), y con
+  condiciones de una y de dos letras, así que no es cuestión de los datos ni de cómo se
+  llama. En su lugar, `estatus_de_casos()` toma las pertenencias de `SetMethods::pimdata`
+  —que sí funciona— y aplica la clasificación de **Schneider y Rohlfing (2013)**: típico,
+  desviado por consistencia, desviado por cobertura o irrelevante. El cálculo sigue siendo
+  de `SetMethods`; lo propio es la clasificación, y es una regla publicada y citable.
+- **`rob.ncutrange` aborta cuando el barrido inferior agota `max.runs`**: compara
+  `n.cut.tl == nrow(data)` después de haberle asignado `NA`, y revienta con `missing value
+  where TRUE/FALSE needed`. `.rango_umbral()` lo captura, devuelve los límites en `NA` y
+  **escribe el motivo en el informe**. El guion reproducible envuelve esa llamada en `try()`
+  para que no detenga el script en manos de un tercero.
+
+Un caso se considera perteneciente a un conjunto con pertenencia **> 0,5**, no ≥ 0,5: una
+pertenencia de 0,50 exacta no es pertenencia. El paso 4 ya corrige esos casos, así que no
+debería haber ninguno, pero la regla se escribe igual para que ninguno quede sin clasificar.
 
 La columna «¿Se usa?» no es decorativa: `test-paquetes-declarados.R` falla si un paquete
 aparece en `PAQUETES_INFORME` sin una sola llamada en el motor, para que el informe no
@@ -501,15 +524,20 @@ Se reporta:
   de `rob.fit`.
 - **El motivo escrito** de los escenarios cuya minimización es imposible. Un «0 de 1» sin
   explicación se lee como un fallo del programa, y es un resultado.
+- **Rango de los dos umbrales del paso 6**: consistencia (`rob.inclrange`, pasos de 0,05) y
+  frecuencia mínima (`rob.ncutrange`, pasos de 1, porque es un conteo de casos).
+- **Qué casos cambian de estatus** en cada escenario, con nombre y con el cambio concreto
+  (`E005: típico → desviado por cobertura`). Un escenario sin solución que comparar se
+  reporta **«no comparable»**, nunca «0 casos cambian»: no hay cero cambios, no hay
+  comparación.
 
 **Advertencia sobre `idm`.** `rob.calibrange` llama a `QCA::calibrate()` sin pasarle `idm`,
 así que trabaja siempre con el valor por defecto de QCA (0,95). Si el paso 4 usara otro,
 los rangos dejarían de ser comparables con la calibración que documenta el informe:
 `barrido_robustez()` avisa en vez de callarlo.
 
-Pendiente: barrido de los umbrales (frecuencia ∈ {1, 2, 3} y consistencia ∈ {0,75; 0,80;
-0,85}) con `rob.inclrange` y `rob.ncutrange`, y el cambio de estatus de los casos con
-`rob.cases`.
+Pendiente: nada del protocolo. Queda fuera por decisión, no por falta: `rob.corefit`,
+`rob.singletest` y `rob.xyplot`, que no añaden nada que el informe no diga ya.
 
 **Este paso es obligatorio si el paso 4 registró `A-15`** (anclas por distribución
 muestral). En cualquier otro caso es recomendado y se puede omitir reconociéndolo por
@@ -765,6 +793,10 @@ calibración no está probando la calibración. Lo mismo con:
 | `IDM_SETMETHODS` 0,95 → 0,90 | `test-robustez-setmethods.R::el barrido avisa cuando idm no es el que usa SetMethods` |
 | `ANCLAS_EN_ORDEN` permutado | `test-robustez-setmethods.R::el rango nombra las tres anclas` |
 | `NOMBRES_AJUSTE` reordenado | `test-robustez-setmethods.R::el ajuste del escenario sale de rob.fit` |
+| `PASO_CONSISTENCIA` 0,05 → 0,10 | `test-robustez-setmethods.R::el rango de consistencia coincide con rob.inclrange` |
+| `PASO_FRECUENCIA` 1 → 2 | `test-robustez-setmethods.R::el rango de frecuencia coincide con rob.ncutrange` |
+| el `> 0.5` de `clasificar_casos()` → `>= 0.5` | `test-robustez-setmethods.R::el punto de cruce exacto no deja un caso sin clasificar` |
+| los cuatro `ESTATUS_*` permutados | `test-robustez-setmethods.R::cada caso se clasifica por su pertenencia` |
 
 **El bug que la lectura de la tabla de verdad evita.** En `QCA` 3.25 las columnas `incl` y
 `PRI` de `tt$tt` son **`character`**, y las filas no observadas traen `"-"`. Como
