@@ -43,3 +43,9 @@ informe/*.docx
 # --- Quarto: los renders se regeneran, no se versionan ---
 informe/informe.html
 informe/informe.docx
+
+# Los renders que caen en la raiz (informe-calibrador-fsqca.*,
+# guia-de-lectura-informe-fsqca.*). Anclados con la barra inicial para no
+# tocar los .pdf de docs/referencias/, que si se versionan.
+/*.html
+/*.pdf
