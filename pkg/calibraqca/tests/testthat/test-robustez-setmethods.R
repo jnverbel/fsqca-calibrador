@@ -220,3 +220,218 @@ test_that("el barrido avisa cuando idm no es el que usa SetMethods", {
                      idm = 0.9),
     "idm")
 })
+
+# --- Barrido de los umbrales: rob.inclrange y rob.ncutrange -----------
+
+test_that("el rango de consistencia coincide con SetMethods::rob.inclrange", {
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  obs <- rango_consistencia(membresias, "INN", c("CAP", "RED"),
+                            consistencia = 0.8, frecuencia = 2,
+                            paso = 0.05, max_pasos = 6)
+
+  calib <- membresias[, c("CAP", "RED", "INN")]
+  rownames(calib) <- membresias$id_empresa
+  utils::capture.output(
+    th <- SetMethods::rob.inclrange(data = calib, step = 0.05, max.runs = 6,
+                                    outcome = "INN",
+                                    conditions = c("CAP", "RED"),
+                                    incl.cut = 0.8, n.cut = 2))
+
+  expect_equal(obs$inferior, as.numeric(th["Lower bound", ]))
+  expect_equal(obs$superior, as.numeric(th["Upper bound", ]))
+  expect_identical(obs$umbral, "consistencia")
+  expect_equal(obs$actual, 0.8)
+})
+
+test_that("el rango de frecuencia coincide con SetMethods::rob.ncutrange", {
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  obs <- rango_frecuencia(membresias, "INN", c("CAP", "RED"),
+                          consistencia = 0.8, frecuencia = 2,
+                          paso = 1, max_pasos = 6)
+
+  calib <- membresias[, c("CAP", "RED", "INN")]
+  rownames(calib) <- membresias$id_empresa
+  utils::capture.output(
+    th <- SetMethods::rob.ncutrange(data = calib, step = 1, max.runs = 6,
+                                    outcome = "INN",
+                                    conditions = c("CAP", "RED"),
+                                    incl.cut = 0.8, n.cut = 2))
+
+  expect_equal(obs$inferior, as.numeric(th["Lower bound", ]))
+  expect_equal(obs$superior, as.numeric(th["Upper bound", ]))
+  expect_identical(obs$umbral, "frecuencia")
+  expect_equal(obs$actual, 2)
+})
+
+test_that("los rangos de umbral no ensucian la consola", {
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  expect_silent(rango_consistencia(membresias, "INN", c("CAP", "RED"),
+                                   consistencia = 0.8, frecuencia = 2,
+                                   paso = 0.05, max_pasos = 2))
+  expect_silent(rango_frecuencia(membresias, "INN", c("CAP", "RED"),
+                                 consistencia = 0.8, frecuencia = 2,
+                                 paso = 1, max_pasos = 2))
+})
+
+# --- Estatus de los casos ---------------------------------------------
+
+test_that("cada caso se clasifica por su pertenencia a la solucion y al resultado", {
+  # La regla es la de Schneider y Rohlfing (2013), no una invencion: un
+  # caso es tipico si pertenece a la solucion y al resultado.
+  pim <- data.frame(solution_formula = c(0.8, 0.9, 0.2, 0.1),
+                    out = c(0.9, 0.3, 0.8, 0.2))
+
+  obs <- clasificar_casos(pim, c("A", "B", "C", "D"))
+
+  expect_identical(obs$estatus,
+                   c("tipico", "desviado por consistencia",
+                     "desviado por cobertura", "irrelevante"))
+  expect_identical(obs$caso, c("A", "B", "C", "D"))
+})
+
+test_that("una pertenencia de 0,50 exacta NO cuenta como pertenencia", {
+  # Con >= en vez de > el caso A pasaria a tipico y el B a tipico tambien.
+  # Afirmar solo que no hay NA dejaba el limite sin probar.
+  pim <- data.frame(solution_formula = c(0.5, 0.5, 0.51),
+                    out = c(0.5, 0.9, 0.9))
+
+  obs <- clasificar_casos(pim, c("A", "B", "C"))
+
+  expect_identical(obs$estatus,
+                   c("irrelevante", "desviado por cobertura", "tipico"))
+  expect_false(any(is.na(obs$estatus)))
+})
+
+test_that("el estatus de los casos sale de las pertenencias de SetMethods", {
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+  tt <- construir_tabla_verdad(membresias, "INN", c("CAP", "RED"),
+                               consistencia = 0.8, frecuencia = 2)
+  inicial <- QCA::minimize(tt, details = TRUE)
+
+  obs <- estatus_de_casos(inicial, "INN", membresias$id_empresa)
+
+  # Fuente independiente: pimdata, llamado aqui con la misma solucion.
+  pim <- SetMethods::pimdata(results = inicial, outcome = "INN")
+
+  expect_identical(nrow(obs), nrow(pim))
+  expect_setequal(unique(obs$estatus),
+                  unique(clasificar_casos(pim, rownames(pim))$estatus))
+})
+
+test_that("un escenario informa que casos cambian de estatus", {
+  inicial <- data.frame(caso = c("A", "B", "C"),
+                        estatus = c("tipico", "tipico", "irrelevante"),
+                        stringsAsFactors = FALSE)
+  alterno <- data.frame(caso = c("A", "B", "C"),
+                        estatus = c("tipico", "desviado por consistencia",
+                                    "irrelevante"),
+                        stringsAsFactors = FALSE)
+
+  obs <- cambios_de_estatus(inicial, alterno)
+
+  expect_identical(nrow(obs), 1L)
+  expect_identical(obs$caso, "B")
+  expect_identical(obs$antes, "tipico")
+  expect_identical(obs$despues, "desviado por consistencia")
+})
+
+test_that("sin cambios de estatus la tabla sale vacia y con sus columnas", {
+  igual <- data.frame(caso = c("A", "B"), estatus = c("tipico", "tipico"),
+                      stringsAsFactors = FALSE)
+
+  obs <- cambios_de_estatus(igual, igual)
+
+  expect_identical(nrow(obs), 0L)
+  expect_named(obs, c("caso", "antes", "despues"))
+})
+
+test_that("el barrido incluye los rangos de umbral y el estatus inicial", {
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+
+  obs <- barrido_robustez(crudo, anclas, "id_empresa", "INN",
+                          consistencia = 0.8, frecuencia = 2,
+                          desplazamientos = c(0.25),
+                          paso = 0.1, max_pasos = 2)
+
+  expect_identical(nrow(obs$umbrales), 2L)
+  expect_setequal(obs$umbrales$umbral, c("consistencia", "frecuencia"))
+  expect_true(nrow(obs$estatus_inicial) > 0)
+  expect_true(is.data.frame(obs$escenarios[[1]]$cambios))
+})
+
+test_that("un barrido de umbral que revienta se declara y no tumba el paso", {
+  # rob.ncutrange compara n.cut.tl == nrow(data) despues de haberle
+  # asignado NA, asi que falla en cuanto el barrido inferior agota
+  # max.runs. Es un fallo de SetMethods 4.1, no de los datos, y el paso 7
+  # no puede caerse por el.
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  obs <- rango_frecuencia(membresias, "INN", c("CAP", "RED"),
+                          consistencia = 0.8, frecuencia = 2,
+                          paso = 1, max_pasos = 1)
+
+  expect_identical(nrow(obs), 1L)
+  expect_identical(obs$umbral, "frecuencia")
+  expect_true(is.na(obs$inferior))
+  expect_match(obs$motivo, "no pudo completarse")
+})
+
+test_that("el paso por defecto del barrido de consistencia es el declarado", {
+  # Sin esta prueba, PASO_CONSISTENCIA puede cambiarse sin que nada falle:
+  # las demas pruebas pasan el paso explicito.
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  obs <- rango_consistencia(membresias, "INN", c("CAP", "RED"),
+                            consistencia = 0.8, frecuencia = 2,
+                            max_pasos = 6)
+
+  calib <- membresias[, c("CAP", "RED", "INN")]
+  utils::capture.output(
+    th <- SetMethods::rob.inclrange(data = calib, step = 0.05, max.runs = 6,
+                                    outcome = "INN",
+                                    conditions = c("CAP", "RED"),
+                                    incl.cut = 0.8, n.cut = 2))
+
+  expect_equal(obs$inferior, as.numeric(th["Lower bound", ]))
+  expect_equal(obs$superior, as.numeric(th["Upper bound", ]))
+})
+
+test_that("el paso por defecto del barrido de frecuencia es un caso entero", {
+  # La frecuencia minima es un conteo: moverla de dos en dos se salta
+  # umbrales que existen. Con n.cut = 2 la diferencia se ve -- paso 1 da
+  # un limite inferior de 1 y paso 2 lo da de 2 --, y con n.cut = 3 o 5 no,
+  # que es lo que dejaba la constante sin probar.
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+
+  obs <- rango_frecuencia(membresias, "INN", c("CAP", "RED"),
+                          consistencia = 0.8, frecuencia = 2,
+                          max_pasos = 6)
+
+  calib <- membresias[, c("CAP", "RED", "INN")]
+  utils::capture.output(
+    th <- SetMethods::rob.ncutrange(data = calib, step = 1, max.runs = 6,
+                                    outcome = "INN",
+                                    conditions = c("CAP", "RED"),
+                                    incl.cut = 0.8, n.cut = 2))
+
+  expect_equal(obs$inferior, as.numeric(th["Lower bound", ]))
+  expect_equal(obs$superior, as.numeric(th["Upper bound", ]))
+})

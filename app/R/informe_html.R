@@ -75,6 +75,68 @@ tabla_rangos_robustez <- function(rangos) {
     }))
 }
 
+#' Rangos de los umbrales del paso 6 (rob.inclrange y rob.ncutrange).
+tabla_umbrales_robustez <- function(umbrales) {
+  if (is.null(umbrales) || nrow(umbrales) == 0) {
+    return(shiny::tags$p(class = "nota-informe",
+                         "No se barrieron los umbrales del paso 6."))
+  }
+  limite <- function(x) if (is.na(x)) "no cambia" else fmt(x, 2)
+
+  tabla <- tabla_informe(
+    c("Umbral", "Límite inferior", "Valor usado", "Límite superior"),
+    lapply(seq_len(nrow(umbrales)), function(i) {
+      fila <- umbrales[i, ]
+      shiny::tags$tr(
+        shiny::tags$td(fila$umbral),
+        shiny::tags$td(class = "num", limite(fila$inferior)),
+        shiny::tags$td(class = "num", fmt(fila$actual, 2)),
+        shiny::tags$td(class = "num", limite(fila$superior)))
+    }))
+
+  fallidos <- umbrales[!is.na(umbrales$motivo), , drop = FALSE]
+  notas <- if (nrow(fallidos) > 0) {
+    shiny::tags$ul(class = "nota-informe",
+                   lapply(seq_len(nrow(fallidos)),
+                          function(i) shiny::tags$li(fallidos$motivo[i])))
+  } else NULL
+
+  shiny::tagList(tabla, notas)
+}
+
+#' Casos que cambian de estatus en cada escenario.
+#'
+#' Se reporta el recuento y los casos, no solo "hubo cambios": el
+#' investigador tiene que poder ir a mirar esos casos concretos.
+tabla_estatus_robustez <- function(escenarios, estatus_inicial) {
+  total <- if (is.null(estatus_inicial)) 0 else nrow(estatus_inicial)
+  if (length(escenarios) == 0 || total == 0) {
+    return(shiny::tags$p(class = "nota-informe",
+                         "No se comparó el estatus de los casos."))
+  }
+  tabla_informe(
+    c("Escenario", "Casos que cambian", "Cuáles"),
+    lapply(escenarios, function(esc) {
+      cambios <- esc$cambios
+      n <- if (is.data.frame(cambios)) nrow(cambios) else 0
+      # Un escenario sin solución que comparar no tiene "cero cambios":
+      # no hay comparación. Escribir "0 de 120" diría lo contrario.
+      if (!isTRUE(esc$comparable)) {
+        return(shiny::tags$tr(
+          shiny::tags$td(esc$id),
+          shiny::tags$td(class = "num mal", "no comparable"),
+          shiny::tags$td("la solución no sobrevive a este escenario")))
+      }
+      shiny::tags$tr(
+        shiny::tags$td(esc$id),
+        shiny::tags$td(class = if (n > 0) "num mal" else "num",
+                       sprintf("%d de %d", n, total)),
+        shiny::tags$td(if (n == 0) "ninguno" else paste(
+          sprintf("%s (%s → %s)", cambios$caso, cambios$antes, cambios$despues),
+          collapse = "; ")))
+    }))
+}
+
 #' Escenarios alternativos con su ajuste (SetMethods::rob.fit).
 #'
 #' Los escenarios que no se pudieron minimizar salen con su motivo debajo:
@@ -325,8 +387,21 @@ informe_html <- function(inf) {
                   format(inf$robustez$max_pasos %||% ""),
                   format(inf$robustez$paso %||% ""))),
                 tabla_rangos_robustez(inf$robustez$rangos),
+                shiny::tags$h3("Rango de los umbrales del paso 6"),
+                shiny::tags$p(class = "nota-informe", paste(
+                  "Consistencia con rob.inclrange y frecuencia mínima con",
+                  "rob.ncutrange.")),
+                tabla_umbrales_robustez(inf$robustez$umbrales),
                 shiny::tags$h3("Escenarios"),
-                tabla_escenarios_robustez(inf$robustez$escenarios))
+                tabla_escenarios_robustez(inf$robustez$escenarios),
+                shiny::tags$h3("Casos que cambian de estatus"),
+                shiny::tags$p(class = "nota-informe", paste(
+                  "Típico, desviado por consistencia o desviado por",
+                  "cobertura, según Schneider y Rohlfing (2013). Las",
+                  "pertenencias las calcula SetMethods; la clasificación es",
+                  "la regla publicada.")),
+                tabla_estatus_robustez(inf$robustez$escenarios,
+                                       inf$robustez$estatus_inicial))
             else
               shiny::tags$p(shiny::tags$b("No se ejecutó el análisis de robustez."),
                             if (isTRUE(inf$robustez$obligatorio))
@@ -343,7 +418,8 @@ informe_html <- function(inf) {
               "Ragin (2008) para la calibración directa; Schneider y Wagemann",
               "(2012) para los métodos de conjuntos; Pappas y Woodside (2021)",
               "para la calibración de datos de encuesta; Oana, Schneider y",
-              "Thomann (2021) para el protocolo de robustez; Dul (2016) para",
+              "Thomann (2021) para el protocolo de robustez; Schneider y",
+              "Rohlfing (2013) para el estatus de los casos; Dul (2016) para",
               "el análisis de condiciones necesarias. Los paquetes de R usados",
               "y sus versiones constan en la ficha."))))
 }

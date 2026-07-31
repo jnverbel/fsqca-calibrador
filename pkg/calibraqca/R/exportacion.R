@@ -153,6 +153,27 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "if (!requireNamespace(\"SetMethods\", quietly = TRUE)) {\n",
     "  stop(\"Falta SetMethods. Instalelo con install.packages(\\\"SetMethods\\\").\")\n",
     "}\n\n",
-    paste(llamadas, collapse = "\n\n"), "\n"
+    paste(llamadas, collapse = "\n\n"), "\n",
+    "\n# --- Robustez de los umbrales del paso 6 --------------------------\n",
+    "# Hasta donde pueden moverse la consistencia y la frecuencia minima\n",
+    "# sin que la solucion cambie.\n",
+    sprintf(paste0(
+      'SetMethods::rob.inclrange(\n',
+      '  data = calibrado[, %s], step = %s, max.runs = %s,\n',
+      '  outcome = "%s", conditions = %s,\n',
+      '  incl.cut = %s, n.cut = %s)\n\n',
+      '# rob.ncutrange de SetMethods 4.1 compara n.cut.tl == nrow(data)\n',
+      '# despues de asignarle NA, asi que puede abortar con "missing value\n',
+      '# where TRUE/FALSE needed". Va en try() para no detener el guion.\n',
+      'try(SetMethods::rob.ncutrange(\n',
+      '  data = calibrado[, %s], step = 1, max.runs = %s,\n',
+      '  outcome = "%s", conditions = %s,\n',
+      '  incl.cut = %s, n.cut = %s))\n'),
+      columnas, format(PASO_CONSISTENCIA), format(robustez$max_pasos),
+      resultado, .lista_r(condiciones),
+      format(umbrales$consistencia), format(umbrales$frecuencia),
+      columnas, format(robustez$max_pasos),
+      resultado, .lista_r(condiciones),
+      format(umbrales$consistencia), format(umbrales$frecuencia))
   )
 }

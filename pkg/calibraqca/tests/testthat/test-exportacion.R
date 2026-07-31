@@ -186,6 +186,24 @@ test_that("el guion reproduce el barrido de robustez con SetMethods", {
   expect_true(grepl("CAP_ABS", guion, fixed = TRUE))
 })
 
+test_that("el guion reproduce tambien el barrido de los dos umbrales", {
+  guion <- guion_reproducible(
+    ruta_datos = "encuesta.csv",
+    mapeo = definir_mapeo("id_empresa", "uno", list(
+      list(nombre = "CAP_ABS", rol = "condicion",
+           items = c("IT01", "IT02", "IT03")),
+      list(nombre = "INNOV", rol = "resultado", items = c("RS01", "RS02")))),
+    anclas = anclas_export(),
+    idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.80, pri = 0.70),
+    resultado = "INNOV",
+    robustez = list(ejecutado = TRUE, paso = 0.1, max_pasos = 10)
+  )
+
+  expect_true(grepl("SetMethods::rob.inclrange", guion, fixed = TRUE))
+  expect_true(grepl("SetMethods::rob.ncutrange", guion, fixed = TRUE))
+})
+
 test_that("sin barrido ejecutado el guion no finge haberlo hecho", {
   guion <- guion_reproducible(
     ruta_datos = "encuesta.csv",
@@ -200,6 +218,8 @@ test_that("sin barrido ejecutado el guion no finge haberlo hecho", {
   )
 
   expect_false(grepl("rob.calibrange", guion, fixed = TRUE))
+  expect_false(grepl("rob.inclrange", guion, fixed = TRUE))
+  expect_false(grepl("rob.ncutrange", guion, fixed = TRUE))
 })
 
 test_that("el bloque de robustez del guion se ejecuta de verdad", {
@@ -232,5 +252,6 @@ test_that("el bloque de robustez del guion se ejecuta de verdad", {
   # rob.calibrange imprime los tres limites por consola.
   expect_true(any(grepl("Crossover", salida)))
   expect_true(any(grepl("Exclusion", salida)))
+  expect_true(any(grepl("Raw Consistency", salida)))
   expect_false(any(grepl("Error", salida)))
 })

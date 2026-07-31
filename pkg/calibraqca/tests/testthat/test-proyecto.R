@@ -163,16 +163,35 @@ robustez_de_prueba <- function() {
       inferior = c(NA, 2.1, 3.1),
       superior = c(2.9, 3.9, NA),
       stringsAsFactors = FALSE),
+    umbrales = data.frame(
+      umbral = c("consistencia", "frecuencia"),
+      actual = c(0.8, 2),
+      inferior = c(0.75, 1),
+      superior = c(0.8, NA),
+      motivo = c(NA_character_, NA_character_),
+      stringsAsFactors = FALSE),
+    estatus_inicial = data.frame(
+      caso = c("E001", "E002"),
+      estatus = c("tipico", "irrelevante"),
+      pertenencia_solucion = c(0.8, 0.1),
+      pertenencia_resultado = c(0.9, 0.2),
+      stringsAsFactors = FALSE),
     escenarios = list(
       list(id = "anclas +0.25", comparable = TRUE, motivo = NA_character_,
            mantenidas = 1L, total = 1L, cobertura = 0.324,
            terminos = "CAP*RED",
+           cambios = data.frame(caso = "E001", antes = "tipico",
+                                despues = "desviado por consistencia",
+                                stringsAsFactors = FALSE),
            ajuste = c(RF_cov = 0.745, RF_cons = 0.975,
                       RF_SC_minTS = 0.8, RF_SC_maxTS = 0.9)),
       list(id = "anclas -0.50", comparable = FALSE,
            motivo = "El escenario no deja ninguna configuracion.",
            mantenidas = 0L, total = 1L, cobertura = NA_real_,
            terminos = character(0),
+           cambios = data.frame(caso = character(0), antes = character(0),
+                                despues = character(0),
+                                stringsAsFactors = FALSE),
            ajuste = c(RF_cov = NA_real_, RF_cons = NA_real_,
                       RF_SC_minTS = NA_real_, RF_SC_maxTS = NA_real_))))
 }
@@ -229,4 +248,48 @@ test_that("un proyecto sin robustez se carga sin inventarse escenarios", {
 
   expect_false(isTRUE(q$robustez$ejecutado))
   expect_length(q$robustez$escenarios, 0)
+})
+
+test_that("los rangos de umbral sobreviven al viaje por JSON", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  u <- cargar_proyecto(ruta)$robustez$umbrales
+
+  expect_s3_class(u, "data.frame")
+  expect_identical(u$umbral, c("consistencia", "frecuencia"))
+  expect_equal(u$inferior, c(0.75, 1))
+  expect_true(is.na(u$superior[2]))
+})
+
+test_that("el estatus de los casos sobrevive al viaje por JSON", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  e <- cargar_proyecto(ruta)$robustez$estatus_inicial
+
+  expect_s3_class(e, "data.frame")
+  expect_identical(e$caso, c("E001", "E002"))
+  expect_identical(e$estatus, c("tipico", "irrelevante"))
+})
+
+test_that("los cambios de estatus de cada escenario sobreviven al JSON", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  esc <- cargar_proyecto(ruta)$robustez$escenarios
+
+  expect_s3_class(esc[[1]]$cambios, "data.frame")
+  expect_identical(esc[[1]]$cambios$caso, "E001")
+  expect_identical(esc[[1]]$cambios$despues, "desviado por consistencia")
+  expect_identical(nrow(esc[[2]]$cambios), 0L)
 })
