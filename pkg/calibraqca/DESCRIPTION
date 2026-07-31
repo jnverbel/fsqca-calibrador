@@ -1,13 +1,13 @@
 Package: calibraqca
 Title: Motor de calibracion difusa de datos Likert para fsQCA
 Version: 0.1.0
-Authors@R: person("Javier", "Nunez", role = c("aut", "cre"),
+Authors@R: person("Javier", "Núñez", role = c("aut", "cre"),
                   email = "jnverbel@gmail.com")
 Description: Funciones puras para validar, agregar, calibrar y diagnosticar
     escalas Likert de cinco puntos con destino a un analisis fsQCA. No
     reimplementa calculos estadisticos: envuelve QCA, SetMethods, psych,
     multilevel, lavaan y NCA.
-License: file LICENSE
+License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.4)
 Imports:
