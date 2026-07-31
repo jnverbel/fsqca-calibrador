@@ -25,6 +25,88 @@ seccion <- function(titulo, ...) {
   shiny::tagList(shiny::tags$h2(titulo), ...)
 }
 
+#' Ajuste del factorial confirmatorio, o el motivo de haberlo omitido.
+bloque_cfa <- function(cfa) {
+  if (is.null(cfa)) return(NULL)
+  if (!isTRUE(cfa$ajuste$ejecutado)) {
+    return(shiny::tags$p(class = "nota-informe",
+                         shiny::tags$b("Factorial confirmatorio. "),
+                         cfa$ajuste$motivo %||% cfa$motivo))
+  }
+  a <- cfa$ajuste
+  shiny::tagList(
+    shiny::tags$h3("Factorial confirmatorio"),
+    shiny::tags$p(class = "nota-informe", paste(
+      "Modelo congenérico, un factor por constructo, con la varianza de cada",
+      "factor fijada en 1. El cálculo es de lavaan.")),
+    tabla_informe(
+      c("χ²", "gl", "CFI", "TLI", "RMSEA", "SRMR"),
+      list(shiny::tags$tr(
+        shiny::tags$td(class = "num", fmt(a$chi2, 2)),
+        shiny::tags$td(class = "num", fmt(a$gl, 0)),
+        shiny::tags$td(class = "num", fmt(a$cfi)),
+        shiny::tags$td(class = "num", fmt(a$tli)),
+        shiny::tags$td(class = "num", fmt(a$rmsea)),
+        shiny::tags$td(class = "num", fmt(a$srmr))))))
+}
+
+#' Rangos de robustez de cada ancla (SetMethods::rob.calibrange).
+#'
+#' Un limite NA no es un dato ausente: es que la solucion aguanto toda la
+#' ventana explorada. Escribirlo como "—" lo haria parecer un fallo.
+tabla_rangos_robustez <- function(rangos) {
+  if (is.null(rangos) || nrow(rangos) == 0) {
+    return(shiny::tags$p(class = "nota-informe",
+                         "No se calcularon rangos de anclas."))
+  }
+  limite <- function(x) if (is.na(x)) "no cambia" else fmt(x, 2)
+
+  tabla_informe(
+    c("Condición", "Ancla", "Límite inferior", "Valor usado",
+      "Límite superior"),
+    lapply(seq_len(nrow(rangos)), function(i) {
+      fila <- rangos[i, ]
+      shiny::tags$tr(
+        shiny::tags$td(fila$condicion),
+        shiny::tags$td(fila$ancla),
+        shiny::tags$td(class = "num", limite(fila$inferior)),
+        shiny::tags$td(class = "num", fmt(fila$actual, 2)),
+        shiny::tags$td(class = "num", limite(fila$superior)))
+    }))
+}
+
+#' Escenarios alternativos con su ajuste (SetMethods::rob.fit).
+#'
+#' Los escenarios que no se pudieron minimizar salen con su motivo debajo:
+#' un "0 de 1" sin explicacion se lee como un fallo del programa y es un
+#' resultado.
+tabla_escenarios_robustez <- function(escenarios) {
+  if (length(escenarios) == 0) {
+    return(shiny::tags$p(class = "nota-informe",
+                         "No se ejecutaron escenarios alternativos."))
+  }
+  fallidos <- Filter(function(e) !isTRUE(e$comparable), escenarios)
+  notas <- if (length(fallidos) > 0) {
+    shiny::tags$ul(class = "nota-informe",
+                   lapply(fallidos, function(e) shiny::tags$li(e$motivo)))
+  } else NULL
+
+  tabla <- tabla_informe(
+    c("Escenario", "Configuraciones que se mantienen", "Cobertura",
+      "RF consistencia", "RF cobertura"),
+    lapply(escenarios, function(esc) {
+      shiny::tags$tr(
+        shiny::tags$td(esc$id),
+        shiny::tags$td(class = "num",
+                       sprintf("%d de %d", esc$mantenidas, esc$total)),
+        shiny::tags$td(class = "num", fmt(esc$cobertura)),
+        shiny::tags$td(class = "num", fmt(esc$ajuste[["RF_cons"]])),
+        shiny::tags$td(class = "num", fmt(esc$ajuste[["RF_cov"]])))
+    }))
+
+  shiny::tagList(tabla, notas)
+}
+
 #' Compone el informe completo.
 informe_html <- function(inf) {
   f <- inf$ficha
@@ -203,9 +285,7 @@ informe_html <- function(inf) {
                   shiny::tags$td(class = "num",
                                  fmt(min(v$item_total, na.rm = TRUE), 2)))
               })),
-            if (!is.null(inf$validacion$cfa) && !inf$validacion$cfa$viable)
-              shiny::tags$p(class = "nota-informe",
-                            inf$validacion$cfa$motivo) else NULL),
+            bloque_cfa(inf$validacion$cfa)),
     seccion("Tabla de calibración",
             shiny::tags$p(paste(
               "Es lo primero que revisa un evaluador con experiencia en el",
@@ -229,8 +309,24 @@ informe_html <- function(inf) {
             shiny::tags$h3("Suficiencia"), soluciones),
     seccion("Robustez",
             if (isTRUE(inf$robustez$ejecutado))
-              shiny::tags$p(sprintf("Se ejecutaron %d escenarios alternativos.",
-                                    length(inf$robustez$escenarios)))
+              shiny::tagList(
+                shiny::tags$p(sprintf(paste(
+                  "Se ejecutaron %d escenarios alternativos de anclas y se",
+                  "calculó el rango de robustez de cada una. El cálculo es de",
+                  "SetMethods (Oana y Schneider): rob.calibrange para los",
+                  "rangos y rob.fit para el ajuste de cada escenario frente a",
+                  "la solución original."),
+                  length(inf$robustez$escenarios))),
+                shiny::tags$h3("Rango de cada ancla"),
+                shiny::tags$p(class = "nota-informe", sprintf(paste(
+                  "Ventana explorada: %s pasos de %s a cada lado. «No cambia»",
+                  "significa que la solución aguantó toda la ventana sin",
+                  "alterarse."),
+                  format(inf$robustez$max_pasos %||% ""),
+                  format(inf$robustez$paso %||% ""))),
+                tabla_rangos_robustez(inf$robustez$rangos),
+                shiny::tags$h3("Escenarios"),
+                tabla_escenarios_robustez(inf$robustez$escenarios))
             else
               shiny::tags$p(shiny::tags$b("No se ejecutó el análisis de robustez."),
                             if (isTRUE(inf$robustez$obligatorio))

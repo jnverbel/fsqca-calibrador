@@ -106,6 +106,13 @@ resultados numéricos.
 y cubre el protocolo completo; las firmas reales están en el paso 7. No hizo falta inventar
 nada.
 
+⚠️ **Que las firmas existan no significa que se llamen.** Hasta el 2026-07-31, `SetMethods`
+y `lavaan` estaban en `Imports`, en `PAQUETES_INFORME` y en la sección de referencias del
+informe **sin una sola invocación en el motor**. Corregido: el paso 7 usa `rob.calibrange` y
+`rob.fit`, el paso 2 usa `lavaan::cfa`, y `test-paquetes-declarados.R` falla si vuelve a
+aparecer un paquete citado sin usar. La comprobación se hace sobre el namespace cargado, no
+sobre los archivos del disco.
+
 ---
 
 ## 2. El asistente: compuertas, no bloqueos
@@ -206,6 +213,14 @@ constructo tiene un solo ítem, esta herramienta no puede hacer nada honesto con
   con la varianza de cada factor fijada en 1 para identificar el modelo. Si no se cumple,
   el paso **omite el CFA explicando por qué**, en vez de mostrar un modelo que no ajusta.
   Ese texto entra en el informe.
+
+  **REVISADO el 2026-07-31.** `cfa_viable()` decidía si el modelo era defendible, pero
+  nadie lo estimaba: `lavaan` figuraba en las dependencias y en la ficha del informe sin
+  haber calculado nada. Ahora `ajustar_cfa()` lo ejecuta con `lavaan::cfa(std.lv = TRUE)`
+  cuando la muestra lo sostiene — `std.lv` fija la varianza de cada factor en 1, que es el
+  supuesto con el que `parametros_cfa()` cuenta los parámetros libres — y reporta χ², gl,
+  CFI, TLI, RMSEA y SRMR. Un modelo que no converge se declara omitido; el CFA es un
+  complemento del paso 2, no su condición de existencia.
 
 **Diagnósticos:**
 
@@ -452,28 +467,49 @@ sistemáticos de ±0,25 y ±0,50 sobre cada ancla.
 Schneider), no en una ocurrencia propia. Esto es una restricción de diseño, no una
 preferencia: el objetivo es que el capítulo de robustez tenga referencia bibliográfica.
 
-Firmas verificadas contra `SetMethods` 4.1, no escritas de memoria:
+**Lo que está implementado — REVISADO el 2026-07-31.** Hasta esa fecha la afirmación de
+arriba era falsa: `SetMethods` figuraba en las dependencias y en la ficha del informe, pero
+**no se invocaba en ninguna parte**, el barrido era propio y el botón «Ejecutar el barrido»
+no tenía ningún `observeEvent` que lo escuchara. El paso 7 no calculaba nada. Corregido en
+`pkg/calibraqca/R/robustez.R` y `app/app.R`.
 
-| Función | Para qué |
-|---|---|
-| `rob.calibrange(raw.data, calib.data, test.cond.raw, test.cond.calib, test.thresholds, type, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | **el barrido de anclas** — es exactamente el escenario que este paso necesita |
-| `rob.inclrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido del umbral de consistencia |
-| `rob.ncutrange(data, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | barrido de la frecuencia mínima |
-| `rob.fit(test_sol, initial_sol, outcome)` | ajuste de la solución alternativa frente a la original |
-| `rob.cases(test_sol, initial_sol, outcome)` | qué casos cambian de estatus |
-| `rob.corefit(test_sol, initial_sol, outcome)` | ajuste de las configuraciones centrales |
-| `rob.singletest(test_sol, initial_sol, outcome)` | comparación contra un único escenario |
-| `rob.xyplot(test_sol, initial_sol, outcome, ...)` | gráfico de la comparación |
+Firmas verificadas contra `SetMethods` 4.1 instalado, no escritas de memoria:
 
-Se reporta, para cada escenario:
-- si las configuraciones de la solución se mantienen;
-- el ajuste (consistencia y cobertura) de cada una;
-- qué casos cambian de estatus (típicos, desviados por consistencia, desviados por
-  cobertura);
-- una matriz de coincidencia entre la solución original y cada alternativa.
+| Función | Para qué | ¿Se usa? |
+|---|---|---|
+| `rob.calibrange(raw.data, calib.data, test.cond.raw, test.cond.calib, test.thresholds, type, step, max.runs, outcome, conditions, incl.cut, n.cut, include, ...)` | **el rango de cada ancla** — hasta dónde puede moverse sin que la solución cambie | **sí**, en `rango_anclas()` |
+| `rob.fit(test_sol, initial_sol, outcome)` | ajuste de la solución alternativa frente a la original | **sí**, en `ejecutar_escenario()` |
+| `rob.inclrange(...)` | barrido del umbral de consistencia | no |
+| `rob.ncutrange(...)` | barrido de la frecuencia mínima | no |
+| `rob.cases(test_sol, initial_sol, outcome)` | qué casos cambian de estatus | no |
+| `rob.corefit(...)` | ajuste de las configuraciones centrales | no |
+| `rob.singletest(...)` | comparación contra un único escenario | no |
+| `rob.xyplot(...)` | gráfico de la comparación | no |
 
-También se barren los umbrales: frecuencia ∈ {1, 2, 3} y consistencia ∈ {0,75; 0,80;
-0,85}.
+La columna «¿Se usa?» no es decorativa: `test-paquetes-declarados.R` falla si un paquete
+aparece en `PAQUETES_INFORME` sin una sola llamada en el motor, para que el informe no
+pueda volver a citar a nadie por un cálculo que no hizo.
+
+Se reporta:
+
+- **Rango de cada ancla** (`rob.calibrange`), una fila por condición y ancla. Un límite
+  vacío se escribe **«no cambia»** y no «—»: significa que la solución aguantó toda la
+  ventana explorada, `max_pasos` pasos de tamaño `paso` a cada lado. Es el mejor resultado
+  posible, y presentarlo como un dato ausente lo haría parecer un fallo.
+- **Escenarios alternativos**, cada uno recalibrado y vuelto a minimizar de verdad: cuántas
+  configuraciones de la solución original se mantienen, la cobertura, y `RF_cons` / `RF_cov`
+  de `rob.fit`.
+- **El motivo escrito** de los escenarios cuya minimización es imposible. Un «0 de 1» sin
+  explicación se lee como un fallo del programa, y es un resultado.
+
+**Advertencia sobre `idm`.** `rob.calibrange` llama a `QCA::calibrate()` sin pasarle `idm`,
+así que trabaja siempre con el valor por defecto de QCA (0,95). Si el paso 4 usara otro,
+los rangos dejarían de ser comparables con la calibración que documenta el informe:
+`barrido_robustez()` avisa en vez de callarlo.
+
+Pendiente: barrido de los umbrales (frecuencia ∈ {1, 2, 3} y consistencia ∈ {0,75; 0,80;
+0,85}) con `rob.inclrange` y `rob.ncutrange`, y el cambio de estatus de los casos con
+`rob.cases`.
 
 **Este paso es obligatorio si el paso 4 registró `A-15`** (anclas por distribución
 muestral). En cualquier otro caso es recomendado y se puede omitir reconociéndolo por
@@ -484,7 +520,8 @@ escrito.
 | `A-31` | Solución no robusta | alguna configuración desaparece en ≥ 1 escenario | advertencia |
 | `A-32` | Robustez omitida con anclas muestrales | `A-15` activa y paso 7 sin ejecutar | bloqueante |
 
-**Se guarda:** los escenarios ejecutados y su comparación completa.
+**Se guarda:** los rangos de todas las anclas, los escenarios ejecutados con su ajuste, y
+la ventana explorada (`paso`, `max_pasos`, `idm`) para que el barrido sea reproducible.
 
 ---
 
@@ -725,6 +762,9 @@ calibración no está probando la calibración. Lo mismo con:
 | `CONSISTENCIA_CONTRADICCION` 0,50 → 0,79 | `test-tabla-verdad.R::A-30 se dispara` |
 | `LIMITE_MUESTRA_PEQUENA` 50 → 5 | `test-tabla-verdad.R::umbral_frecuencia marca el limite` |
 | `COBERTURA_MINIMA` 0,50 → 0,10 | `test-minimizacion.R::A-29 se dispara` |
+| `IDM_SETMETHODS` 0,95 → 0,90 | `test-robustez-setmethods.R::el barrido avisa cuando idm no es el que usa SetMethods` |
+| `ANCLAS_EN_ORDEN` permutado | `test-robustez-setmethods.R::el rango nombra las tres anclas` |
+| `NOMBRES_AJUSTE` reordenado | `test-robustez-setmethods.R::el ajuste del escenario sale de rob.fit` |
 
 **El bug que la lectura de la tabla de verdad evita.** En `QCA` 3.25 las columnas `incl` y
 `PRI` de `tt$tt` son **`character`**, y las filas no observadas traen `"-"`. Como
@@ -812,6 +852,15 @@ Tres bases sintéticas fijas, versionadas en `tests/testthat/datos/`, con semill
 - **La interfaz se mira a ojo**, con capturas en los tres puntos del flujo donde el
   investigador toma una decisión: el mapeo, los deslizadores y el semáforo. Las capturas
   las revisa Javier, no un script.
+- **Lo que sí se comprueba desde el 2026-07-31:** que ningún botón quede dibujado sin
+  manejador (`test-botones-cableados.R`). Es el fallo que más veces se ha repetido aquí y
+  siempre lo encontró alguien usando la aplicación, nunca la suite: los cuatro botones de
+  descarga (`52ab42f`), el flujo de los pasos 4 a 8 (`c00c918`) y el barrido de robustez,
+  que llevaba desde el principio sin ningún `observeEvent`. La prueba lee los archivos de
+  `app/` y exige que cada `actionButton` aparezca como `input$id` y cada `downloadButton`
+  como `output$id`.
+- **Sigue sin cubrirse** que el manejador haga lo correcto, ni que el panel pinte lo que
+  debe. Para eso hace falta `shinytest2`, que no está.
 - **Nada sustituye a que el investigador use la herramienta.** Antes de darla por
   terminada, una sesión completa con sus datos reales, mirando dónde duda.
 

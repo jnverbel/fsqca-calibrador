@@ -335,6 +335,53 @@ server <- function(input, output, session) {
       rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas), 6)
   })
 
+  # --- Paso 7: el barrido se ejecuta a peticion -------------------------
+  # El boton estaba dibujado desde el principio y nadie lo escuchaba: el
+  # paso 7 no calculaba nada y el informe declaraba la robustez omitida.
+  # A diferencia del paso 6, este no se lanza solo al llegar: cada
+  # escenario es una minimizacion completa y puede tardar minutos.
+
+  observeEvent(input$correr_robustez, {
+    req(estado$agregacion, length(estado$anclas) > 0, estado$resultado)
+
+    aviso <- showNotification(
+      paste("Ejecutando el barrido de robustez. Son varias minimizaciones",
+            "completas; puede tardar unos minutos."),
+      duration = NULL, type = "message")
+    on.exit(removeNotification(aviso), add = TRUE)
+
+    u <- umbrales_actuales()
+    rob <- try(barrido_robustez(
+      crudo = estado$agregacion$casos,
+      anclas_por_condicion = estado$anclas,
+      columna_id = estado$mapeo$columna_id,
+      resultado = estado$resultado,
+      consistencia = u$consistencia, frecuencia = u$frecuencia), silent = TRUE)
+
+    if (inherits(rob, "try-error")) {
+      showNotification(
+        paste("El barrido no pudo ejecutarse:",
+              conditionMessage(attr(rob, "condition"))),
+        type = "error", duration = 15)
+      return()
+    }
+
+    estado$robustez <- rob
+    diag <- diagnosticar_robustez(rob$escenarios,
+                                  obliga_robustez = estado$obliga_robustez,
+                                  ejecutado = rob$ejecutado)
+    estado$bitacora <- registrar_alertas(estado$bitacora, diag$alertas, 7)
+
+    showNotification(
+      if (isTRUE(rob$ejecutado)) {
+        sprintf("Barrido terminado: %d escenario(s) y %d rango(s) de ancla.",
+                length(rob$escenarios), nrow(rob$rangos))
+      } else {
+        rob$motivo
+      },
+      type = if (isTRUE(rob$ejecutado)) "message" else "warning", duration = 10)
+  })
+
   # --- Informe ----------------------------------------------------------
   # Se compone en R, sin Quarto: el equipo del investigador no lo tiene.
   informe_actual <- reactive({
@@ -344,7 +391,8 @@ server <- function(input, output, session) {
       bitacora = estado$bitacora,
       umbrales = list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
                       consistencia = 0.80, pri = 0.70),
-      resultado = estado$resultado, leido = estado$leido)
+      resultado = estado$resultado, leido = estado$leido,
+      robustez = estado$robustez)
   })
 
   output$vista_informe <- renderUI({
@@ -400,7 +448,7 @@ server <- function(input, output, session) {
       writeLines(guion_reproducible(
         ruta_datos = estado$leido$nombre_archivo, mapeo = estado$mapeo,
         anclas = estado$anclas, idm = 0.95, umbrales = umbrales_actuales(),
-        resultado = estado$resultado), archivo)
+        resultado = estado$resultado, robustez = estado$robustez), archivo)
     })
 
   output$bajar_informe <- downloadHandler(

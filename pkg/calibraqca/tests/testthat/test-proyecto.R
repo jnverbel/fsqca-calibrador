@@ -143,3 +143,90 @@ test_that("cambiar un ancla en el JSON cambia lo que lee el proyecto", {
 test_that("cargar un archivo inexistente es un error claro", {
   expect_error(cargar_proyecto(tempfile(fileext = ".json")), "No existe")
 })
+
+# --- La robustez tiene que sobrevivir al viaje por JSON ----------------
+#
+# jsonlite carga con simplifyVector = TRUE, asi que una lista de escenarios
+# con campos escalares se colapsa a vector atomico y esc$id deja de existir.
+# El panel del paso 7 y el informe reventaban al reabrir un proyecto
+# guardado, y ninguna prueba lo veia.
+
+robustez_de_prueba <- function() {
+  list(
+    ejecutado = TRUE, motivo = NA_character_,
+    idm = 0.95, paso = 0.1, max_pasos = 3L,
+    terminos_iniciales = "CAP*RED",
+    rangos = data.frame(
+      condicion = c("CAP", "CAP", "CAP"),
+      ancla = c("nula", "cruce", "plena"),
+      actual = c(2, 3, 4),
+      inferior = c(NA, 2.1, 3.1),
+      superior = c(2.9, 3.9, NA),
+      stringsAsFactors = FALSE),
+    escenarios = list(
+      list(id = "anclas +0.25", comparable = TRUE, motivo = NA_character_,
+           mantenidas = 1L, total = 1L, cobertura = 0.324,
+           terminos = "CAP*RED",
+           ajuste = c(RF_cov = 0.745, RF_cons = 0.975,
+                      RF_SC_minTS = 0.8, RF_SC_maxTS = 0.9)),
+      list(id = "anclas -0.50", comparable = FALSE,
+           motivo = "El escenario no deja ninguna configuracion.",
+           mantenidas = 0L, total = 1L, cobertura = NA_real_,
+           terminos = character(0),
+           ajuste = c(RF_cov = NA_real_, RF_cons = NA_real_,
+                      RF_SC_minTS = NA_real_, RF_SC_maxTS = NA_real_))))
+}
+
+test_that("los escenarios siguen siendo lista tras guardar y cargar", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  q <- cargar_proyecto(ruta)
+
+  expect_length(q$robustez$escenarios, 2)
+  expect_identical(q$robustez$escenarios[[1]]$id, "anclas +0.25")
+  expect_identical(q$robustez$escenarios[[2]]$id, "anclas -0.50")
+})
+
+test_that("el ajuste vuelve como vector con nombre y se puede leer por etiqueta", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  esc <- cargar_proyecto(ruta)$robustez$escenarios[[1]]
+
+  expect_equal(esc$ajuste[["RF_cons"]], 0.975)
+  expect_equal(esc$ajuste[["RF_cov"]], 0.745)
+  expect_identical(esc$mantenidas, 1L)
+})
+
+test_that("los rangos vuelven como data.frame con sus NA intactos", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  p <- nuevo_proyecto()
+  p$robustez <- robustez_de_prueba()
+  guardar_proyecto(p, ruta, fecha = FECHA_FIJA)
+
+  r <- cargar_proyecto(ruta)$robustez$rangos
+
+  expect_s3_class(r, "data.frame")
+  expect_identical(nrow(r), 3L)
+  expect_true(is.na(r$inferior[1]))
+  expect_equal(r$superior[2], 3.9)
+})
+
+test_that("un proyecto sin robustez se carga sin inventarse escenarios", {
+  ruta <- tempfile(fileext = ".json")
+  on.exit(unlink(ruta))
+  guardar_proyecto(nuevo_proyecto(), ruta, fecha = FECHA_FIJA)
+
+  q <- cargar_proyecto(ruta)
+
+  expect_false(isTRUE(q$robustez$ejecutado))
+  expect_length(q$robustez$escenarios, 0)
+})

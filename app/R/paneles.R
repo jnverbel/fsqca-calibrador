@@ -393,19 +393,61 @@ panel_robustez <- function(e) {
     } else NULL,
     shiny::actionButton("correr_robustez", "Ejecutar el barrido",
                         class = "btn"),
+    if (!is.null(e$robustez) && !is.null(e$robustez$rangos) &&
+        nrow(e$robustez$rangos) > 0) {
+      shiny::tagList(
+        shiny::tags$h3("Hasta donde puede moverse cada ancla"),
+        shiny::tags$p(class = "ayuda", paste(
+          "Rango dentro del cual la solucion no cambia, calculado con",
+          "rob.calibrange de SetMethods. 'No cambia' significa que la",
+          "solucion aguanto toda la ventana explorada sin alterarse: es el",
+          "mejor resultado posible.")),
+        shiny::tags$table(
+          class = "datos",
+          shiny::tags$thead(shiny::tags$tr(lapply(
+            c("Condicion", "Ancla", "Limite inferior", "Valor actual",
+              "Limite superior"), shiny::tags$th))),
+          shiny::tags$tbody(lapply(seq_len(nrow(e$robustez$rangos)), function(i) {
+            fila <- e$robustez$rangos[i, ]
+            limite <- function(x) if (is.na(x)) "no cambia" else sprintf("%.2f", x)
+            shiny::tags$tr(
+              shiny::tags$td(fila$condicion),
+              shiny::tags$td(fila$ancla),
+              shiny::tags$td(class = "num", limite(fila$inferior)),
+              shiny::tags$td(class = "num", sprintf("%.2f", fila$actual)),
+              shiny::tags$td(class = "num", limite(fila$superior)))
+          }))))
+    } else NULL,
     if (!is.null(e$robustez) && length(e$robustez$escenarios) > 0) {
-      shiny::tags$table(
-        class = "datos", style = "margin-top:20px",
-        shiny::tags$thead(shiny::tags$tr(lapply(
-          c("Escenario", "Configuraciones", "Cobertura"), shiny::tags$th))),
-        shiny::tags$tbody(lapply(e$robustez$escenarios, function(esc) {
-          shiny::tags$tr(
-            shiny::tags$td(class = "num", esc$id),
-            shiny::tags$td(class = if (esc$mantenidas < esc$total)
-                             "num mal" else "num",
-                           sprintf("%d de %d", esc$mantenidas, esc$total)),
-            shiny::tags$td(class = "num", sprintf("%.3f", esc$cobertura)))
-        })))
+      shiny::tagList(
+        shiny::tags$h3("Juegos alternativos de anclas"),
+        shiny::tags$p(class = "ayuda", paste(
+          "Cada escenario recalibra las condiciones y vuelve a minimizar. El",
+          "ajuste sale de rob.fit de SetMethods: consistencia y cobertura de",
+          "la solucion alternativa frente a la original.")),
+        shiny::tags$table(
+          class = "datos",
+          shiny::tags$thead(shiny::tags$tr(lapply(
+            c("Escenario", "Configuraciones", "Cobertura", "RF cons.",
+              "RF cob."), shiny::tags$th))),
+          shiny::tags$tbody(lapply(e$robustez$escenarios, function(esc) {
+            cifra <- function(x) if (is.na(x)) "—" else sprintf("%.3f", x)
+            shiny::tags$tr(
+              shiny::tags$td(class = "num", esc$id),
+              shiny::tags$td(class = if (esc$mantenidas < esc$total)
+                               "num mal" else "num",
+                             sprintf("%d de %d", esc$mantenidas, esc$total)),
+              shiny::tags$td(class = "num", cifra(esc$cobertura)),
+              shiny::tags$td(class = "num", cifra(esc$ajuste[["RF_cons"]])),
+              shiny::tags$td(class = "num", cifra(esc$ajuste[["RF_cov"]])))
+          }))),
+        {
+          fallidos <- Filter(function(x) !isTRUE(x$comparable), e$robustez$escenarios)
+          if (length(fallidos) > 0) {
+            shiny::tags$ul(class = "ayuda", lapply(fallidos, function(x)
+              shiny::tags$li(x$motivo)))
+          } else NULL
+        })
     } else NULL
   )
 }

@@ -38,6 +38,7 @@ guardar_proyecto <- function(proyecto, ruta,
                              fecha = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ",
                                             tz = "UTC")) {
   proyecto$modificado <- fecha
+  proyecto$robustez <- .robustez_para_json(proyecto$robustez)
   jsonlite::write_json(proyecto, ruta, auto_unbox = TRUE, pretty = TRUE,
                        digits = NA, null = "null", na = "null")
   invisible(ruta)
@@ -74,6 +75,98 @@ guardar_proyecto <- function(proyecto, ruta,
   x[, names(.COLUMNAS_BITACORA), drop = FALSE]
 }
 
+#' Prepara la robustez para el archivo de proyecto.
+#'
+#' jsonlite escribe un vector nombrado como array y se lleva por delante
+#' las etiquetas: "ajuste": [0.745, 0.975, ...]. Convertirlo en lista deja
+#' un objeto con nombres, y el archivo pasa a explicarse solo -- que es lo
+#' que hara falta si alguien lo abre dentro de tres anos.
+.robustez_para_json <- function(robustez) {
+  if (is.null(robustez) || length(robustez$escenarios) == 0) return(robustez)
+  robustez$escenarios <- lapply(robustez$escenarios, function(e) {
+    e$ajuste <- as.list(e$ajuste)
+    e
+  })
+  robustez
+}
+
+#' Devuelve los rangos de robustez como data.frame, con sus NA.
+.rangos_desde_json <- function(x) {
+  if (is.null(x) || length(x) == 0) return(data.frame())
+  campo <- function(nombre, vacio) {
+    vapply(x, function(fila) {
+      v <- fila[[nombre]]
+      if (is.null(v) || length(v) == 0) vacio else v[[1]]
+    }, vacio)
+  }
+  data.frame(
+    condicion = campo("condicion", NA_character_),
+    ancla = campo("ancla", NA_character_),
+    actual = campo("actual", NA_real_),
+    inferior = campo("inferior", NA_real_),
+    superior = campo("superior", NA_real_),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Devuelve un escenario con su ajuste como vector nombrado.
+#'
+#' El ajuste se reconstruye POR NOMBRE y no por posicion: un valor nulo
+#' desaparece al deserializar y correria a los demas, de modo que la
+#' cobertura acabaria mostrandose bajo la etiqueta de la consistencia.
+.escenario_desde_json <- function(e) {
+  ajuste <- stats::setNames(
+    vapply(NOMBRES_AJUSTE, function(n) {
+      v <- e$ajuste[[n]]
+      if (is.null(v) || length(v) == 0) NA_real_ else as.numeric(v[[1]])
+    }, numeric(1)), NOMBRES_AJUSTE)
+
+  escalar <- function(nombre, vacio) {
+    v <- e[[nombre]]
+    if (is.null(v) || length(v) == 0) vacio else v[[1]]
+  }
+
+  list(
+    id = escalar("id", NA_character_),
+    comparable = isTRUE(escalar("comparable", FALSE)),
+    motivo = escalar("motivo", NA_character_),
+    mantenidas = as.integer(escalar("mantenidas", NA_integer_)),
+    total = as.integer(escalar("total", NA_integer_)),
+    cobertura = as.numeric(escalar("cobertura", NA_real_)),
+    terminos = as.character(unlist(e$terminos)),
+    ajuste = ajuste
+  )
+}
+
+#' Reconstruye la robustez tal como la dejo el paso 7.
+#'
+#' jsonlite carga con simplifyVector = TRUE, asi que una lista de
+#' escenarios con campos escalares se colapsa a data.frame y esc$id pasa a
+#' ser una columna entera. El panel del paso 7 y el informe reventaban al
+#' reabrir un proyecto guardado. Por eso esta rama se lee aparte, sin
+#' simplificar.
+.robustez_desde_json <- function(x) {
+  if (is.null(x) || length(x) == 0) {
+    return(list(ejecutado = FALSE, escenarios = list(), rangos = data.frame()))
+  }
+  escalar <- function(nombre, vacio) {
+    v <- x[[nombre]]
+    if (is.null(v) || length(v) == 0) vacio else v[[1]]
+  }
+
+  list(
+    ejecutado = isTRUE(escalar("ejecutado", FALSE)),
+    motivo = escalar("motivo", NA_character_),
+    obligatorio = isTRUE(escalar("obligatorio", FALSE)),
+    idm = as.numeric(escalar("idm", NA_real_)),
+    paso = as.numeric(escalar("paso", NA_real_)),
+    max_pasos = as.integer(escalar("max_pasos", NA_integer_)),
+    terminos_iniciales = as.character(unlist(x$terminos_iniciales)),
+    rangos = .rangos_desde_json(x$rangos),
+    escenarios = lapply(x$escenarios %||% list(), .escenario_desde_json)
+  )
+}
+
 #' Lee un proyecto y verifica que la version del esquema sea conocida.
 cargar_proyecto <- function(ruta) {
   if (!file.exists(ruta)) stop("No existe el archivo: ", ruta, call. = FALSE)
@@ -88,6 +181,8 @@ cargar_proyecto <- function(ruta) {
   }
 
   p$alertas <- .bitacora_desde_json(p$alertas)
+  p$robustez <- .robustez_desde_json(
+    jsonlite::fromJSON(ruta, simplifyVector = FALSE)$robustez)
   p
 }
 

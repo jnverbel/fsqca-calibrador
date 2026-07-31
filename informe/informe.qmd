@@ -124,9 +124,22 @@ kb(do.call(rbind, lapply(names(inf$validacion$resultados), function(nom) {
 ```{r}
 #| label: cfa
 #| results: asis
-if (!is.null(inf$validacion$cfa) && !inf$validacion$cfa$viable) {
-  emitir("**Factorial confirmatorio.**", inf$validacion$cfa$motivo,
-         "Se omite explícitamente en lugar de presentar un modelo que no ajusta.")
+cfa <- inf$validacion$cfa
+if (!is.null(cfa)) {
+  if (isTRUE(cfa$ajuste$ejecutado)) {
+    emitir("**Factorial confirmatorio.** Modelo congenérico, un factor por",
+           "constructo, con la varianza de cada factor fijada en 1.",
+           "El cálculo es de `lavaan`.")
+    a <- cfa$ajuste
+    kb(data.frame(
+      `χ²` = round(a$chi2, 2), gl = a$gl,
+      CFI = round(a$cfi, 3), TLI = round(a$tli, 3),
+      RMSEA = round(a$rmsea, 3), SRMR = round(a$srmr, 3),
+      check.names = FALSE))
+  } else {
+    emitir("**Factorial confirmatorio.**", cfa$ajuste$motivo,
+           "Se omite explícitamente en lugar de presentar un modelo que no ajusta.")
+  }
 }
 ```
 
@@ -252,8 +265,38 @@ de los evaluadores.
 #| label: robustez
 #| results: asis
 if (isTRUE(inf$robustez$ejecutado)) {
-  emitir("Se ejecutaron", length(inf$robustez$escenarios),
-         "escenarios alternativos de anclas.")
+  emitir("El protocolo es el de `SetMethods` (Oana y Schneider):",
+         "`rob.calibrange` para el rango de cada ancla y `rob.fit` para el",
+         "ajuste de cada escenario frente a la solución original.")
+
+  limite <- function(x) ifelse(is.na(x), "no cambia", sprintf("%.2f", x))
+  r <- inf$robustez$rangos
+  if (!is.null(r) && nrow(r) > 0) {
+    emitir("**Rango de cada ancla.** Ventana explorada:",
+           inf$robustez$max_pasos, "pasos de", inf$robustez$paso,
+           "a cada lado. «No cambia» significa que la solución aguantó toda",
+           "la ventana sin alterarse.")
+    kb(data.frame(
+      Condición = r$condicion, Ancla = r$ancla,
+      `Límite inferior` = limite(r$inferior),
+      `Valor usado` = sprintf("%.2f", r$actual),
+      `Límite superior` = limite(r$superior),
+      check.names = FALSE))
+  }
+
+  emitir("**Escenarios alternativos.** Se ejecutaron",
+         length(inf$robustez$escenarios),
+         "juegos alternativos de anclas.")
+  kb(do.call(rbind, lapply(inf$robustez$escenarios, function(e) data.frame(
+    Escenario = e$id,
+    Configuraciones = sprintf("%d de %d", e$mantenidas, e$total),
+    Cobertura = round(e$cobertura, 3),
+    `RF consistencia` = round(e$ajuste[["RF_cons"]], 3),
+    `RF cobertura` = round(e$ajuste[["RF_cov"]], 3),
+    check.names = FALSE))))
+
+  fallidos <- Filter(function(e) !isTRUE(e$comparable), inf$robustez$escenarios)
+  for (e in fallidos) emitir("-", e$motivo)
 } else {
   emitir("**No se ejecutó el análisis de robustez.**",
          if (isTRUE(inf$robustez$obligatorio))

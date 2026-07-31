@@ -50,6 +50,7 @@ test_that("las funciones que la aplicacion necesita estan exportadas", {
     "pri_insuficiente", "diagnosticar_suficiencia", "umbral_frecuencia",
     "catalogo_alertas", "nueva_bitacora", "alerta", "registrar_alertas",
     "cerrar_alerta", "puede_avanzar", "alertas_pendientes",
+    "barrido_robustez", "diagnosticar_robustez",
     "nuevo_proyecto", "guardar_proyecto", "cargar_proyecto",
     "construir_proyecto", "comparar_huella",
     "reunir_informe", "tabla_calibracion", "exportar_base_calibrada",
