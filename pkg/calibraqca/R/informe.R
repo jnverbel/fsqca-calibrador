@@ -92,8 +92,11 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
 
     robustez = if (is.null(robustez)) {
       list(ejecutado = FALSE, obligatorio = calibracion$obliga_robustez,
-           escenarios = list())
-    } else robustez,
+           escenarios = list(), rangos = data.frame())
+    } else {
+      utils::modifyList(robustez,
+                        list(obligatorio = calibracion$obliga_robustez))
+    },
 
     declaraciones = list(
       casos_050 = as.character(unlist(calibracion$correccion)),

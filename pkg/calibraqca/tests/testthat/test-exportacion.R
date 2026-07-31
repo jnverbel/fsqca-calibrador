@@ -160,3 +160,77 @@ test_that("el guion declara sus requisitos y falla con mensaje claro sin QCA", {
   expect_true(grepl('install.packages("QCA")', guion, fixed = TRUE))
   expect_true(grepl("requireNamespace", guion, fixed = TRUE))
 })
+
+# --- El guion tiene que reproducir tambien la robustez ----------------
+#
+# El informe declara los rangos de las anclas; sin este bloque, un tercero
+# puede reproducir la solucion pero no la robustez que la respalda.
+
+test_that("el guion reproduce el barrido de robustez con SetMethods", {
+  guion <- guion_reproducible(
+    ruta_datos = "encuesta.csv",
+    mapeo = definir_mapeo("id_empresa", "uno", list(
+      list(nombre = "CAP_ABS", rol = "condicion",
+           items = c("IT01", "IT02", "IT03")),
+      list(nombre = "INNOV", rol = "resultado", items = c("RS01", "RS02")))),
+    anclas = anclas_export(),
+    idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.80, pri = 0.70),
+    resultado = "INNOV",
+    robustez = list(ejecutado = TRUE, paso = 0.1, max_pasos = 10)
+  )
+
+  expect_true(grepl("SetMethods::rob.calibrange", guion, fixed = TRUE))
+  expect_true(grepl("step = 0.1", guion, fixed = TRUE))
+  expect_true(grepl("max.runs = 10", guion, fixed = TRUE))
+  expect_true(grepl("CAP_ABS", guion, fixed = TRUE))
+})
+
+test_that("sin barrido ejecutado el guion no finge haberlo hecho", {
+  guion <- guion_reproducible(
+    ruta_datos = "encuesta.csv",
+    mapeo = definir_mapeo("id_empresa", "uno", list(
+      list(nombre = "CAP_ABS", rol = "condicion",
+           items = c("IT01", "IT02", "IT03")),
+      list(nombre = "INNOV", rol = "resultado", items = c("RS01", "RS02")))),
+    anclas = anclas_export(),
+    idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.80, pri = 0.70),
+    resultado = "INNOV"
+  )
+
+  expect_false(grepl("rob.calibrange", guion, fixed = TRUE))
+})
+
+test_that("el bloque de robustez del guion se ejecuta de verdad", {
+  # Generar codigo que no se ejecuta nunca es generar texto. Se corre en
+  # un proceso aparte, sin el paquete cargado, igual que lo recibiria un
+  # jurado.
+  d <- utils::read.csv(test_path("datos/limpia.csv"), stringsAsFactors = FALSE)
+  csv <- tempfile(fileext = ".csv")
+  guion_r <- tempfile(fileext = ".R")
+  on.exit(unlink(c(csv, guion_r)))
+  utils::write.csv(d, csv, row.names = FALSE)
+
+  m <- definir_mapeo("id_empresa", "uno", list(
+    list(nombre = "CAP_ABS", rol = "condicion", items = c("CAP01","CAP02","CAP03")),
+    list(nombre = "REDES",   rol = "condicion", items = c("RED01","RED02","RED03")),
+    list(nombre = "INNOV",   rol = "resultado", items = c("INN01","INN02","INN03"))))
+  anclas <- list(
+    CAP_ABS = definir_anclas(4, 3, 2, "teoria", strrep("a", 40)),
+    REDES   = definir_anclas(4, 3, 2, "teoria", strrep("b", 40)),
+    INNOV   = definir_anclas(4, 3, 2, "teoria", strrep("c", 40)))
+
+  writeLines(guion_reproducible(
+    csv, m, anclas, idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.8, pri = 0.7),
+    resultado = "INNOV",
+    robustez = list(ejecutado = TRUE, paso = 0.1, max_pasos = 2)), guion_r)
+
+  salida <- callr::rscript(guion_r, show = FALSE, stderr = "2>&1")
+
+  # rob.calibrange imprime los tres limites por consola.
+  expect_true(any(grepl("Crossover", salida)))
+  expect_true(any(grepl("Exclusion", salida)))
+  expect_false(any(grepl("Error", salida)))
+})

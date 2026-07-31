@@ -40,7 +40,8 @@ exportar_base_calibrada <- function(membresias, ruta) {
 #' justificacion, para que el jurado pueda ejecutarlo y verificarlo.
 guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
                                resultado, version_qca = NULL,
-                               version_r = R.version.string) {
+                               version_r = R.version.string,
+                               robustez = NULL) {
   condiciones <- setdiff(names(anclas), resultado)
   if (is.null(version_qca)) {
     version_qca <- tryCatch(as.character(utils::packageVersion("QCA")),
@@ -109,6 +110,49 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "                      show.cases = TRUE)\n",
     "print(tt)\n\n",
     "print(QCA::minimize(tt, details = TRUE))                 # conservadora\n",
-    "print(QCA::minimize(tt, include = \"?\", details = TRUE))   # parsimoniosa\n"
+    "print(QCA::minimize(tt, include = \"?\", details = TRUE))   # parsimoniosa\n",
+    .bloque_robustez(robustez, anclas, condiciones, resultado, umbrales)
+  )
+}
+
+#' Bloque de robustez del guion, solo si el barrido se ejecuto.
+#'
+#' Sin esto un tercero reproduce la solucion pero no los rangos que el
+#' informe declara. Y si el barrido no se ejecuto, el guion no lo finge.
+.bloque_robustez <- function(robustez, anclas, condiciones, resultado,
+                             umbrales) {
+  if (!isTRUE(robustez$ejecutado)) return("")
+
+  columnas <- .lista_r(c(condiciones, resultado))
+  llamadas <- vapply(condiciones, function(cond) {
+    a <- anclas[[cond]]
+    sprintf(paste0(
+      'SetMethods::rob.calibrange(\n',
+      '  raw.data = datos[, %s], calib.data = calibrado[, %s],\n',
+      '  test.cond.raw = "%s", test.cond.calib = "%s",\n',
+      '  test.thresholds = c(e = %s, c = %s, i = %s), type = "fuzzy",\n',
+      '  step = %s, max.runs = %s,\n',
+      '  outcome = "%s", conditions = %s,\n',
+      '  incl.cut = %s, n.cut = %s)'),
+      columnas, columnas, cond, cond,
+      format(a$nula), format(a$cruce), format(a$plena),
+      format(robustez$paso), format(robustez$max_pasos),
+      resultado, .lista_r(condiciones),
+      format(umbrales$consistencia), format(umbrales$frecuencia))
+  }, character(1))
+
+  paste0(
+    "\n# --- Robustez de las anclas ---------------------------------------\n",
+    "# Hasta donde puede moverse cada ancla sin que la solucion cambie. El\n",
+    "# calculo es de SetMethods (Oana y Schneider, 2018). Un limite NA no\n",
+    "# es un dato que falte: significa que la solucion aguanto toda la\n",
+    "# ventana explorada sin alterarse.\n",
+    "#\n",
+    "# Ojo: rob.calibrange llama a QCA::calibrate() sin pasarle idm, asi\n",
+    "# que usa el valor por defecto de QCA y no el declarado arriba.\n",
+    "if (!requireNamespace(\"SetMethods\", quietly = TRUE)) {\n",
+    "  stop(\"Falta SetMethods. Instalelo con install.packages(\\\"SetMethods\\\").\")\n",
+    "}\n\n",
+    paste(llamadas, collapse = "\n\n"), "\n"
   )
 }

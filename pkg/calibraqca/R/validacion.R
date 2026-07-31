@@ -74,6 +74,54 @@ cfa_viable <- function(n_casos, n_items, n_factores) {
   )
 }
 
+#' Escribe el modelo congenerico en la sintaxis de lavaan.
+#'
+#' Un factor por constructo, sin covarianzas de error declaradas: las que
+#' hagan falta son una decision teorica del investigador, no un ajuste que
+#' esta herramienta pueda tomar por su cuenta.
+modelo_cfa <- function(constructos) {
+  paste(vapply(constructos, function(con) {
+    paste(con$nombre, "=~", paste(con$items, collapse = " + "))
+  }, character(1)), collapse = "\n")
+}
+
+#' Ejecuta el factorial confirmatorio. El calculo lo hace lavaan::cfa.
+#'
+#' std.lv fija la varianza de cada factor en 1, que es el supuesto con el
+#' que parametros_cfa() cuenta los parametros libres. Si se cambiara aqui,
+#' la regla de tamano de muestra dejaria de corresponder con el modelo.
+#'
+#' Un modelo que no converge se declara y el paso sigue: el CFA es un
+#' complemento del paso 2, no su condicion de existencia.
+ajustar_cfa <- function(datos, constructos) {
+  vacio <- function(ejecutado, motivo) {
+    list(ejecutado = ejecutado, motivo = motivo,
+         chi2 = NA_real_, gl = NA_real_, cfi = NA_real_, tli = NA_real_,
+         rmsea = NA_real_, srmr = NA_real_)
+  }
+
+  intento <- try(suppressWarnings(
+    lavaan::cfa(modelo_cfa(constructos), data = datos, std.lv = TRUE)),
+    silent = TRUE)
+  if (inherits(intento, "try-error")) {
+    return(vacio(FALSE, paste(
+      "El factorial confirmatorio no pudo estimarse:",
+      trimws(conditionMessage(attr(intento, "condition"))))))
+  }
+  if (!lavaan::lavInspect(intento, "converged")) {
+    return(vacio(FALSE, paste(
+      "El factorial confirmatorio no convergio. El modelo se declara",
+      "omitido en vez de reportar un ajuste que no existe.")))
+  }
+
+  m <- lavaan::fitMeasures(intento,
+                           c("chisq", "df", "cfi", "tli", "rmsea", "srmr"))
+  list(ejecutado = TRUE, motivo = NA_character_,
+       chi2 = unname(m["chisq"]), gl = unname(m["df"]),
+       cfi = unname(m["cfi"]), tli = unname(m["tli"]),
+       rmsea = unname(m["rmsea"]), srmr = unname(m["srmr"]))
+}
+
 #' Diagnosticos del paso 2.
 diagnosticar_validacion <- function(datos, mapeo) {
   encontradas <- list()
@@ -126,6 +174,13 @@ diagnosticar_validacion <- function(datos, mapeo) {
     encontradas[[length(encontradas) + 1]] <- alerta(
       "A-10", detalle = viabilidad$motivo
     )
+  }
+  viabilidad$ajuste <- if (viabilidad$viable) {
+    ajustar_cfa(datos, multi)
+  } else {
+    list(ejecutado = FALSE, motivo = viabilidad$motivo,
+         chi2 = NA_real_, gl = NA_real_, cfi = NA_real_, tli = NA_real_,
+         rmsea = NA_real_, srmr = NA_real_)
   }
 
   alertas <- if (length(encontradas) == 0) {
