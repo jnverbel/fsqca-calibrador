@@ -110,5 +110,8 @@ jobs:
             cat("Chrome:", ruta, "\n")
           '
 
+      - name: Diagnostico de la interfaz
+        run: Rscript tests/diagnostico-interfaz.R
+
       - name: La interfaz abierta en un navegador
         run: Rscript tests/interfaz.R
