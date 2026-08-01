@@ -53,7 +53,7 @@ Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/
 
 | Documento | Contenido |
 |---|---|
-| [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 32 alertas, esquema del archivo de proyecto, informe y plan de pruebas |
+| [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 34 alertas, esquema del archivo de proyecto, informe y plan de pruebas |
 | [`INSTALAR.md`](INSTALAR.md) | Para el investigador: instalar R y abrir la herramienta |
 | [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Para desarrollo: ejecutar, generar el informe y desplegar |
 | [`docs/preguntas-al-investigador.md`](docs/preguntas-al-investigador.md) | Las 8 preguntas para dimensionar el trabajo |

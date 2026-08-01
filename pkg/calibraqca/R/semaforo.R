@@ -53,8 +53,32 @@ diversidad_limitada <- function(n_casos, n_condiciones) {
 }
 
 #' Paso 5 completo.
+#' Que sugerir ante un efecto techo, sabiendo las anclas en uso.
+#'
+#' La sugerencia era una cadena fija con unos numeros concretos, y a una
+#' condicion calibrada justamente con esos numeros le recomendaba hacer lo
+#' que ya estaba hecho. Si conocemos las anclas, se propone un
+#' desplazamiento real; si no, se dice lo unico que siempre es cierto.
+.sugerencia_techo <- function(anclas) {
+  if (is.null(anclas) || is.null(anclas$cruce)) {
+    return(paste("Considere desplazar las tres anclas hacia el extremo alto",
+                 "de la escala, o reconocer el efecto techo por escrito si",
+                 "la escala no da mas de si."))
+  }
+  paso <- 0.5
+  sprintf(paste("Las anclas en uso son %s / %s / %s. Considere desplazarlas",
+                "hacia arriba, por ejemplo a %s / %s / %s, o reconocer el",
+                "efecto techo por escrito si la escala no da mas de si."),
+          .num(anclas$plena), .num(anclas$cruce), .num(anclas$nula),
+          .num(anclas$plena + paso), .num(anclas$cruce + paso),
+          .num(anclas$nula + paso))
+}
+
+.num <- function(x) sub(".", ",", format(x, trim = TRUE), fixed = TRUE)
+
 diagnosticar_semaforo <- function(membresias, columna_id,
-                                  resultado_mismo_cuestionario = FALSE) {
+                                  resultado_mismo_cuestionario = FALSE,
+                                 anclas = NULL) {
   condiciones <- setdiff(names(membresias), columna_id)
   if (length(condiciones) == 0) {
     stop("No hay condiciones que diagnosticar.", call. = FALSE)
@@ -84,9 +108,9 @@ diagnosticar_semaforo <- function(membresias, columna_id,
         "A-18", contexto = cond,
         detalle = sprintf(paste("%.1f %% de los casos supera 0,50 en %s: la",
                                 "condicion deja de discriminar y la tabla de",
-                                "verdad sale degenerada. Considere desplazar",
-                                "las anclas hacia arriba (4,5 / 3,5 / 2,5)."),
-                          resumen$pct_sobre_050[i], cond)
+                                "verdad sale degenerada. %s"),
+                          resumen$pct_sobre_050[i], cond,
+                          .sugerencia_techo(anclas[[cond]]))
       )
     }
     if (hay_piso(m)) {

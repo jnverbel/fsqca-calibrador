@@ -143,7 +143,8 @@ server <- function(input, output, session) {
     }
     if (DEV_PASO >= 5 && !is.null(estado$membresias)) {
       estado$semaforo <- diagnosticar_semaforo(estado$membresias,
-                                               estado$mapeo$columna_id)
+                                               estado$mapeo$columna_id,
+                                               anclas = estado$anclas)
       estado$bitacora <- registrar_alertas(estado$bitacora,
                                            estado$semaforo$alertas, 5)
     }
@@ -303,7 +304,8 @@ server <- function(input, output, session) {
 
     estado$semaforo <- diagnosticar_semaforo(
       cal$membresias, estado$mapeo$columna_id,
-      isTRUE(estado$mapeo$resultado_mismo_cuestionario))
+      isTRUE(estado$mapeo$resultado_mismo_cuestionario),
+      anclas = estado$anclas)
     estado$bitacora <- registrar_alertas(estado$bitacora,
                                          estado$semaforo$alertas, 5)
 
@@ -332,7 +334,8 @@ server <- function(input, output, session) {
                             suficiencia = suf)
     estado$bitacora <- registrar_alertas(
       estado$bitacora,
-      rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas), 6)
+      rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas,
+            alertas_solucion_degenerada(suf$soluciones, estado$semaforo)), 6)
   })
 
   # --- Paso 7: el barrido se ejecuta a peticion -------------------------

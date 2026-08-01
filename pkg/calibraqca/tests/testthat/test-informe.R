@@ -154,3 +154,17 @@ test_that("sin casos en 0,50 la tabla sale vacia pero con sus columnas", {
   expect_identical(nrow(tabla), 0L)
   expect_identical(names(tabla), c("condicion", "caso"))
 })
+
+test_that("el informe expone las condiciones para poder declarar la diversidad", {
+  # Sin esto el anexo no puede decir cuantos remanentes logicos deja: con k
+  # condiciones hay 2^k filas posibles y hace falta saber k. Declarar la
+  # diversidad limitada es recomendacion estandar y el anexo la omitia.
+  p <- proyecto_informe()
+
+  inf <- reunir_informe(p$datos, p$mapeo, p$anclas, p$bitacora, p$umbrales,
+                        p$resultado, p$leido)
+
+  expect_type(inf$condiciones, "character")
+  expect_gt(length(inf$condiciones), 0)
+  expect_false(p$resultado %in% inf$condiciones)
+})

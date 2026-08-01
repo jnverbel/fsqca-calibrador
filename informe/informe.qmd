@@ -58,7 +58,12 @@ inf <- reunir_informe(
   idm = proyecto$calibracion$idm,
   robustez = if (isTRUE(proyecto$robustez$ejecutado)) proyecto$robustez else NULL)
 
-kb <- function(x, ...) knitr::kable(x, ...)
+# kb() IMPRIME, no devuelve. En un chunk `results: asis` solo se
+# auto-imprime el valor de la ultima expresion: con kb() devolviendo, toda
+# tabla que no fuera la ultima del bloque desaparecia del anexo sin decir
+# nada. Le paso al paso 7, que anunciaba tres tablas y no mostraba
+# ninguna.
+kb <- function(x, ...) print(knitr::kable(x, ...))
 f3 <- function(x) formatC(x, format = "f", digits = 3)
 f2 <- function(x) formatC(x, format = "f", digits = 2)
 
@@ -241,6 +246,26 @@ kb(data.frame(Fila = inf$tabla_verdad$fila, Resultado = inf$tabla_verdad$OUT,
               PRI = f3(inf$tabla_verdad$PRI)))
 ```
 
+```{r}
+#| label: diversidad
+#| results: asis
+# Declarar la diversidad limitada es recomendacion estandar y el anexo la
+# omitia: se listaban las filas observadas sin decir cuantas quedaban
+# vacias. Con k condiciones hay 2^k filas posibles, y las que ningun caso
+# ocupa son remanentes logicos.
+k <- length(inf$condiciones)
+posibles <- 2^k
+observadas <- nrow(inf$tabla_verdad)
+remanentes <- posibles - observadas
+emitir("**Diversidad limitada.** Con", k, "condiciones hay", posibles,
+       "filas posibles en la tabla de verdad. Los datos ocupan", observadas,
+       paste0("y dejan **", remanentes, " remanentes lógicos**"),
+       paste0("(", sprintf("%.0f", 100 * remanentes / posibles), " % del espacio)."),
+       "La solución conservadora no asume nada sobre ellos; la parsimoniosa",
+       "los asume todos; la intermedia solo los coherentes con la teoría.",
+       "Es la razón de presentar las tres.")
+```
+
 El PRI se reporta siempre. Es el umbral que con más frecuencia se omite, y el que evita
 relaciones de subconjunto simultáneas.
 
@@ -262,10 +287,25 @@ for (nombre in names(inf$soluciones)) {
                 " · PRI ", f3(s$ajuste$pri),
                 " · cobertura ", f3(s$ajuste$cobertura)))
 }
-```
 
-Se presentan las tres soluciones. Mostrar solo una es una de las observaciones habituales
-de los evaluadores.
+# La frase de cierre depende de lo que de verdad se produjo. Estaba fija
+# en "se presentan las tres soluciones", asi que el anexo podia afirmar
+# que presentaba tres tres lineas despues de decir que la intermedia no se
+# habia producido.
+producidas <- names(inf$soluciones)[!vapply(inf$soluciones, is.null, logical(1))]
+
+if (length(producidas) == 3) {
+  emitir("Se presentan las tres soluciones. Mostrar solo una es una de las",
+         "observaciones habituales de los evaluadores.")
+} else {
+  emitir("**Atencion.** Se presentan", length(producidas), "de las tres",
+         paste0("soluciones (", paste(producidas, collapse = ", "), ")."),
+         "Mostrar menos de tres es una de las observaciones habituales de",
+         "los evaluadores, y la intermedia es ademas la que suele",
+         "interpretarse. Declarar expectativas direccionales para cada",
+         "condicion permite producirla.")
+}
+```
 
 ## Robustez
 
@@ -315,6 +355,16 @@ if (isTRUE(inf$robustez$ejecutado)) {
     `RF consistencia` = round(e$ajuste[["RF_cons"]], 3),
     `RF cobertura` = round(e$ajuste[["RF_cov"]], 3),
     check.names = FALSE))))
+
+  emitir("**Los rangos y los escenarios no miden lo mismo, y pueden no",
+         "coincidir.** `rob.calibrange` mueve **una** ancla cada vez y deja",
+         "las otras dos donde estaban, así que cambia la *forma* del",
+         "conjunto. Los escenarios mueven **las tres a la vez**, que",
+         "conserva la forma y traslada el conjunto entero. Que los rangos",
+         "digan «no cambia» y aun así se pierdan configuraciones en algún",
+         "escenario no es una contradicción del análisis: son dos",
+         "perturbaciones distintas, y el anexo reporta las dos porque",
+         "responden a preguntas distintas.")
 
   fallidos <- Filter(function(e) !isTRUE(e$comparable), inf$robustez$escenarios)
   for (e in fallidos) emitir("-", e$motivo)

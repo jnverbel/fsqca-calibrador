@@ -720,6 +720,31 @@ dos anclas iguales. El control de orden pasó a exigir el rho que la dirección 
 implica (+1 creciente, −1 decreciente) en vez de exigir siempre +1, que habría disparado
 `A-13` en todos los conjuntos decrecientes legítimos.
 
+### Las dos alertas que salieron de revisar el anexo producido
+
+Ninguna de las dos se descubrió ejecutando pruebas: aparecieron **leyendo el documento que la
+herramienta genera**, sobre un recorrido completo con datos sintéticos, el 31/07/2026.
+
+| Código | Paso | Severidad | Qué caza |
+|---|---|---|---|
+| `A-33` | 6 | advertencia | Una condición que no discrimina —efecto techo o piso— aparece dentro de la solución |
+| `A-34` | 4 | advertencia | Dos o más justificaciones de ancla son casi el mismo texto |
+
+**`A-33`.** El motor ya tenía las dos piezas: `A-18` avisa en el paso 5 de que una condición
+supera 0,50 en casi todos los casos, y el paso 6 entrega la solución. Nadie las cruzaba. En el
+recorrido de prueba, dos de las tres condiciones de la solución conservadora estaban por encima
+de 0,50 en el 92,6 % y el 94,7 % de los casos: la configuración decía mucho menos de lo que
+aparentaba, y la solución parsimoniosa lo delataba quedándose solo con la única condición que
+sí variaba.
+
+**`A-34`.** Es el hueco que dejaba la compuerta. Exigir 30 caracteres impide el clic reflejo,
+pero no impide pegar el mismo párrafo en las cinco condiciones — y eso fue exactamente lo que
+pasó en el recorrido de prueba sin que el programa dijera nada. **Si la compuerta se satisface
+pegando, la herramienta no obliga a justificar: obliga a rellenar**, que es justo lo que existe
+para evitar. La comparación normaliza mayúsculas, espacios y puntuación, y quita los nombres de
+las propias condiciones: si dos textos solo se distinguen en el concepto que nombran, son el
+mismo texto.
+
 **Por qué `A-17` es una sola alerta y no una por condición.** Con anclas de cruce en valores
 enteros y promedios de tres o cuatro ítems Likert, la media cae sobre el ancla con mucha
 frecuencia. En un recorrido completo del 31/07/2026 la alerta saltó en **las cinco

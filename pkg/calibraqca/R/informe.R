@@ -24,7 +24,8 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
                                           mapeo$columna_id, idm = idm)
   membresias <- calibracion$membresias
   semaforo <- diagnosticar_semaforo(membresias, mapeo$columna_id,
-                                    isTRUE(mapeo$resultado_mismo_cuestionario))
+                                    isTRUE(mapeo$resultado_mismo_cuestionario),
+                                    anclas = anclas)
   necesidad <- analizar_necesidad(membresias, resultado, condiciones)
   tt <- construir_tabla_verdad(membresias, resultado, condiciones,
                                consistencia = umbrales$consistencia,
@@ -49,6 +50,10 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
              error = function(e) "no instalado"), character(1))
 
   list(
+    # El anexo necesita saber cuantas condiciones hay para declarar la
+    # diversidad limitada: con k condiciones hay 2^k filas posibles.
+    condiciones = condiciones,
+
     ficha = list(
       r_version = R.version.string,
       archivo = if (is.null(leido)) NA_character_ else leido$nombre_archivo,

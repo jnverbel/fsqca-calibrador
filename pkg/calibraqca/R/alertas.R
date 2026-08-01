@@ -11,14 +11,15 @@
 #' de cada paso. Aqui vive la identidad de la alerta.
 catalogo_alertas <- function() {
   data.frame(
-    codigo = sprintf("A-%02d", 1:32),
+    codigo = sprintf("A-%02d", 1:34),
     paso = c(1L, 1L, 1L, 1L, 1L,
              2L, 2L, 2L, 2L, 2L,
              3L, 3L,
              4L, 4L, 4L, 4L, 4L,
              5L, 5L, 5L, 5L, 5L, 5L, 5L, 5L,
              6L, 6L, 6L, 6L, 6L,
-             7L, 7L),
+             7L, 7L,
+             6L, 4L),
     severidad = c(
       "bloqueante", "bloqueante", "bloqueante", "advertencia", "advertencia",
       "bloqueante", "advertencia", "advertencia", "informativa", "informativa",
@@ -27,7 +28,8 @@ catalogo_alertas <- function() {
       "bloqueante", "bloqueante", "bloqueante", "advertencia", "advertencia",
       "informativa", "advertencia", "advertencia",
       "bloqueante", "advertencia", "bloqueante", "advertencia", "informativa",
-      "advertencia", "bloqueante"
+      "advertencia", "bloqueante",
+      "advertencia", "advertencia"
     ),
     titulo = c(
       "Valores fuera de escala",
@@ -61,7 +63,9 @@ catalogo_alertas <- function() {
       "Solucion con cobertura baja",
       "Contradicciones logicas",
       "Solucion no robusta",
-      "Robustez omitida con anclas muestrales"
+      "Robustez omitida con anclas muestrales",
+      "Condicion que no discrimina dentro de la solucion",
+      "Justificaciones de ancla calcadas entre si"
     ),
     stringsAsFactors = FALSE
   )

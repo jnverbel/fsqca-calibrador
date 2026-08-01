@@ -103,6 +103,55 @@ casos_050_por_condicion <- function(correccion) {
   )
 }
 
+# Umbral de parecido a partir del cual dos justificaciones se consideran
+# la misma. 0,85 deja pasar dos textos que comparten vocabulario tecnico y
+# caza los que solo cambian el nombre del concepto.
+PARECIDO_MAXIMO_JUSTIFICACION <- 0.85
+
+#' Justificaciones de ancla que son la misma con otro nombre.
+#'
+#' Es el hueco que deja la compuerta: exigir 30 caracteres impide el clic
+#' reflejo, pero no impide pegar el mismo parrafo en las cinco
+#' condiciones. Y si se satisface pegando, la herramienta no obliga a
+#' justificar -- obliga a rellenar, que es justo lo que existe para evitar.
+#'
+#' La comparacion normaliza mayusculas, espacios y puntuacion, y quita los
+#' nombres de las propias condiciones: si dos textos solo se distinguen en
+#' el concepto que nombran, son el mismo texto.
+justificaciones_calcadas <- function(anclas_por_condicion,
+                                     umbral = PARECIDO_MAXIMO_JUSTIFICACION) {
+  nombres <- names(anclas_por_condicion)
+  vacio <- data.frame(a = character(0), b = character(0),
+                      parecido = numeric(0), stringsAsFactors = FALSE)
+  if (length(nombres) < 2) return(vacio)
+
+  normalizar <- function(txt, quitar) {
+    t <- tolower(txt)
+    for (n in quitar) t <- gsub(tolower(n), " ", t, fixed = TRUE)
+    t <- gsub("[^a-z0-9 ]", " ", t)
+    trimws(gsub(" +", " ", t))
+  }
+  textos <- vapply(nombres, function(n) {
+    normalizar(anclas_por_condicion[[n]]$justificacion, nombres)
+  }, character(1))
+
+  pares <- utils::combn(nombres, 2, simplify = FALSE)
+  filas <- list()
+  for (par in pares) {
+    x <- textos[[par[1]]]; y <- textos[[par[2]]]
+    largo <- max(nchar(x), nchar(y))
+    if (largo == 0) next
+    parecido <- 1 - as.numeric(utils::adist(x, y)) / largo
+    if (parecido >= umbral) {
+      filas[[length(filas) + 1]] <- data.frame(
+        a = par[1], b = par[2], parecido = parecido,
+        stringsAsFactors = FALSE)
+    }
+  }
+  if (length(filas) == 0) return(vacio)
+  do.call(rbind, filas)
+}
+
 #' Verifica que la calibracion no altero el orden de los casos.
 #'
 #' La calibracion directa es monotona creciente, asi que el orden se
@@ -180,6 +229,22 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
           "Obliga a ejecutar el analisis de robustez del paso 7.")
       )
     }
+  }
+
+  calcadas <- justificaciones_calcadas(anclas_por_condicion)
+  if (nrow(calcadas) > 0) {
+    encontradas[[length(encontradas) + 1]] <- alerta(
+      "A-34",
+      detalle = sprintf(paste("Estas justificaciones de ancla son casi la",
+                              "misma: %s. Escribir el mismo parrafo para",
+                              "varias condiciones cumple el minimo de",
+                              "caracteres pero no justifica ninguna: lo que",
+                              "se imprime en el anexo es el texto, no su",
+                              "longitud."),
+                        paste(sprintf("%s y %s (%.0f %% igual)", calcadas$a,
+                                      calcadas$b, 100 * calcadas$parecido),
+                              collapse = "; "))
+    )
   }
 
   # A-17 se emite UNA vez para todo el analisis y no una por condicion.
