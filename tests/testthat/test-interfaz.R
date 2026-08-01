@@ -22,14 +22,33 @@ DATOS_LIMPIA <- desde_raiz("pkg", "calibraqca", "tests", "testthat",
 SHA256_LIMPIA <- "5c714809351fb721418fee9e299567cf7d61098fea5c213d5a2c675e3bb48e19"
 FILAS_LIMPIA <- 120
 
+#' Abre la aplicacion y no la devuelve hasta que ha terminado de dibujarse.
+#'
+#' AppDriver$new() retorna en cuanto la pagina responde, y en ese momento
+#' toda la interfaz dinamica esta vacia: la cabecera estatica ya se ve,
+#' pero los uiOutput -- la regla de pasos, el panel, la bitacora -- todavia
+#' no han llegado del servidor, y ni siquiera existen los inputs.
+#'
+#' En un equipo rapido la carrera se gana casi siempre y no se nota. En el
+#' runner de CI se pierde, y entonces fallan todas las pruebas menos las
+#' que solo miran la cabecera. Se comprobo instrumentando la pagina en CI:
+#' recien abierta, `.pasos` no tiene nodo y no hay ningun input; tras
+#' esperar a que Shiny quede ocioso, esta todo.
+#'
+#' La espera va aqui y no en cada prueba a proposito: una prueba que se
+#' olvide de esperar volveria a fallar solo en las maquinas lentas, que es
+#' la peor forma de fallar. Y se espera por condicion, no por un Sys.sleep
+#' con un numero inventado.
 abrir_app <- function() {
-  AppDriver$new(
+  app <- AppDriver$new(
     app_dir = raiz_repo(),
     name = "calibrador",
     width = 1400, height = 900,
     load_timeout = 90 * 1000,
     timeout = 30 * 1000
   )
+  app$wait_for_idle(timeout = 30 * 1000)
+  app
 }
 
 texto_de <- function(html) {
@@ -47,6 +66,18 @@ test_that("la aplicacion arranca y sirve su pagina", {
   on.exit(app$stop(), add = TRUE)
 
   expect_match(texto_de(app$get_html("h1")), "Calibrador fsQCA")
+})
+
+test_that("abrir_app no devuelve la aplicacion a medio dibujar", {
+  # Regresion. Sin la espera por condicion de abrir_app(), aqui la pagina
+  # trae la cabecera estatica y nada mas: los uiOutput llegan vacios y no
+  # existe ningun input. Se manifestaba solo en maquinas lentas -- verde en
+  # el Mac, rojo en CI --, que es la peor forma de fallar.
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+
+  expect_length(app$get_html(".pasos"), 1L)
+  expect_true("archivo" %in% names(app$get_values()$input))
 })
 
 test_that("la regla dibuja los ocho pasos del flujo", {
