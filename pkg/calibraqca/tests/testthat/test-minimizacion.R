@@ -168,3 +168,27 @@ test_that("A-33 mira tambien las condiciones negadas de la solucion", {
   expect_identical(nrow(a), 1L)
   expect_match(a$detalle, "DIGIT")
 })
+
+# --- La asimetria causal, declarada ----------------------------------
+
+test_that("A-35 se dispara siempre que se analiza un resultado", {
+  # fsQCA es asimetrico: las condiciones de ~Y no son la negacion de las
+  # de Y. Analizar ambos es recomendacion estandar, y esta herramienta NO
+  # analiza el resultado negado.
+  #
+  # No poder hacerlo es una limitacion; dejar que pase inadvertida seria
+  # el fallo. La herramienta existe para impedir avanzar en silencio, asi
+  # que la omision se declara y hay que reconocerla por escrito: sale
+  # impresa en el anexo, que es donde un evaluador la busca.
+  a <- alerta_asimetria_causal("INNOV")
+
+  expect_identical(nrow(a), 1L)
+  expect_identical(a$codigo, "A-35")
+  expect_match(a$detalle, "INNOV")
+  expect_match(a$detalle, "asimetr")
+})
+
+test_that("A-35 no se dispara sin resultado declarado", {
+  expect_identical(nrow(alerta_asimetria_causal(NULL)), 0L)
+  expect_identical(nrow(alerta_asimetria_causal(NA_character_)), 0L)
+})

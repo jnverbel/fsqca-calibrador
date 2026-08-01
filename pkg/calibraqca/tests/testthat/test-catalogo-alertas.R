@@ -1,9 +1,9 @@
-test_that("el catalogo tiene las 34 alertas de la especificacion", {
+test_that("el catalogo tiene las 35 alertas de la especificacion", {
   cat_al <- catalogo_alertas()
 
   expect_s3_class(cat_al, "data.frame")
-  expect_identical(nrow(cat_al), 34L)
-  expect_identical(cat_al$codigo, sprintf("A-%02d", 1:34))
+  expect_identical(nrow(cat_al), 35L)
+  expect_identical(cat_al$codigo, sprintf("A-%02d", 1:35))
   expect_false(any(duplicated(cat_al$codigo)))
 })
 
@@ -19,7 +19,7 @@ test_that("cada alerta declara paso y severidad validos", {
 test_that("el reparto por paso coincide con la especificacion", {
   # Valores escritos a mano desde docs/especificacion.md, no contados por codigo.
   esperado <- c(`1` = 5L, `2` = 5L, `3` = 2L, `4` = 6L,
-                `5` = 8L, `6` = 6L, `7` = 2L)
+                `5` = 8L, `6` = 7L, `7` = 2L)
   observado <- table(catalogo_alertas()$paso)
 
   expect_identical(as.integer(observado[names(esperado)]), unname(esperado))

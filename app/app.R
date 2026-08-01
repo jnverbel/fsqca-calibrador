@@ -335,7 +335,8 @@ server <- function(input, output, session) {
     estado$bitacora <- registrar_alertas(
       estado$bitacora,
       rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas,
-            alertas_solucion_degenerada(suf$soluciones, estado$semaforo)), 6)
+            alertas_solucion_degenerada(suf$soluciones, estado$semaforo),
+            alerta_asimetria_causal(estado$mapeo$resultado)), 6)
   })
 
   # --- Paso 7: el barrido se ejecuta a peticion -------------------------
