@@ -1,0 +1,74 @@
+# Suite del motor en Linux.
+#
+# Que las pruebas pasen en el Mac del desarrollador no prueba que pasen en
+# otra parte: la reproducibilidad que promete el informe se apoya en
+# renv.lock, y este flujo es lo unico que comprueba que ese archivo
+# reconstruye un entorno donde la suite corre de verdad.
+#
+# El paso "sin skips" no es decorativo. Una prueba omitida es una prueba
+# que no existe, y la suite entera se presenta en el informe como "0
+# omitidas": si eso deja de ser cierto, el CI tiene que decirlo.
+
+name: pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testthat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.6.1'
+          use-public-rspm: true
+
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
+            libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+            libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+
+      - uses: r-lib/actions/setup-renv@v2
+
+      - name: Suite del motor
+        run: |
+          Rscript -e '
+            r <- as.data.frame(testthat::test_local("pkg/calibraqca", reporter = "silent"))
+            fallos  <- sum(r$failed) + sum(r$error)
+            omitidas <- sum(r$skipped)
+            cat("PASAN   :", sum(r$passed), "\n")
+            cat("FALLOS  :", fallos, "\n")
+            cat("AVISOS  :", sum(r$warning), "\n")
+            cat("OMITIDAS:", omitidas, "\n")
+            if (fallos > 0) stop("La suite tiene fallos.")
+            if (omitidas > 0) stop("Hay pruebas omitidas: una prueba omitida es una prueba que no existe.")
+          '
+
+      - name: Cada paquete citado en el informe se invoca de verdad
+        run: |
+          Rscript -e '
+            pkgload::load_all("pkg/calibraqca", quiet = TRUE)
+            r <- as.data.frame(testthat::test_local("pkg/calibraqca",
+                                                    filter = "paquetes-declarados",
+                                                    reporter = "silent"))
+            if (sum(r$failed) + sum(r$error) > 0) stop("El guardian de paquetes falla.")
+            cat("guardian de paquetes: en verde\n")
+          '
