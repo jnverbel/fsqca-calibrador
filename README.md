@@ -12,8 +12,19 @@ cada ancla se justifique y dejar rastro escrito de esa justificación en el info
 
 ## Estado
 
-**Completo y funcionando.** Motor con 572 pruebas sin `skip`, interfaz Shiny de ocho pasos
-e informe Quarto en HTML y Word.
+[![pruebas](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
+
+**Completo y funcionando.** Motor con 572 pruebas y 18 de interfaz, ninguna con `skip`,
+interfaz Shiny de ocho pasos e informe Quarto en HTML y Word.
+
+Las dos suites corren en Linux en cada empujón, sobre el entorno que reconstruye
+`renv.lock`. El flujo falla si aparece una prueba omitida: una prueba omitida es una prueba
+que no existe.
+
+```sh
+Rscript -e 'testthat::test_local("pkg/calibraqca")'  # el motor
+Rscript tests/interfaz.R                             # la interfaz, en un navegador
+```
 
 Cada constante numérica del motor está tabulada en
 [`docs/especificacion.md`](docs/especificacion.md) con la mutación que debe romper una prueba
