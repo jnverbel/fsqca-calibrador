@@ -74,6 +74,31 @@ corregir_050 <- function(membresias, ids = names(membresias)) {
        casos_afectados = as.character(ids[en_medio]))
 }
 
+#' La correccion del 0,50, en tabla, sin perder la condicion.
+#'
+#' El motor guarda la correccion como lista por condicion. Aplanarla con
+#' unlist() -- que es lo que se hacia -- deja una retahila de
+#' identificadores con repeticiones en la que no se puede saber donde se
+#' corrigio cada caso, y el listado existe justamente para que la
+#' correccion se declare y no pase inadvertida.
+#'
+#' Devuelve siempre las dos columnas, tambien cuando no hay nada que
+#' declarar: un data.frame vacio sin columnas rompe a quien lo imprima.
+casos_050_por_condicion <- function(correccion) {
+  vacia <- data.frame(condicion = character(0), caso = character(0),
+                      stringsAsFactors = FALSE)
+  if (is.null(correccion) || length(correccion) == 0) return(vacia)
+
+  con_casos <- Filter(function(x) length(x) > 0, correccion)
+  if (length(con_casos) == 0) return(vacia)
+
+  data.frame(
+    condicion = rep(names(con_casos), lengths(con_casos)),
+    caso = as.character(unlist(con_casos, use.names = FALSE)),
+    stringsAsFactors = FALSE
+  )
+}
+
 #' Verifica que la calibracion no altero el orden de los casos.
 #'
 #' La calibracion directa es monotona creciente, asi que el orden se
@@ -136,18 +161,6 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
     correccion[[cond]] <- corregido$casos_afectados
     membresias[[cond]] <- as.numeric(corregido$membresias)
 
-    if (length(corregido$casos_afectados) > 0) {
-      encontradas[[length(encontradas) + 1]] <- alerta(
-        "A-17", contexto = cond,
-        detalle = sprintf(paste("%d caso(s) en 0,50 exacto en %s: %s. Se suma",
-                                "%s y se declara en el informe."),
-                          length(corregido$casos_afectados), cond,
-                          paste(utils::head(corregido$casos_afectados, 10),
-                                collapse = ", "),
-                          format(CORRECCION_050))
-      )
-    }
-
     if (identical(anclas$fuente, "distribucion muestral")) {
       encontradas[[length(encontradas) + 1]] <- alerta(
         "A-15", contexto = cond,
@@ -158,6 +171,32 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
           "Obliga a ejecutar el analisis de robustez del paso 7.")
       )
     }
+  }
+
+  # A-17 se emite UNA vez para todo el analisis y no una por condicion.
+  #
+  # Con anclas de cruce en valores enteros y promedios de tres o cuatro
+  # items Likert, la media cae sobre el ancla con mucha frecuencia: en un
+  # recorrido completo del 31/07/2026 la alerta salto en las cinco
+  # condiciones, entre el 7 % y el 18 % de los casos en cada una. Una
+  # alerta que se dispara siempre y en bloque deja de informar y se
+  # convierte en ruido que el investigador aprende a saltarse.
+  #
+  # Agregada sigue diciendo lo unico que hay que hacer -- mirar la
+  # declaracion obligatoria del informe -- y ademas gana el recuento por
+  # condicion, que antes habia que reconstruir leyendo cinco alertas.
+  con_casos <- Filter(function(x) length(x) > 0, correccion)
+  if (length(con_casos) > 0) {
+    reparto <- paste(sprintf("%s %d", names(con_casos),
+                             lengths(con_casos)), collapse = ", ")
+    encontradas[[length(encontradas) + 1]] <- alerta(
+      "A-17",
+      detalle = sprintf(paste("%d caso(s) en 0,50 exacto, repartidos asi: %s.",
+                              "Se suma %s a cada uno y se declaran todos, con",
+                              "su condicion, en el informe."),
+                        sum(lengths(con_casos)), reparto,
+                        format(CORRECCION_050))
+    )
   }
 
   alertas <- if (length(encontradas) == 0) {

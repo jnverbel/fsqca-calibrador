@@ -352,11 +352,16 @@ if (isTRUE(inf$robustez$ejecutado)) {
 #| results: asis
 d <- inf$declaraciones
 
-if (length(d$casos_050) > 0) {
+if (nrow(d$casos_050) > 0) {
+  # Agrupados por condición: el mismo caso puede corregirse en varias, y
+  # una lista plana no deja saber en cuál.
+  por_cond <- vapply(split(d$casos_050$caso, d$casos_050$condicion),
+                     function(x) paste(x, collapse = ", "), character(1))
   emitir("**Corrección del punto de cruce.** Todo caso con pertenencia exactamente",
          "igual a 0,50 queda excluido de los análisis de necesidad y de suficiencia.",
-         "Se sumó", format(d$correccion), "a esos valores. Casos afectados:",
-         paste0(paste(unique(d$casos_050), collapse = ", "), "."))
+         "Se sumó", format(d$correccion), "a esos valores, condición por condición:",
+         paste0(paste(sprintf("*%s* — %s", names(por_cond), por_cond),
+                      collapse = "; "), "."))
 } else {
   emitir("**Corrección del punto de cruce.** Ningún caso quedó en 0,50 exacto.")
 }
@@ -364,7 +369,9 @@ if (length(d$casos_050) > 0) {
 emitir("**Control de validez.** La calibración directa es una transformación",
        "monótona creciente del promedio, de modo que **no reordena los casos**:",
        "el rho de Spearman entre la membresía y el promedio crudo vale",
-       paste0(paste(formatC(d$rho, format = "f", digits = 4), collapse = ", "), "."),
+       paste0(paste(sprintf("%s = %s", names(d$rho),
+                            formatC(d$rho, format = "f", digits = 4)),
+                    collapse = ", "), "."),
        "Su aporte no es un orden nuevo, sino el umbral formal y la lectura en",
        "términos de pertenencia a un conjunto. Se reporta con honestidad en lugar",
        "de presentar un orden distinto que no existe.")

@@ -101,8 +101,9 @@ p$mapeo <- list(
 p$mapeo$constructos$items <- lapply(mapeo$constructos, function(x) x$items)
 
 p$calibracion$idm <- cal$idm
-p$calibracion$correccion_050 <- list(aplicada = length(unlist(cal$correccion)) > 0,
-                                     casos = unlist(cal$correccion))
+p$calibracion$correccion_050 <- list(
+  aplicada = nrow(casos_050_por_condicion(cal$correccion)) > 0,
+  casos = casos_050_por_condicion(cal$correccion))
 p$calibracion$condiciones <- lapply(anclas, function(a)
   list(anclas = list(plena = a$plena, cruce = a$cruce, nula = a$nula),
        fuente = a$fuente, justificacion = a$justificacion))

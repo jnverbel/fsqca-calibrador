@@ -99,7 +99,7 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
     },
 
     declaraciones = list(
-      casos_050 = as.character(unlist(calibracion$correccion)),
+      casos_050 = casos_050_por_condicion(calibracion$correccion),
       correccion = CORRECCION_050,
       rho = vapply(calibracion$orden, function(o) o$rho, numeric(1)),
       sesgo_metodo_comun = isTRUE(mapeo$resultado_mismo_cuestionario))

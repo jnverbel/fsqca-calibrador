@@ -104,3 +104,32 @@ test_that("las alertas del paso 4 entran en la bitacora y frenan el avance", {
                                     "este constructo; se acompana de robustez."))
   expect_true(puede_avanzar(bit, paso = 4))
 })
+
+test_that("A-17 se emite una sola vez aunque varias condiciones tengan casos en 0,50", {
+  # Antes salia una alerta por condicion. Con anclas de cruce enteras y
+  # promedios de items Likert, la media cae sobre el ancla en casi todas
+  # las condiciones: la alerta se disparaba siempre y en bloque, que es
+  # como muere un sistema de alertas. Se comprobo en un recorrido completo
+  # -- cinco de cinco condiciones -- el 31/07/2026.
+  res <- diagnosticar_calibracion(casos_de_prueba(), anclas_de_prueba(),
+                                  columna_id = "id_empresa")
+
+  # Los datos de prueba tienen casos en 0,50 en CAP_ABS y en REDES.
+  expect_gt(length(res$correccion$CAP_ABS), 0)
+  expect_gt(length(res$correccion$REDES), 0)
+
+  expect_identical(sum(res$alertas$codigo == "A-17"), 1L)
+})
+
+test_that("la alerta agregada de 0,50 dice cuantos casos hay en cada condicion", {
+  res <- diagnosticar_calibracion(casos_de_prueba(), anclas_de_prueba(),
+                                  columna_id = "id_empresa")
+
+  detalle <- res$alertas$detalle[res$alertas$codigo == "A-17"]
+
+  # Sin el recuento por condicion, agregar la alerta perderia informacion
+  # que antes si estaba.
+  expect_match(detalle, "CAP_ABS")
+  expect_match(detalle, "REDES")
+  expect_match(detalle, as.character(length(res$correccion$CAP_ABS)))
+})

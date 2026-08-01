@@ -348,7 +348,7 @@ Conviene no confundir dos problemas distintos con el punto medio:
 | `A-14` | Ancla sin justificación | falta fuente o texto | bloqueante |
 | `A-15` | Anclas por percentiles | fuente = `distribución muestral` | advertencia + obliga paso 7 |
 | `A-16` | Anclas no monótonas | no se cumple `θ_nula < c < θ_plena` | bloqueante |
-| `A-17` | Casos en 0,50 exacto | existe al menos uno antes de la corrección | informativa (se corrige e informa) |
+| `A-17` | Casos en 0,50 exacto | existe al menos uno antes de la corrección, **en cualquier condición** | informativa · **una sola alerta para todo el análisis**, con el recuento por condición |
 
 **Sobre `A-13` y la idea rescatada de `fuzzy_likert_5.R`.** El control de validez de aquel
 script comparaba el orden difuso contra la media Likert simple para reportar con honestidad
@@ -588,7 +588,7 @@ archivo y lo vuelve a subir cuando retoma.
 
 ```json
 {
-  "version_esquema": "1.0",
+  "version_esquema": "1.1",
   "version_app": "0.1.0",
   "creado": "2026-07-30T14:22:11Z",
   "modificado": "2026-07-30T18:03:55Z",
@@ -630,7 +630,10 @@ archivo y lo vuelve a subir cuando retoma.
 
   "calibracion": {
     "idm": 0.95,
-    "correccion_050": { "aplicada": true, "casos": ["E014", "E087"] },
+    "correccion_050": { "aplicada": true,
+                        "casos": [ { "condicion": "CAP_ABS", "caso": "E014" },
+                                   { "condicion": "REDES",   "caso": "E014" },
+                                   { "condicion": "REDES",   "caso": "E087" } ] },
     "condiciones": {
       "CAP_ABS": {
         "anclas": { "plena": 4.0, "cruce": 3.0, "nula": 2.0 },
@@ -682,6 +685,19 @@ archivo y lo vuelve a subir cuando retoma.
   difieren, la app **advierte antes de continuar**: el proyecto se creó contra otra base.
   No bloquea — puede ser una corrección legítima del archivo — pero la discrepancia queda
   registrada y sale en el informe.
+**Por qué `A-17` es una sola alerta y no una por condición.** Con anclas de cruce en valores
+enteros y promedios de tres o cuatro ítems Likert, la media cae sobre el ancla con mucha
+frecuencia. En un recorrido completo del 31/07/2026 la alerta saltó en **las cinco
+condiciones**, entre el 7 % y el 18 % de los casos en cada una. Una alerta que se dispara
+siempre y en bloque deja de informar y se convierte en ruido que el investigador aprende a
+saltarse. Agregada dice lo mismo, gana el recuento por condición y deja de tapar a las demás.
+
+**Por qué `correccion_050.casos` es una tabla y no una lista de identificadores.** El mismo
+caso puede corregirse en varias condiciones. Aplanado —que es como estaba— el anexo terminaba
+enumerando identificadores repetidos sin decir dónde se corrigió cada uno, y ese listado
+existe justamente para que la corrección se declare y no pase inadvertida. Es el cambio que
+sube el esquema de 1.0 a 1.1.
+
 - El campo `version_esquema` permite migrar. Un proyecto de versión desconocida se rechaza
   con un mensaje claro, nunca se abre "a ver si funciona".
 - Todo lo que influye en un resultado está en el archivo. Si un número del informe no se
