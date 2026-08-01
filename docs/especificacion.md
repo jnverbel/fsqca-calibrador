@@ -801,6 +801,23 @@ calibración no está probando la calibración. Lo mismo con:
 | `PASO_FRECUENCIA` 1 → 2 | `test-robustez-setmethods.R::el rango de frecuencia coincide con rob.ncutrange` |
 | el `> 0.5` de `clasificar_casos()` → `>= 0.5` | `test-robustez-setmethods.R::el punto de cruce exacto no deja un caso sin clasificar` |
 | los cuatro `ESTATUS_*` permutados | `test-robustez-setmethods.R::cada caso se clasifica por su pertenencia` |
+| `DESPLAZAMIENTOS_ANCLA` ±0,25/±0,50 → ±0,10/±0,75 | `test-defectos-paso-7.R::sin argumento, escenarios_anclas genera los cuatro desplazamientos que promete el informe` |
+| `DESPLAZAMIENTOS_ANCLA` recortado a dos | `test-defectos-paso-7.R::sin argumento, escenarios_anclas genera los cuatro desplazamientos que promete el informe` |
+| `MINIMO_ESCENARIOS` 2 → 1 | `test-defectos-paso-7.R::un solo juego alternativo de anclas queda por debajo del minimo del protocolo` |
+| `MINIMO_ESCENARIOS` 2 → 3 | `test-defectos-paso-7.R::dos juegos alternativos ya cumplen el minimo del protocolo` |
+| `PASO_RANGO` 0,1 → 0,9 | `test-defectos-paso-7.R::los barridos de rango salen por defecto en pasos de 0,1` |
+| `MAX_PASOS_RANGO` 10 → 1 | `test-defectos-paso-7.R::la ventana explorada por defecto es de diez pasos a cada lado` |
+| `FRECUENCIA_PEQUENA` 2 → 7 | `test-tabla-verdad.R::umbral_frecuencia marca el limite` |
+| `FRECUENCIA_GRANDE` 3 → 9 | `test-tabla-verdad.R::umbral_frecuencia marca el limite` |
+
+**Por que estas ocho llegaron tarde.** Una auditoria del 31 de julio de 2026 comparo las
+constantes numericas declaradas por el motor (38) con las nombradas en esta tabla (32) y
+muto las seis restantes contra la suite completa. `FRECUENCIA_PEQUENA` y `FRECUENCIA_GRANDE`
+ya estaban cubiertas sin figurar aqui; las otras cuatro **sobrevivian**, y la causa era
+comun: `test-robustez-setmethods.R` pasa `paso`, `max_pasos` y `desplazamientos` de forma
+explicita en cada llamada, de modo que ejercita el argumento y nunca el valor por defecto.
+De ahi la regla: **una constante que solo vive como valor por defecto necesita una prueba
+que la deje por defecto.** `test-defectos-paso-7.R` no hace otra cosa.
 
 **El bug que la lectura de la tabla de verdad evita.** En `QCA` 3.25 las columnas `incl` y
 `PRI` de `tt$tt` son **`character`**, y las filas no observadas traen `"-"`. Como

@@ -12,8 +12,12 @@ cada ancla se justifique y dejar rastro escrito de esa justificación en el info
 
 ## Estado
 
-**Completo y funcionando.** Motor con 373 pruebas sin `skip`, interfaz Shiny de ocho pasos
+**Completo y funcionando.** Motor con 572 pruebas sin `skip`, interfaz Shiny de ocho pasos
 e informe Quarto en HTML y Word.
+
+Cada constante numérica del motor está tabulada en
+[`docs/especificacion.md`](docs/especificacion.md) con la mutación que debe romper una prueba
+concreta. Una constante que sobrevive a su mutación es una constante sin prueba.
 
 **Se ejecuta en el equipo del investigador**, con doble clic. Instrucciones para él, sin
 jerga, en [`INSTALAR.md`](INSTALAR.md). El único requisito previo es instalar R una vez.
