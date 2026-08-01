@@ -210,6 +210,38 @@ COBERTURA_MINIMA <- 0.50
   )
 }
 
+#' La asimetria causal, declarada en vez de omitida.
+#'
+#' fsQCA es asimetrico: las condiciones que explican Y no son la negacion
+#' de las que explican ~Y, y analizar ambos es recomendacion estandar
+#' (Schneider y Wagemann). Esta herramienta NO analiza el resultado
+#' negado: su flujo va de una encuesta Likert a un unico resultado.
+#'
+#' No poder hacerlo es una limitacion. Dejar que pase inadvertida seria el
+#' fallo: el programa existe para impedir avanzar en silencio, no para
+#' hacerlo todo. Asi que la omision se emite como alerta, hay que
+#' reconocerla por escrito y sale impresa en el anexo, que es donde un
+#' evaluador la busca.
+alerta_asimetria_causal <- function(resultado) {
+  vacia <- alerta("A-35")[0, , drop = FALSE]
+  if (is.null(resultado) || length(resultado) != 1 || is.na(resultado) ||
+      !nzchar(resultado)) {
+    return(vacia)
+  }
+  alerta(
+    "A-35",
+    detalle = sprintf(paste("Este anexo analiza %s, no su negacion. fsQCA es",
+                            "asimetrico: las condiciones suficientes para %s",
+                            "no son la negacion de las suficientes para su",
+                            "ausencia, asi que analizar solo una direccion",
+                            "deja fuera la mitad del argumento. La",
+                            "herramienta no cubre el resultado negado;",
+                            "declare si lo analizo por otra via o por que no",
+                            "procede en su diseno."),
+                      resultado, resultado)
+  )
+}
+
 #' Condiciones que no discriminan y aun asi entran en la solucion.
 #'
 #' El motor ya tenia las dos piezas por separado: A-18 avisa en el paso 5

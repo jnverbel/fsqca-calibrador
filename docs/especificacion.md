@@ -729,6 +729,7 @@ herramienta genera**, sobre un recorrido completo con datos sintéticos, el 31/0
 |---|---|---|---|
 | `A-33` | 6 | advertencia | Una condición que no discrimina —efecto techo o piso— aparece dentro de la solución |
 | `A-34` | 4 | advertencia | Dos o más justificaciones de ancla son casi el mismo texto |
+| `A-35` | 6 | advertencia | El resultado negado no se ha analizado |
 
 **`A-33`.** El motor ya tenía las dos piezas: `A-18` avisa en el paso 5 de que una condición
 supera 0,50 en casi todos los casos, y el paso 6 entrega la solución. Nadie las cruzaba. En el
@@ -744,6 +745,14 @@ pegando, la herramienta no obliga a justificar: obliga a rellenar**, que es just
 para evitar. La comparación normaliza mayúsculas, espacios y puntuación, y quita los nombres de
 las propias condiciones: si dos textos solo se distinguen en el concepto que nombran, son el
 mismo texto.
+
+**`A-35`.** fsQCA es asimétrico: las condiciones suficientes para `Y` no son la negación de
+las suficientes para `~Y`, y analizar ambas direcciones es recomendación estándar. **Esta
+herramienta no analiza el resultado negado** — su flujo va de una encuesta Likert a un único
+resultado. No poder hacerlo es una limitación; dejar que pasara inadvertida sería el fallo. La
+omisión se emite como alerta, hay que reconocerla por escrito y sale impresa en el anexo, que
+es donde un evaluador la busca. Es la misma lógica que gobierna todo lo demás: el programa no
+impide investigar de forma incompleta, impide hacerlo en silencio.
 
 **Por qué `A-17` es una sola alerta y no una por condición.** Con anclas de cruce en valores
 enteros y promedios de tres o cuatro ítems Likert, la media cae sobre el ancla con mucha
