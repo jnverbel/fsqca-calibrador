@@ -65,6 +65,14 @@ f2 <- function(x) formatC(x, format = "f", digits = 2)
 # Los parrafos se arman con paste() y se emiten enteros: con cat(sep = "")
 # las lineas del codigo fuente se pegan entre si.
 emitir <- function(...) cat(paste0(paste(...), "\n\n"))
+
+# El anexo esta en español: el separador decimal es la coma. Mezclarlos
+# ---"0,50" en una linea y "0.001" en la siguiente--- es de las cosas que
+# un evaluador atento subraya.
+es_num <- function(x, digitos = NULL) {
+  txt <- if (is.null(digitos)) format(x) else formatC(x, format = "f", digits = digitos)
+  sub(".", ",", txt, fixed = TRUE)
+}
 ```
 
 ## Ficha de reproducibilidad
@@ -77,7 +85,7 @@ kb(data.frame(
                paste("Paquete", names(inf$ficha$paquetes))),
   Valor = c(inf$ficha$r_version, inf$ficha$archivo,
             inf$ficha$huella, format(inf$ficha$casos),
-            format(inf$ficha$idm), unname(inf$ficha$paquetes))))
+            es_num(inf$ficha$idm), unname(inf$ficha$paquetes))))
 ```
 
 ::: {.callout-note}
@@ -359,7 +367,7 @@ if (nrow(d$casos_050) > 0) {
                      function(x) paste(x, collapse = ", "), character(1))
   emitir("**Corrección del punto de cruce.** Todo caso con pertenencia exactamente",
          "igual a 0,50 queda excluido de los análisis de necesidad y de suficiencia.",
-         "Se sumó", format(d$correccion), "a esos valores, condición por condición:",
+         "Se sumó", es_num(d$correccion), "a esos valores, condición por condición:",
          paste0(paste(sprintf("*%s* — %s", names(por_cond), por_cond),
                       collapse = "; "), "."))
 } else {
@@ -367,10 +375,11 @@ if (nrow(d$casos_050) > 0) {
 }
 
 emitir("**Control de validez.** La calibración directa es una transformación",
-       "monótona creciente del promedio, de modo que **no reordena los casos**:",
-       "el rho de Spearman entre la membresía y el promedio crudo vale",
-       paste0(paste(sprintf("%s = %s", names(d$rho),
-                            formatC(d$rho, format = "f", digits = 4)),
+       "monótona del promedio en la dirección que declaran las anclas, de modo que",
+       "**no reordena los casos**: el rho de Spearman entre la membresía y el",
+       "promedio crudo vale +1 en los conjuntos crecientes y −1 en los",
+       "decrecientes. Aquí vale",
+       paste0(paste(sprintf("%s = %s", names(d$rho), es_num(d$rho, 4)),
                     collapse = ", "), "."),
        "Su aporte no es un orden nuevo, sino el umbral formal y la lectura en",
        "términos de pertenencia a un conjunto. Se reporta con honestidad en lugar",

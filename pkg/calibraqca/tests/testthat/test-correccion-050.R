@@ -77,3 +77,53 @@ test_that("el orden se comprueba ignorando los NA", {
 
   expect_true(res$conservado)
 })
+
+# --- Conjuntos decrecientes ------------------------------------------
+
+test_that("definir_anclas admite un conjunto decreciente", {
+  # Mas gabinetes es menos estabilidad: las anclas van al reves. Es la
+  # calibracion que Ragin publico para STB en los datos de Lipset, asi que
+  # rechazarla dejaba fuera el ejemplo canonico del metodo.
+  just <- paste("Umbral publicado del estudio, declarado para la prueba de",
+                "un conjunto decreciente.")
+
+  a <- definir_anclas(plena = 5, cruce = 9.5, nula = 15, fuente = "teoria",
+                      justificacion = just)
+
+  expect_identical(a$plena, 5)
+  expect_identical(a$nula, 15)
+})
+
+test_that("definir_anclas sigue rechazando anclas que no son monotonas", {
+  just <- paste("Justificacion suficientemente larga para pasar el minimo",
+                "de caracteres.")
+
+  # El cruce fuera del intervalo no es ni creciente ni decreciente.
+  expect_error(
+    definir_anclas(plena = 4, cruce = 1, nula = 2, fuente = "teoria",
+                   justificacion = just),
+    "monotonas")
+  expect_error(
+    definir_anclas(plena = 2, cruce = 9, nula = 5, fuente = "teoria",
+                   justificacion = just),
+    "monotonas")
+})
+
+test_that("en un conjunto decreciente el orden se conserva con rho = -1", {
+  # La calibracion decreciente invierte el orden POR DISENO. Exigir rho = 1
+  # dispararia A-13 en todos los casos legitimos.
+  res <- orden_conservado(crudo = c(1, 2, 3), calibrado = c(0.9, 0.5, 0.1),
+                          decreciente = TRUE)
+
+  expect_true(res$conservado)
+  expect_equal(res$rho, -1)
+})
+
+test_that("A-13 se dispara si un conjunto decreciente NO invierte el orden", {
+  # El reverso de la prueba anterior: declarar decreciente y obtener
+  # membresias crecientes si es un fallo del calculo.
+  res <- orden_conservado(crudo = c(1, 2, 3), calibrado = c(0.1, 0.5, 0.9),
+                          decreciente = TRUE)
+
+  expect_false(res$conservado)
+})

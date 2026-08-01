@@ -28,8 +28,11 @@ definir_anclas <- function(plena, cruce, nula, fuente, justificacion) {
   if (!is.numeric(c(plena, cruce, nula)) || anyNA(c(plena, cruce, nula))) {
     stop("Las tres anclas tienen que ser numericas.", call. = FALSE)
   }
-  if (!(nula < cruce && cruce < plena)) {
-    stop("Las anclas no son monotonas: se exige nula < cruce < plena. ",
+  creciente <- nula < cruce && cruce < plena
+  decreciente <- nula > cruce && cruce > plena
+  if (!(creciente || decreciente)) {
+    stop("Las anclas no son monotonas: se exige nula < cruce < plena ",
+         "(conjunto creciente) o nula > cruce > plena (decreciente). ",
          "Recibidas: nula = ", nula, ", cruce = ", cruce, ", plena = ", plena,
          ".", call. = FALSE)
   }
@@ -40,7 +43,8 @@ definir_anclas <- function(plena, cruce, nula, fuente, justificacion) {
   }
 
   list(plena = plena, cruce = cruce, nula = nula,
-       fuente = fuente, justificacion = justificacion)
+       fuente = fuente, justificacion = justificacion,
+       decreciente = decreciente)
 }
 
 #' Calibracion directa. El calculo lo hace QCA::calibrate.
@@ -109,12 +113,15 @@ casos_050_por_condicion <- function(correccion) {
 #' como declaracion del informe -- la calibracion no reordena, su aporte es
 #' el umbral formal y la lectura en terminos de pertenencia -- con este rho
 #' como evidencia.
-orden_conservado <- function(crudo, calibrado) {
+orden_conservado <- function(crudo, calibrado, decreciente = FALSE) {
   completos <- !is.na(crudo) & !is.na(calibrado)
   rho <- suppressWarnings(
     stats::cor(crudo[completos], calibrado[completos], method = "spearman")
   )
-  list(rho = rho, conservado = !is.na(rho) && isTRUE(all.equal(rho, 1)))
+  esperado <- if (isTRUE(decreciente)) -1 else 1
+  list(rho = rho,
+       esperado = esperado,
+       conservado = !is.na(rho) && isTRUE(all.equal(rho, esperado)))
 }
 
 #' Paso 4 completo: calibra todas las condiciones y emite sus diagnosticos.
@@ -146,14 +153,16 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
     crudo <- casos[[cond]]
     calibrado <- calibrar(crudo, anclas, idm = idm)
 
-    orden[[cond]] <- orden_conservado(crudo, calibrado)
+    orden[[cond]] <- orden_conservado(crudo, calibrado,
+                                      decreciente = isTRUE(anclas$decreciente))
     if (!orden[[cond]]$conservado) {
       encontradas[[length(encontradas) + 1]] <- alerta(
         "A-13", contexto = cond,
-        detalle = sprintf(paste("rho de Spearman = %.4f en %s: la calibracion",
-                                "altero el orden de los casos, lo que indica",
-                                "un fallo del calculo."),
-                          orden[[cond]]$rho, cond)
+        detalle = sprintf(paste("rho de Spearman = %.4f en %s, cuando la",
+                                "direccion declarada de las anclas exige %+d:",
+                                "la calibracion altero el orden de los casos,",
+                                "lo que indica un fallo del calculo."),
+                          orden[[cond]]$rho, cond, orden[[cond]]$esperado)
       )
     }
 

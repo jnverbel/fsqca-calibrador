@@ -9,6 +9,14 @@
 # misma fuente que alimenta el .qmd. Si divergieran, el informe estaria
 # contando otra cosa que el analisis.
 
+# La vista previa esta en español: el separador decimal es la coma. El
+# .qmd hace lo mismo; si divergieran, el investigador veria un numero
+# en pantalla y otro en el anexo.
+es_num <- function(x, digitos = NULL) {
+  txt <- if (is.null(digitos)) format(x) else formatC(x, format = "f", digits = digitos)
+  sub(".", ",", txt, fixed = TRUE)
+}
+
 fmt <- function(x, d = 3) {
   ifelse(is.na(x), "—", formatC(x, format = "f", digits = d))
 }
@@ -186,7 +194,7 @@ informe_html <- function(inf) {
       shiny::tags$tr(shiny::tags$td("Casos"),
                      shiny::tags$td(class = "num", f$casos)),
       shiny::tags$tr(shiny::tags$td("Grado de inclusión (idm)"),
-                     shiny::tags$td(class = "num", format(f$idm)))),
+                     shiny::tags$td(class = "num", es_num(f$idm)))),
       lapply(names(f$paquetes), function(p)
         shiny::tags$tr(shiny::tags$td(paste("Paquete", p)),
                        shiny::tags$td(class = "num", f$paquetes[[p]])))))
@@ -290,7 +298,7 @@ informe_html <- function(inf) {
       if (nrow(d$casos_050) > 0)
         paste0("Todo caso con pertenencia exactamente igual a 0,50 queda ",
                "excluido de los análisis de necesidad y de suficiencia. Se ",
-               "sumó ", format(d$correccion), " a esos valores, condición por ",
+               "sumó ", es_num(d$correccion), " a esos valores, condición por ",
                "condición: ",
                paste(vapply(split(d$casos_050$caso, d$casos_050$condicion),
                             function(x) paste(x, collapse = ", "), character(1)),
@@ -301,7 +309,7 @@ informe_html <- function(inf) {
       sprintf(paste("El argumento idm de QCA::calibrate() se fijó en %s. Es la",
                     "razón por la que puede haber diferencias en el tercer",
                     "decimal frente al programa fs/QCA de Ragin."),
-              format(f$idm))),
+              es_num(f$idm))),
     shiny::tags$p(
       shiny::tags$b("Control de validez. "),
       sprintf(paste("La calibración directa es una transformación monótona",

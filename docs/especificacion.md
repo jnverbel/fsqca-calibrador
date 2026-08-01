@@ -685,6 +685,41 @@ archivo y lo vuelve a subir cuando retoma.
   difieren, la app **advierte antes de continuar**: el proyecto se creó contra otra base.
   No bloquea — puede ser una corrección legítima del archivo — pero la discrepancia queda
   registrada y sale en el informe.
+### Validación contra una calibración publicada
+
+`test-validacion-externa.R` compara la herramienta con un resultado **publicado que no
+controlamos**: los datos de Lipset (1959) tal como los calibró Ragin, que viajan con el
+paquete `QCA` en dos versiones — `LR` con los indicadores crudos y `LF` con las pertenencias
+difusas publicadas. Es el ejemplo canónico del método.
+
+Las anclas no se publican como tales (la documentación de `QCA` solo da los umbrales de la
+versión *crisp*), así que se recuperaron ajustándolas contra `LF`. **El punto de cruce
+recuperado coincide con el umbral publicado en las cinco condiciones:**
+
+| Condición | Cruce recuperado | Umbral publicado | máx. dif. frente a `LF` |
+|---|---|---|---|
+| `DEV` | 550,21 | 550 USD | 0,0054 |
+| `URB` | 50,00 | 50 % | 0,0049 |
+| `LIT` | 75,08 | 75 % | 0,0047 |
+| `IND` | 29,98 | 30 % | 0,0054 |
+| `STB` | 9,48 | 10 gabinetes (decreciente) | 0,0052 |
+
+`LF` se publica redondeado a dos decimales, así que la comparación no puede exigir más
+precisión que ±0,005. Dicho de otro modo: **la calibración difusa publicada de Lipset es una
+calibración directa con `idm` = 0,95, y esta herramienta la reproduce.**
+
+**Alcance.** Valida el paso 4 contra datos macro continuos —PIB, porcentajes, recuentos—, no
+contra ítems Likert de encuesta, que es el hueco al que sirve la herramienta. Para ese caso no
+existe un conjunto de datos publicado y validado equivalente, que es el mismo hueco que
+describe el informe. No sustituye a usarla con datos reales.
+
+**Lo que destapó.** `definir_anclas()` exigía `nula < cruce < plena` y rechazaba los conjuntos
+decrecientes, y con ellos `STB` — es decir, el ejemplo canónico del método. Ahora admite las
+dos direcciones y rechaza solo lo que de verdad no es monótono: el cruce fuera del intervalo o
+dos anclas iguales. El control de orden pasó a exigir el rho que la dirección declarada
+implica (+1 creciente, −1 decreciente) en vez de exigir siempre +1, que habría disparado
+`A-13` en todos los conjuntos decrecientes legítimos.
+
 **Por qué `A-17` es una sola alerta y no una por condición.** Con anclas de cruce en valores
 enteros y promedios de tres o cuatro ítems Likert, la media cae sobre el ancla con mucha
 frecuencia. En un recorrido completo del 31/07/2026 la alerta saltó en **las cinco
