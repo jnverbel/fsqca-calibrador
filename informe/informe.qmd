@@ -76,7 +76,7 @@ kb(data.frame(
                "Grado de inclusión (`idm`)",
                paste("Paquete", names(inf$ficha$paquetes))),
   Valor = c(inf$ficha$r_version, inf$ficha$archivo,
-            substr(inf$ficha$huella, 1, 32), format(inf$ficha$casos),
+            inf$ficha$huella, format(inf$ficha$casos),
             format(inf$ficha$idm), unname(inf$ficha$paquetes))))
 ```
 

@@ -60,3 +60,30 @@ test_that("las funciones que la aplicacion necesita estan exportadas", {
 
   expect_identical(setdiff(necesarias, exportados), character(0))
 })
+
+# --- La huella no puede imprimirse a medias --------------------------
+
+raiz <- function() testthat::test_path("..", "..", "..", "..")
+
+test_that("la huella SHA-256 se imprime entera donde se presenta", {
+  # Paso de verdad el 31/07/2026: el anexo rotulaba "Huella SHA-256" y
+  # debajo ponia 32 caracteres de los 64. El prefijo era correcto, pero
+  # quien intentara verificarlo con `shasum -a 256` no obtenia una
+  # igualdad, y toda la ficha de reproducibilidad existe justamente para
+  # que un tercero pueda comprobar que analizo el mismo archivo.
+  presentadores <- c(file.path(raiz(), "app", "R", "informe_html.R"),
+                     file.path(raiz(), "informe", "informe.qmd"))
+
+  # Sin esto la prueba pasaria por no encontrar los archivos.
+  expect_true(all(file.exists(presentadores)))
+
+  for (archivo in presentadores) {
+    codigo <- sub("#.*$", "", readLines(archivo, warn = FALSE))
+    truncados <- grep("substr\\([^)]*huella", codigo, value = TRUE)
+    expect_identical(
+      truncados, character(0),
+      info = paste("La huella se trunca en", basename(archivo), ":",
+                   paste(trimws(truncados), collapse = " | "))
+    )
+  }
+})

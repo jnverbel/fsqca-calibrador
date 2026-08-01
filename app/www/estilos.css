@@ -519,3 +519,11 @@ table.datos td.mal { color: var(--bloqueante); font-weight: 600; }
 /* La descarga se abre sola en el navegador: necesita margenes propios. */
 body.pagina-informe { max-width: 46rem; margin: 0 auto;
                       padding: 3rem 1.5rem 6rem; }
+
+/* La huella SHA-256 son 64 caracteres: se imprime entera para que un
+   tercero pueda verificarla, asi que necesita romper linea. */
+.huella {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+}
