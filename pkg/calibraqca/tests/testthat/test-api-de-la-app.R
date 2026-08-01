@@ -87,3 +87,33 @@ test_that("la huella SHA-256 se imprime entera donde se presenta", {
     )
   }
 })
+
+# --- Ninguna tabla del anexo puede perderse en silencio ---------------
+
+test_that("kb() imprime la tabla en vez de devolverla", {
+  # Paso de verdad el 31/07/2026: el bloque de robustez llama cuatro veces
+  # a kb() dentro de un chunk `results: asis`, y solo la ultima se
+  # imprimia -- el valor de las otras tres se descartaba. El anexo
+  # anunciaba con su parrafo los rangos de las anclas, los rangos de los
+  # umbrales y los escenarios, y luego no mostraba ninguno: el paso 7
+  # quedaba sin una sola cifra.
+  #
+  # kb() tiene que imprimir siempre, no devolver. Asi el numero de tablas
+  # por chunk deja de importar.
+  qmd <- readLines(file.path(raiz(), "informe", "informe.qmd"), warn = FALSE)
+
+  definicion <- grep("^kb <- function", qmd, value = TRUE)
+
+  expect_length(definicion, 1L)
+  expect_match(definicion, "print(", fixed = TRUE)
+})
+
+test_that("el chunk de robustez sigue pidiendo mas de una tabla", {
+  # Si alguien reduce el chunk a una sola tabla, la prueba anterior deja de
+  # proteger nada y conviene enterarse.
+  qmd <- paste(readLines(file.path(raiz(), "informe", "informe.qmd"),
+                         warn = FALSE), collapse = "\n")
+  bloque <- regmatches(qmd, regexpr("label: robustez.*?\n```", qmd))
+
+  expect_gt(length(gregexpr("kb(", bloque, fixed = TRUE)[[1]]), 1)
+})

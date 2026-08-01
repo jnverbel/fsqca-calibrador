@@ -188,3 +188,43 @@ test_that("una matriz sin problemas no dispara nada y deja avanzar", {
   expect_identical(nrow(res$alertas), 0L)
   expect_true(puede_avanzar(bit, paso = 5))
 })
+
+test_that("A-18 no recomienda las anclas que ya se estan usando", {
+  # Paso de verdad: la sugerencia era una cadena fija -- "desplazar las
+  # anclas hacia arriba (4,5 / 3,5 / 2,5)" -- y a una condicion calibrada
+  # justamente con 4,5 / 3,5 / 2,5 le recomendaba hacer lo que ya estaba
+  # hecho. Un consejo que ignora el estado actual desgasta la confianza en
+  # todos los demas.
+  just <- paste("Justificacion suficientemente larga para pasar el minimo",
+                "que exige definir_anclas.")
+  anclas <- list(CAP = definir_anclas(4.5, 3.5, 2.5, "teoria", just))
+
+  # Membresias con techo: casi todo por encima de 0,50.
+  membresias <- data.frame(
+    id = sprintf("E%02d", 1:20),
+    CAP = c(rep(0.95, 18), 0.2, 0.3),
+    stringsAsFactors = FALSE)
+
+  res <- diagnosticar_semaforo(membresias, "id", anclas = anclas)
+  detalle <- res$alertas$detalle[res$alertas$codigo == "A-18"]
+
+  expect_length(detalle, 1L)
+  # Reconoce las anclas en uso...
+  expect_match(detalle, "en uso son 4,5 / 3,5 / 2,5")
+  # ...y lo que propone no es eso mismo.
+  propuesta <- sub(".*por ejemplo a ([^,]+),.*", "\\1", detalle)
+  expect_false(identical(trimws(propuesta), "4,5 / 3,5 / 2,5"))
+  expect_match(detalle, "5 / 4 / 3")
+})
+
+test_that("sin anclas, A-18 sugiere lo unico que siempre es cierto", {
+  membresias <- data.frame(id = sprintf("E%02d", 1:20),
+                           CAP = c(rep(0.95, 18), 0.2, 0.3),
+                           stringsAsFactors = FALSE)
+
+  res <- diagnosticar_semaforo(membresias, "id")
+  detalle <- res$alertas$detalle[res$alertas$codigo == "A-18"]
+
+  expect_no_match(detalle, "en uso son")
+  expect_match(detalle, "extremo alto")
+})

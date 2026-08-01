@@ -210,6 +210,59 @@ COBERTURA_MINIMA <- 0.50
   )
 }
 
+#' Condiciones que no discriminan y aun asi entran en la solucion.
+#'
+#' El motor ya tenia las dos piezas por separado: A-18 avisa en el paso 5
+#' de que una condicion supera 0,50 en casi todos los casos, y el paso 6
+#' entrega la solucion. Nadie las cruzaba, asi que el anexo podia presentar
+#' una configuracion de tres condiciones de las cuales dos eran casi
+#' constantes -- y una condicion casi constante no discrimina, de modo que
+#' la configuracion dice mucho menos de lo que aparenta.
+#'
+#' El sintoma clasico es que la solucion parsimoniosa se queda justo con la
+#' unica condicion que si varia.
+alertas_solucion_degenerada <- function(soluciones, semaforo) {
+  vacia <- alerta("A-33")[0, , drop = FALSE]
+  resumen <- semaforo$resumen
+  if (is.null(resumen) || nrow(resumen) == 0) return(vacia)
+
+  no_discriminan <- resumen$condicion[
+    !is.na(resumen$pct_sobre_050) &
+      (resumen$pct_sobre_050 >= 100 * UMBRAL_TECHO |
+         resumen$pct_sobre_050 <= 100 * (1 - UMBRAL_PISO))]
+  if (length(no_discriminan) == 0) return(vacia)
+
+  encontradas <- list()
+  for (nombre in names(soluciones)) {
+    sol <- soluciones[[nombre]]
+    if (is.null(sol) || is.null(sol$terminos)) next
+
+    # Los terminos vienen como "CAPAB*REDES*DIGIT" o con la negacion
+    # delante: ~DIGIT sigue siendo DIGIT y tampoco discrimina negada.
+    piezas <- unlist(strsplit(paste(sol$terminos, collapse = "+"), "[*+]"))
+    piezas <- toupper(trimws(gsub("~", "", piezas)))
+    afectadas <- intersect(no_discriminan, piezas)
+    if (length(afectadas) == 0) next
+
+    pct <- resumen$pct_sobre_050[match(afectadas, resumen$condicion)]
+    encontradas[[length(encontradas) + 1]] <- alerta(
+      "A-33", contexto = nombre,
+      detalle = sprintf(paste("La solucion %s incluye %s, que no discrimina",
+                              "(%s). Una condicion presente en casi todos los",
+                              "casos no separa nada: la configuracion explica",
+                              "menos de lo que aparenta. Compare con la",
+                              "solucion parsimoniosa, que suele quedarse con",
+                              "las condiciones que si varian."),
+                        nombre, paste(afectadas, collapse = ", "),
+                        paste(sprintf("%s en el %.1f %% de los casos",
+                                      afectadas, pct), collapse = "; "))
+    )
+  }
+
+  if (length(encontradas) == 0) return(vacia)
+  do.call(rbind, encontradas)
+}
+
 #' Las tres soluciones.
 #'
 #' Se producen siempre las tres -- conservadora, intermedia y parsimoniosa --

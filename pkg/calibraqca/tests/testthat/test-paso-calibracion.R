@@ -1,6 +1,15 @@
+# Las dos justificaciones dicen cosas DISTINTAS a proposito. Con el mismo
+# relleno en las dos, A-34 se dispara -- correctamente, porque es lo que
+# esa alerta caza -- y bloquearia el paso 4 en media docena de pruebas que
+# no van de eso.
 anclas_de_prueba <- function(fuente = "teoria") {
-  list(CAP_ABS = definir_anclas(4, 3, 2, fuente, strrep("x", 50)),
-       REDES   = definir_anclas(4, 3, 2, fuente, strrep("x", 50)))
+  list(
+    CAP_ABS = definir_anclas(4, 3, 2, fuente, paste(
+      "El corte separa a las empresas con rutinas formales de vigilancia",
+      "tecnologica de las que solo reaccionan a lo que ya ocurrio.")),
+    REDES = definir_anclas(4, 3, 2, fuente, paste(
+      "Se considera vinculada la empresa que sostiene tres o mas",
+      "relaciones activas con actores del sistema regional.")))
 }
 
 casos_de_prueba <- function() {
@@ -132,4 +141,48 @@ test_that("la alerta agregada de 0,50 dice cuantos casos hay en cada condicion",
   expect_match(detalle, "CAP_ABS")
   expect_match(detalle, "REDES")
   expect_match(detalle, as.character(length(res$correccion$CAP_ABS)))
+})
+
+# --- Justificaciones calcadas -----------------------------------------
+
+test_that("A-34 se dispara cuando dos anclas comparten la misma justificacion", {
+  # El hallazgo de fondo de la revision del anexo del 31/07/2026: las cinco
+  # justificaciones eran la misma frase con el concepto cambiado, y el
+  # programa las acepto sin una queja.
+  #
+  # Si la compuerta se satisface pegando el mismo texto cinco veces,
+  # entonces no obliga a justificar: obliga a rellenar. Y toda la
+  # propuesta de valor de esta herramienta es la diferencia entre esas dos
+  # cosas.
+  plantilla <- function(concepto) {
+    paste0("El umbral se fija en el punto en que la literatura sectorial ",
+           "situa el paso a la pertenencia plena de ", concepto, ", y ",
+           "coincide con el corte operativo del manual de la encuesta.")
+  }
+  anclas <- list(
+    CAP_ABS = definir_anclas(4, 3, 2, "teoria", plantilla("la capacidad")),
+    REDES = definir_anclas(4, 3, 2, "teoria", plantilla("las redes")))
+
+  res <- diagnosticar_calibracion(casos_de_prueba(), anclas,
+                                  columna_id = "id_empresa")
+
+  expect_true("A-34" %in% res$alertas$codigo)
+  detalle <- res$alertas$detalle[res$alertas$codigo == "A-34"]
+  expect_match(detalle, "CAP_ABS")
+  expect_match(detalle, "REDES")
+})
+
+test_that("A-34 no se dispara con justificaciones que dicen cosas distintas", {
+  anclas <- list(
+    CAP_ABS = definir_anclas(4, 3, 2, "teoria", paste(
+      "El corte de 4 separa a las empresas que han incorporado rutinas",
+      "formales de vigilancia tecnologica de las que solo reaccionan.")),
+    REDES = definir_anclas(4, 3, 2, "normativa sectorial", paste(
+      "El manual sectorial considera vinculada a la empresa que sostiene",
+      "tres o mas relaciones activas con actores del sistema regional.")))
+
+  res <- diagnosticar_calibracion(casos_de_prueba(), anclas,
+                                  columna_id = "id_empresa")
+
+  expect_false("A-34" %in% res$alertas$codigo)
 })
