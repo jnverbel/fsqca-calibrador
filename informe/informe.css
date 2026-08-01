@@ -21,3 +21,11 @@ blockquote { border-left: 3px solid #C98A0A; margin: 0.8rem 0;
              padding: 0.2rem 0 0.2rem 1rem; color: #4A5666; }
 .callout-note { border-left: 3px solid #2E6FD0; background: #F5F7FA;
                 padding: 0.9rem 1.1rem; margin: 1.2rem 0; font-size: 0.95rem; }
+
+/* La huella SHA-256 son 64 caracteres: se imprime entera para que un
+   tercero pueda verificarla, asi que necesita romper linea. */
+.huella {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+}

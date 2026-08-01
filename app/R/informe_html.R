@@ -182,7 +182,7 @@ informe_html <- function(inf) {
       shiny::tags$tr(shiny::tags$td("Archivo de datos"),
                      shiny::tags$td(class = "num", f$archivo)),
       shiny::tags$tr(shiny::tags$td("Huella SHA-256"),
-                     shiny::tags$td(class = "num", substr(f$huella, 1, 32))),
+                     shiny::tags$td(class = "huella", f$huella)),
       shiny::tags$tr(shiny::tags$td("Casos"),
                      shiny::tags$td(class = "num", f$casos)),
       shiny::tags$tr(shiny::tags$td("Grado de inclusión (idm)"),
