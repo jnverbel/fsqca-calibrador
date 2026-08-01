@@ -1,0 +1,82 @@
+cff-version: 1.2.0
+title: "Calibrador fsQCA para datos Likert"
+message: >-
+  El crédito científico de los cálculos va a los paquetes y a las obras que
+  se citan abajo, no a esta herramienta: no reimplementa ninguna fórmula
+  estadística. Cite este repositorio solo para identificar la versión del
+  instrumento con que se ejecutó un análisis.
+type: software
+authors:
+  - family-names: "Núñez"
+    given-names: "Javier"
+repository-code: "https://github.com/jnverbel/fsqca-calibrador"
+abstract: >-
+  Aplicación Shiny que lleva un archivo de respuestas Likert de cinco puntos
+  hasta un anexo metodológico para fsQCA, en ocho pasos: ingesta, validación
+  de medida, agregación, calibración difusa directa, semáforo de
+  diagnóstico, análisis de necesidad y suficiencia, barrido de robustez y
+  exportación. Todo cálculo se delega en paquetes revisados por pares. Su
+  aportación es obligar a justificar por escrito cada decisión de
+  calibración en el momento en que se toma, y dejar ese texto impreso en el
+  informe final.
+keywords:
+  - fsQCA
+  - QCA
+  - calibración
+  - conjuntos difusos
+  - datos Likert
+  - investigación por encuesta
+license: MIT
+references:
+  - type: book
+    title: "Redesigning Social Inquiry: Fuzzy Sets and Beyond"
+    authors:
+      - family-names: "Ragin"
+        given-names: "Charles C."
+    year: 2008
+    publisher:
+      name: "University of Chicago Press"
+    doi: "10.7208/chicago/9780226702797.001.0001"
+  - type: book
+    title: "QCA with R: A Comprehensive Resource"
+    authors:
+      - family-names: "Dușa"
+        given-names: "Adrian"
+    year: 2019
+    publisher:
+      name: "Springer International Publishing"
+    doi: "10.1007/978-3-319-75668-4"
+  - type: article
+    title: "SetMethods: an Add-on R Package for Advanced QCA"
+    authors:
+      - family-names: "Oana"
+        given-names: "Ioana-Elena"
+      - family-names: "Schneider"
+        given-names: "Carsten Q."
+    year: 2018
+    journal: "The R Journal"
+    volume: 10
+    issue: 1
+    doi: "10.32614/rj-2018-031"
+  - type: article
+    title: "A Robustness Test Protocol for Applied QCA: Theory and R Software Application"
+    authors:
+      - family-names: "Oana"
+        given-names: "Ioana-Elena"
+      - family-names: "Schneider"
+        given-names: "Carsten Q."
+    year: 2024
+    journal: "Sociological Methods & Research"
+    volume: 53
+    issue: 1
+    doi: "10.1177/00491241211036158"
+  - type: article
+    title: "Necessary Condition Analysis (NCA)"
+    authors:
+      - family-names: "Dul"
+        given-names: "Jan"
+    year: 2016
+    journal: "Organizational Research Methods"
+    volume: 19
+    issue: 1
+    doi: "10.1177/1094428115584005"
