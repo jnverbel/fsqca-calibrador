@@ -69,15 +69,25 @@ test_that("los NA sobreviven la calibracion como NA", {
 })
 
 test_that("A-16 se dispara con anclas no monotonas", {
-  expect_error(definir_anclas(plena = 2, cruce = 3, nula = 4, fuente = "teoria",
-                              justificacion = strrep("x", 50)),
-               "monoton")
+  # No monotono es que el cruce quede FUERA del intervalo, o que dos anclas
+  # coincidan. Que nula > plena no basta: eso es un conjunto decreciente y
+  # es legitimo -- Ragin calibro asi la estabilidad de los datos de Lipset.
   expect_error(definir_anclas(plena = 3, cruce = 3, nula = 2, fuente = "teoria",
                               justificacion = strrep("x", 50)),
                "monoton")
   expect_error(definir_anclas(plena = 4, cruce = 2, nula = 3, fuente = "teoria",
                               justificacion = strrep("x", 50)),
                "monoton")
+  expect_error(definir_anclas(plena = 2, cruce = 4, nula = 3, fuente = "teoria",
+                              justificacion = strrep("x", 50)),
+               "monoton")
+})
+
+test_that("A-16 no se dispara con anclas decrecientes", {
+  a <- definir_anclas(plena = 2, cruce = 3, nula = 4, fuente = "teoria",
+                      justificacion = strrep("x", 50))
+
+  expect_true(a$decreciente)
 })
 
 test_that("A-16 no se dispara con anclas ordenadas", {

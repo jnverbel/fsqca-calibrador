@@ -14,8 +14,12 @@ cada ancla se justifique y dejar rastro escrito de esa justificación en el info
 
 [![pruebas](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
-**Completo y funcionando.** Motor con 572 pruebas y 18 de interfaz, ninguna con `skip`,
+**Completo y funcionando.** Motor con 619 pruebas y 18 de interfaz, ninguna con `skip`,
 interfaz Shiny de ocho pasos e informe Quarto en HTML y Word.
+
+La calibración está **contrastada contra un resultado publicado**: reproduce la calibración
+difusa que Ragin publicó para los datos de Lipset (1959) dentro de la precisión con que ese
+dato se publica, y los puntos de cruce recuperados coinciden con los umbrales del estudio.
 
 Las dos suites corren en Linux en cada empujón, sobre el entorno que reconstruye
 `renv.lock`. El flujo falla si aparece una prueba omitida: una prueba omitida es una prueba
