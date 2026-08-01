@@ -1,5 +1,5 @@
 {
-  "version_esquema": "1.0",
+  "version_esquema": "1.1",
   "version_app": "0.1.0",
   "creado": "2026-07-30T12:00:00Z",
   "modificado": "2026-07-30T12:00:00Z",
@@ -43,7 +43,172 @@
     "idm": 0.95,
     "correccion_050": {
       "aplicada": true,
-      "casos": ["E005", "E018", "E020", "E022", "E026", "E040", "E063", "E066", "E082", "E087", "E089", "E100", "E101", "E107", "E109", "E032", "E035", "E039", "E053", "E057", "E068", "E069", "E072", "E077", "E091", "E095", "E096", "E098", "E106", "E108", "E111", "E115", "E006", "E014", "E030", "E032", "E068", "E070", "E074", "E086", "E089"]
+      "casos": [
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E005"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E018"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E020"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E022"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E026"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E040"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E063"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E066"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E082"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E087"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E089"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E100"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E101"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E107"
+        },
+        {
+          "condicion": "CAP_ABS",
+          "caso": "E109"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E032"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E035"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E039"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E053"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E057"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E068"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E069"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E072"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E077"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E091"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E095"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E096"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E098"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E106"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E108"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E111"
+        },
+        {
+          "condicion": "REDES",
+          "caso": "E115"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E006"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E014"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E030"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E032"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E068"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E070"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E074"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E086"
+        },
+        {
+          "condicion": "INNOV",
+          "caso": "E089"
+        }
+      ]
     },
     "condiciones": {
       "CAP_ABS": {
@@ -102,28 +267,8 @@
       "codigo": "A-17",
       "paso": 4,
       "severidad": "informativa",
-      "contexto": "CAP_ABS",
-      "detalle": "15 caso(s) en 0,50 exacto en CAP_ABS: E005, E018, E020, E022, E026, E040, E063, E066, E082, E087. Se suma 0.001 y se declara en el informe.",
-      "estado": "abierta",
-      "nota": null,
-      "cerrada": null
-    },
-    {
-      "codigo": "A-17",
-      "paso": 4,
-      "severidad": "informativa",
-      "contexto": "REDES",
-      "detalle": "17 caso(s) en 0,50 exacto en REDES: E032, E035, E039, E053, E057, E068, E069, E072, E077, E091. Se suma 0.001 y se declara en el informe.",
-      "estado": "abierta",
-      "nota": null,
-      "cerrada": null
-    },
-    {
-      "codigo": "A-17",
-      "paso": 4,
-      "severidad": "informativa",
-      "contexto": "INNOV",
-      "detalle": "9 caso(s) en 0,50 exacto en INNOV: E006, E014, E030, E032, E068, E070, E074, E086, E089. Se suma 0.001 y se declara en el informe.",
+      "contexto": "",
+      "detalle": "41 caso(s) en 0,50 exacto, repartidos asi: CAP_ABS 15, REDES 17, INNOV 9. Se suma 0.001 a cada uno y se declaran todos, con su condicion, en el informe.",
       "estado": "abierta",
       "nota": null,
       "cerrada": null

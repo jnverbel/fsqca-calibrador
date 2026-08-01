@@ -4,7 +4,10 @@
 #
 # No guarda datos crudos. El servidor no persiste nada.
 
-VERSION_ESQUEMA <- "1.0"
+# 1.1 -- correccion_050$casos paso de vector plano a tabla de condicion y
+# caso. Un archivo 1.0 se leeria mal en silencio, asi que la version sube
+# y cargar_proyecto() lo rechaza en voz alta.
+VERSION_ESQUEMA <- "1.1"
 
 #' Proyecto vacio con el esquema de la seccion 4 de la especificacion.
 nuevo_proyecto <- function(fecha = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ",
@@ -23,8 +26,11 @@ nuevo_proyecto <- function(fecha = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ",
     validacion = list(),
     agregacion = list(),
     calibracion = list(idm = 0.95,
-                       correccion_050 = list(aplicada = FALSE,
-                                             casos = character(0)),
+                       correccion_050 = list(
+                         aplicada = FALSE,
+                         casos = data.frame(condicion = character(0),
+                                            caso = character(0),
+                                            stringsAsFactors = FALSE)),
                        condiciones = list()),
     analisis = list(),
     robustez = list(ejecutado = FALSE, escenarios = list()),
@@ -266,9 +272,13 @@ construir_proyecto <- function(leido, mapeo, anclas, bitacora, umbrales,
                   constructos = constructos)
 
   p$calibracion$idm <- idm
+  # `casos` guarda condicion y caso, no una retahila de identificadores:
+  # el mismo caso puede corregirse en varias condiciones y sin la etiqueta
+  # el informe no puede decir en cual.
+  por_condicion <- casos_050_por_condicion(correccion)
   p$calibracion$correccion_050 <- list(
-    aplicada = length(unlist(correccion)) > 0,
-    casos = as.character(unlist(correccion)))
+    aplicada = nrow(por_condicion) > 0,
+    casos = por_condicion)
   p$calibracion$condiciones <- lapply(anclas, function(a)
     list(anclas = list(plena = a$plena, cruce = a$cruce, nula = a$nula),
          fuente = a$fuente, justificacion = a$justificacion))

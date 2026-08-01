@@ -27,7 +27,7 @@ test_that("el proyecto lleva mapeo, anclas, umbrales y bitacora", {
   p <- construir_proyecto(e$leido, e$mapeo, e$anclas, e$bitacora, e$umbrales,
                           e$resultado, fecha = "2026-07-30T12:00:00Z")
 
-  expect_identical(p$version_esquema, "1.0")
+  expect_identical(p$version_esquema, "1.1")
   expect_identical(p$datos$huella_sha256, e$leido$huella_sha256)
   expect_identical(p$mapeo$columna_id, "id_empresa")
   expect_identical(nrow(p$mapeo$constructos), 3L)

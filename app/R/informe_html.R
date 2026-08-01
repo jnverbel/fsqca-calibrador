@@ -287,11 +287,14 @@ informe_html <- function(inf) {
   declaraciones <- shiny::tagList(
     shiny::tags$p(
       shiny::tags$b("Corrección del punto de cruce. "),
-      if (length(d$casos_050) > 0)
+      if (nrow(d$casos_050) > 0)
         paste0("Todo caso con pertenencia exactamente igual a 0,50 queda ",
                "excluido de los análisis de necesidad y de suficiencia. Se ",
-               "sumó ", format(d$correccion), " a esos valores. Casos ",
-               "afectados: ", paste(unique(d$casos_050), collapse = ", "), ".")
+               "sumó ", format(d$correccion), " a esos valores, condición por ",
+               "condición: ",
+               paste(vapply(split(d$casos_050$caso, d$casos_050$condicion),
+                            function(x) paste(x, collapse = ", "), character(1)),
+                     collapse = "; "), ".")
       else "Ningún caso quedó en 0,50 exacto."),
     shiny::tags$p(
       shiny::tags$b("Grado de inclusión. "),

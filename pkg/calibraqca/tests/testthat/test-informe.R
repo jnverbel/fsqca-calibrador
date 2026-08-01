@@ -78,7 +78,12 @@ test_that("las declaraciones obligatorias no se pueden omitir", {
 
   # El rho vale 1 por construccion: la calibracion es monotona.
   expect_true(all(abs(inf$declaraciones$rho - 1) < 1e-9))
-  expect_type(inf$declaraciones$casos_050, "character")
+  # El rho se declara por condicion, asi que tiene que venir con nombres:
+  # cinco numeros seguidos sin decir de quien es cada uno no se pueden leer.
+  expect_named(inf$declaraciones$rho)
+  # casos_050 dejo de ser un vector plano: lleva condicion y caso.
+  expect_s3_class(inf$declaraciones$casos_050, "data.frame")
+  expect_identical(names(inf$declaraciones$casos_050), c("condicion", "caso"))
   expect_type(inf$declaraciones$sesgo_metodo_comun, "logical")
 })
 
@@ -104,4 +109,48 @@ test_that("una condicion sin anclas no llega al informe: falla antes", {
     reunir_informe(p$datos, p$mapeo, p$anclas["CAP_ABS"], p$bitacora,
                    p$umbrales, p$resultado, p$leido),
     "REDES")
+})
+
+test_that("la declaracion del 0,50 conserva a que condicion pertenece cada caso", {
+  # El motor devuelve la correccion como lista por condicion, pero el
+  # informe la aplanaba con unlist(): el anexo terminaba enumerando
+  # identificadores sueltos, con repeticiones y sin decir donde se
+  # corrigio cada uno. El paso 4 promete ese listado como la garantia de
+  # que la correccion no pase inadvertida, y asi no se podia leer.
+  casos <- data.frame(
+    id_empresa = c("E1", "E2", "E3", "E4"),
+    CAP_ABS = c(2, 3, 4, 5),
+    REDES = c(3, 4, 5, 2),
+    INNOV = c(2, 3, 4, 5),
+    stringsAsFactors = FALSE)
+  just <- paste("Punto medio de la escala Likert de cinco puntos, declarado",
+                "para la prueba.")
+  anclas <- list(
+    CAP_ABS = definir_anclas(4, 3, 2, "teoria", just),
+    REDES = definir_anclas(4, 3, 2, "teoria", just),
+    INNOV = definir_anclas(4, 3, 2, "teoria", just))
+
+  cal <- diagnosticar_calibracion(casos, anclas, "id_empresa")
+
+  # E2 cae en 0,50 en CAP_ABS; E1 cae en 0,50 en REDES.
+  expect_identical(cal$correccion$CAP_ABS, "E2")
+  expect_identical(cal$correccion$REDES, "E1")
+
+  tabla <- casos_050_por_condicion(cal$correccion)
+
+  expect_s3_class(tabla, "data.frame")
+  expect_identical(names(tabla), c("condicion", "caso"))
+
+  # E2 se corrige en DOS condiciones a la vez, y ese es justamente el caso
+  # que aplanar hacia ilegible: aparecia dos veces, sin decir donde.
+  expect_setequal(tabla$condicion[tabla$caso == "E2"], c("CAP_ABS", "INNOV"))
+  expect_identical(tabla$condicion[tabla$caso == "E1"], "REDES")
+})
+
+test_that("sin casos en 0,50 la tabla sale vacia pero con sus columnas", {
+  tabla <- casos_050_por_condicion(list(CAP_ABS = character(0),
+                                        REDES = character(0)))
+
+  expect_identical(nrow(tabla), 0L)
+  expect_identical(names(tabla), c("condicion", "caso"))
 })

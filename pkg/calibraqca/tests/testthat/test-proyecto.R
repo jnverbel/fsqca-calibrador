@@ -18,7 +18,7 @@ proyecto_de_prueba <- function() {
 test_that("un proyecto nuevo declara la version del esquema", {
   p <- nuevo_proyecto(fecha = FECHA_FIJA)
 
-  expect_identical(p$version_esquema, "1.0")
+  expect_identical(p$version_esquema, "1.1")
   expect_identical(p$creado, FECHA_FIJA)
   expect_identical(p$modificado, FECHA_FIJA)
 })
