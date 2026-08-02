@@ -135,7 +135,7 @@ bound.
 
 ---
 
-### One further observation, unverified
+### One further observation — CONFIRMED (follow-up in `seguimiento-bugs-setmethods.md`)
 
 At line 42 of `SetMethods:::robust.intersections()` the loop over test solutions reads:
 
@@ -145,8 +145,20 @@ for (i in length(test_sol)) {
 
 rather than `seq_along(test_sol)`. As written it executes a single iteration with
 `i = length(test_sol)`, which would intersect only the last test solution and silently skip
-the others. I could not confirm the behavioural consequence because of Bug 1, so I flag it
-only as something worth a look while you are in that file.
+the others.
+
+**Confirmado (esta sesión).** Ya no es tentativo:
+- Fuente: la línea 42 dice literalmente `for (i in length(test_sol))`.
+- Prueba de que es typo, no diseño: la función hermana `rob.union()` (línea 4) hace el fold
+  análogo con `for (i in 1:length(test_sol))` — el idioma correcto, en el mismo archivo.
+- Consecuencia demostrada: con ≥3 soluciones de prueba, las del medio se ignoran (verificado
+  variando una solución intermedia; el resultado no cambia). Con 2 queda enmascarado, y el
+  ejemplo de `?rob.cases` usa exactamente 2.
+- Matiz: hoy está latente detrás del Bug 1 (rob.cases aborta antes); muerde en cuanto se
+  arregle el Bug 1. Fix de una línea: `for (i in 1:length(test_sol))`.
+
+El seguimiento a Oana que eleva esto a bug confirmado está en `seguimiento-bugs-setmethods.md`
+(demostración en `referencias/seq-along-robcases-demo.R`).
 
 ---
 
