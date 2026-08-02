@@ -295,6 +295,48 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
   do.call(rbind, encontradas)
 }
 
+#' Los argumentos que hacen que QCA::minimize() reconstruya la tabla.
+#'
+#' minimize(), al recibir una tabla ya construida y cualquiera de estos
+#' argumentos, la rehace desde tt$initial.data y descarta la que se le paso,
+#' sin avisar (dusadrian/QCA#4). Se calcula igual que minimize -- los formales
+#' de truthTable menos los dos que no disparan el rebuild -- para seguir el
+#' paso de las versiones de QCA. Frontera fina: use.letters y dcc SI
+#' reconstruyen; use.labels y show.cases NO.
+.args_reconstruccion_tabla <- function() {
+  setdiff(names(formals(QCA::truthTable)),
+          c("show.cases", "use.labels", "..."))
+}
+
+#' QCA::minimize() sin reconstruir la tabla de verdad en silencio.
+#'
+#' El motor arma la tabla con umbrales deliberados en construir_tabla_verdad().
+#' Si a minimize() se le colara un argumento de construccion de tabla (n.cut,
+#' incl.cut, ...), QCA la rehace con otros umbrales y descarta la calibrada,
+#' dejando el anexo con una tabla que no corresponde a la solucion. Antes que
+#' avanzar en ese silencio -- que es justo lo que esta herramienta existe para
+#' impedir -- se aborta. Hoy ninguna llamada pasa un argumento asi; la guarda
+#' es para que un cambio futuro no lo reintroduzca sin que nadie lo note.
+.minimizar_seguro <- function(tt, ...) {
+  if (!inherits(tt, "QCA_tt")) {
+    stop("Se esperaba una tabla de verdad (objeto de QCA::truthTable).",
+         call. = FALSE)
+  }
+  dots <- list(...)
+  peligrosos <- intersect(names(dots), .args_reconstruccion_tabla())
+  if (length(peligrosos) > 0) {
+    stop(sprintf(paste(
+      "minimize() reconstruiria la tabla de verdad en silencio: se le paso",
+      "%s, argumento(s) de construccion de tabla. QCA la rehace desde los",
+      "datos y descarta la ya calibrada (dusadrian/QCA#4). Omita ese",
+      "argumento; la tabla ya trae sus umbrales."),
+      paste(peligrosos, collapse = ", ")), call. = FALSE)
+  }
+  # do.call con los valores ya evaluados, no ...: minimize() reevalua dir.exp
+  # en su parent.frame(), y forwardearlo por ... dejaria el nombre sin ligar.
+  do.call(QCA::minimize, c(list(tt), dots))
+}
+
 #' Las tres soluciones.
 #'
 #' Se producen siempre las tres -- conservadora, intermedia y parsimoniosa --
@@ -302,14 +344,14 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
 #' evaluadores. La intermedia necesita expectativas direccionales; sin ellas
 #' no se inventa una.
 minimizar <- function(tt, expectativas = NULL) {
-  conservadora <- .ajuste_solucion(QCA::minimize(tt, details = TRUE))
-  parsimoniosa <- .ajuste_solucion(QCA::minimize(tt, include = "?",
-                                                 details = TRUE))
+  conservadora <- .ajuste_solucion(.minimizar_seguro(tt, details = TRUE))
+  parsimoniosa <- .ajuste_solucion(.minimizar_seguro(tt, include = "?",
+                                                     details = TRUE))
   intermedia <- if (is.null(expectativas)) {
     NULL
   } else {
-    .ajuste_solucion(QCA::minimize(tt, include = "?", dir.exp = expectativas,
-                                   details = TRUE))
+    .ajuste_solucion(.minimizar_seguro(tt, include = "?",
+                                       dir.exp = expectativas, details = TRUE))
   }
 
   list(conservadora = conservadora, intermedia = intermedia,

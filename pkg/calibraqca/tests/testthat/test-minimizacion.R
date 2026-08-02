@@ -114,6 +114,62 @@ test_that("con configuraciones suficientes la minimizacion si es posible", {
   expect_false(is.null(res$soluciones$conservadora))
 })
 
+# --- El rodeo al fallo silencioso de QCA::minimize() ------------------
+# QCA::minimize(), al recibir una tabla ya construida MAS un argumento de
+# construccion de tabla (incl.cut, n.cut, pri.cut, exclude, complete,
+# sort.by, inf.test, use.labels), reconstruye la tabla desde tt$initial.data
+# y descarta la que se le paso -- sin avisar (dusadrian/QCA#4). El motor
+# arma la tabla con umbrales deliberados en construir_tabla_verdad(); que
+# minimize la rehiciera con otros umbrales dejaria el anexo mostrando una
+# tabla que no corresponde a la solucion. .minimizar_seguro() lo impide.
+
+test_that(".minimizar_seguro pasa los argumentos inocuos a QCA::minimize", {
+  tt <- tt_lf()
+
+  seguro <- .minimizar_seguro(tt, details = TRUE)
+  directo <- QCA::minimize(tt, details = TRUE)
+
+  expect_identical(unlist(seguro$solution), unlist(directo$solution))
+})
+
+test_that(".minimizar_seguro aborta si se le pasa un argumento de tabla", {
+  tt <- tt_lf()
+
+  # n.cut haria que minimize reconstruyera la tabla en silencio.
+  expect_error(.minimizar_seguro(tt, n.cut = 2),
+               "reconstruiria la tabla de verdad en silencio")
+  expect_error(.minimizar_seguro(tt, n.cut = 2), "n.cut")
+})
+
+test_that(".minimizar_seguro cubre todos los argumentos que disparan el rebuild", {
+  tt <- tt_lf()
+  # El conjunto es exactamente el que minimize usa para decidir el rebuild:
+  # setdiff(formals(truthTable), c("show.cases", "use.labels")). Ojo con la
+  # frontera fina: use.letters y dcc SI reconstruyen; use.labels NO.
+  peligrosos <- list(incl.cut = 0.8, pri.cut = 0.5, exclude = 1,
+                     complete = TRUE, sort.by = "incl", use.letters = TRUE)
+
+  for (nombre in names(peligrosos)) {
+    args <- c(list(tt), stats::setNames(list(peligrosos[[nombre]]), nombre))
+    expect_error(do.call(.minimizar_seguro, args),
+                 "reconstruiria la tabla de verdad en silencio",
+                 info = nombre)
+  }
+})
+
+test_that(".minimizar_seguro deja pasar use.labels, que minimize no reconstruye", {
+  # La frontera es fiel a minimize: use.labels esta en su lista de exclusion,
+  # asi que no dispara el rebuild y la guarda no debe bloquearlo.
+  tt <- tt_lf()
+
+  expect_no_error(.minimizar_seguro(tt, details = TRUE, use.labels = FALSE))
+})
+
+test_that(".minimizar_seguro exige que tt sea una tabla de verdad", {
+  expect_error(.minimizar_seguro(data.frame(x = 1), details = TRUE),
+               "tabla de verdad")
+})
+
 # --- Condiciones que no discriminan dentro de la solucion -------------
 
 test_that("A-33 se dispara cuando una condicion con efecto techo entra en la solucion", {
