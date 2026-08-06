@@ -1,5 +1,7 @@
 # Instalar y abrir el Calibrador fsQCA
 
+*[🇬🇧 English](INSTALL.md) · 🇪🇸 Español*
+
 Esta herramienta se ejecuta **en su propio equipo**. Sus datos no salen de él en ningún
 momento: no se suben a internet, no se guardan en ningún servidor.
 

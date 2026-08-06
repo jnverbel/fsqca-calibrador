@@ -1,5 +1,7 @@
 # Cómo ejecutar el Calibrador fsQCA
 
+*[🇬🇧 English](development.md) · 🇪🇸 Español*
+
 Tres cosas distintas: correr la aplicación en tu Mac, generar el informe, y desplegarla
 para que el investigador la use desde su navegador.
 
@@ -171,7 +173,7 @@ flyctl deploy --remote-only
 Rscript -e 'testthat::test_local("pkg/calibraqca")'
 ```
 
-373 pruebas, sin `skip`. Un filtro para ir más rápido:
+660 pruebas del motor y 18 de interfaz, sin `skip`. Un filtro para ir más rápido:
 
 ```bash
 Rscript -e 'testthat::test_local("pkg/calibraqca", filter = "calibracion")'

@@ -1,31 +1,33 @@
 cff-version: 1.2.0
-title: "Calibrador fsQCA para datos Likert"
+title: "fsQCA Calibrator for Likert data"
 message: >-
-  El crédito científico de los cálculos va a los paquetes y a las obras que
-  se citan abajo, no a esta herramienta: no reimplementa ninguna fórmula
-  estadística. Cite este repositorio solo para identificar la versión del
-  instrumento con que se ejecutó un análisis.
+  Scientific credit for the computations belongs to the packages and the works
+  cited below, not to this tool: it reimplements no statistical formula. Cite
+  this repository only to identify the version of the instrument an analysis
+  was run with.
 type: software
 authors:
   - family-names: "Núñez"
     given-names: "Javier"
 repository-code: "https://github.com/jnverbel/fsqca-calibrador"
 abstract: >-
-  Aplicación Shiny que lleva un archivo de respuestas Likert de cinco puntos
-  hasta un anexo metodológico para fsQCA, en ocho pasos: ingesta, validación
-  de medida, agregación, calibración difusa directa, semáforo de
-  diagnóstico, análisis de necesidad y suficiencia, barrido de robustez y
-  exportación. Todo cálculo se delega en paquetes revisados por pares. Su
-  aportación es obligar a justificar por escrito cada decisión de
-  calibración en el momento en que se toma, y dejar ese texto impreso en el
-  informe final.
+  A Shiny application that takes a file of five-point Likert responses to a
+  methodological appendix for fsQCA, in eight steps: ingest, measurement
+  validation, aggregation, direct fuzzy calibration, diagnostic traffic
+  light, necessity and sufficiency analysis, robustness sweep and export.
+  Every computation is delegated to peer-reviewed packages. Its contribution
+  is to force every calibration decision to be justified in writing at the
+  moment it is taken, and to print that text in the final report. The
+  interface and the generated report are in Spanish.
 keywords:
   - fsQCA
   - QCA
-  - calibración
-  - conjuntos difusos
-  - datos Likert
-  - investigación por encuesta
+  - calibration
+  - fuzzy sets
+  - Likert data
+  - survey research
+  - R
+  - Shiny
 license: MIT
 references:
   - type: book

@@ -1,70 +1,98 @@
-# Calibrador fsQCA para datos Likert
+# fsQCA Calibrator for Likert data
 
-Herramienta de apoyo metodológico que lleva un archivo de respuestas Likert de 5 puntos
-hasta un anexo listo para una tesis doctoral: validación de medida, agregación,
-calibración difusa directa, necesidad y suficiencia, minimización booleana y barrido de
-robustez.
+*🇬🇧 English · [🇪🇸 Español](README.es.md)*
 
-**No reimplementa ningún cálculo estadístico.** Envuelve `QCA`, `SetMethods`, `psych`,
-`lavaan` y `NCA` — paquetes revisados por pares y citables. Lo que aporta es lo que hoy no
-existe: validar la fiabilidad antes de promediar, diagnosticar el efecto techo, exigir que
-cada ancla se justifique y dejar rastro escrito de esa justificación en el informe.
+A methodological support tool that takes a file of 5-point Likert responses all the way to
+an appendix ready for a doctoral dissertation: measurement validation, aggregation, direct
+fuzzy calibration, necessity and sufficiency, Boolean minimisation and a robustness sweep.
 
-## Estado
+**It reimplements no statistical computation.** It wraps `QCA`, `SetMethods`, `psych`,
+`lavaan` and `NCA` — peer-reviewed, citable packages. What it contributes is what does not
+exist today: validating reliability *before* averaging, diagnosing the ceiling effect,
+requiring that every anchor be justified, and leaving a written trace of that justification
+in the report.
 
-[![pruebas](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
+## Status
 
-**Completo y funcionando.** Motor con 619 pruebas y 18 de interfaz, ninguna con `skip`,
-interfaz Shiny de ocho pasos e informe Quarto en HTML y Word.
+[![tests](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
-La calibración está **contrastada contra un resultado publicado**: reproduce la calibración
-difusa que Ragin publicó para los datos de Lipset (1959) dentro de la precisión con que ese
-dato se publica, y los puntos de cruce recuperados coinciden con los umbrales del estudio.
+**Complete and working.** An engine with 660 tests and 18 interface tests, none of them
+skipped, an eight-step Shiny interface, and a Quarto report in HTML and Word.
 
-Las dos suites corren en Linux en cada empujón, sobre el entorno que reconstruye
-`renv.lock`. El flujo falla si aparece una prueba omitida: una prueba omitida es una prueba
-que no existe.
+The calibration is **checked against a published result**: it reproduces the fuzzy
+calibration Ragin published for the Lipset (1959) data, to the precision at which that
+figure is published, and the recovered crossover points match the study's thresholds.
+
+Both suites run on Linux on every push, on the environment rebuilt from `renv.lock`. The
+workflow fails if a skipped test appears: a skipped test is a test that does not exist.
 
 ```sh
-Rscript -e 'testthat::test_local("pkg/calibraqca")'  # el motor
-Rscript tests/interfaz.R                             # la interfaz, en un navegador
+Rscript -e 'testthat::test_local("pkg/calibraqca")'  # the engine
+Rscript tests/interfaz.R                             # the interface, in a browser
 ```
 
-Cada constante numérica del motor está tabulada en
-[`docs/especificacion.md`](docs/especificacion.md) con la mutación que debe romper una prueba
-concreta. Una constante que sobrevive a su mutación es una constante sin prueba.
+Every numeric constant in the engine is tabulated in
+[`docs/especificacion.md`](docs/especificacion.md) together with the mutation that must turn
+a specific test red. A constant that survives its mutation is a constant without a test.
 
-**Se ejecuta en el equipo del investigador**, con doble clic. Instrucciones para él, sin
-jerga, en [`INSTALAR.md`](INSTALAR.md). El único requisito previo es instalar R una vez.
+**It runs on the researcher's own machine**, by double-clicking. Jargon-free instructions
+for them in [`INSTALL.md`](INSTALL.md). The only prerequisite is installing R once.
 
-## Ejecutar
+## A note on language
 
-Siempre desde la raíz del repositorio — ahí vive el `.Rprofile` que activa `renv`.
+The interface, the generated report and the source identifiers are in **Spanish**, on
+purpose: this tool exists for the Spanish-speaking social-science researcher who today has
+nothing to validate reliability with before averaging. The documentation an outside reader
+needs — this README, the installation guide and the development guide — is in **English**.
+
+Exported function names (`calibrar()`, `nueva_bitacora()`, `semaforo`) are Spanish and will
+stay Spanish. The [specification](docs/especificacion.md) is in Spanish too; it opens with
+an English summary of how to read its tables.
+
+## Running it
+
+Always from the repository root — that is where the `.Rprofile` that activates `renv` lives.
 
 ```bash
-Rscript app/app.R                                   # la aplicación
-Rscript -e 'testthat::test_local("pkg/calibraqca")' # las pruebas
-quarto render informe/informe.qmd                   # el informe
+Rscript app/app.R                                   # the application
+Rscript -e 'testthat::test_local("pkg/calibraqca")' # the tests
+quarto render informe/informe.qmd                   # the report
 ```
 
-Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/como-ejecutar.md).
+Full instructions, deployment included: [`docs/development.md`](docs/development.md).
 
-## Documentación
+## Documentation
 
-| Documento | Contenido |
-|---|---|
-| [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 35 alertas, esquema del archivo de proyecto, informe y plan de pruebas |
-| [`INSTALAR.md`](INSTALAR.md) | Para el investigador: instalar R y abrir la herramienta |
-| [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Para desarrollo: ejecutar, generar el informe y desplegar |
-| [`docs/preguntas-al-investigador.md`](docs/preguntas-al-investigador.md) | Las 8 preguntas para dimensionar el trabajo |
-| [`docs/referencias/`](docs/referencias/) | PDF de la propuesta técnica y `fuzzy_likert_5.R` |
+| Document | Contents | Language |
+|---|---|---|
+| [`INSTALL.md`](INSTALL.md) | For the researcher: install R and open the tool | English |
+| [`INSTALAR.md`](INSTALAR.md) | The same, for the Spanish-speaking researcher | Spanish |
+| [`docs/development.md`](docs/development.md) | For development: run it, build the report, deploy | English |
+| [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Development log with the local-environment detail | Spanish |
+| [`docs/especificacion.md`](docs/especificacion.md) | Architecture, the 8 steps, the 35 alerts, project-file schema, report and test plan | Spanish, English summary |
+| [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` and the reprexes for the upstream bug reports | R source |
 
-> `fuzzy_likert_5.R` es **otra ruta metodológica** (Delphi difuso con números
-> triangulares), no el punto de partida del motor. Ver la sección 0.4 de la especificación.
+> `fuzzy_likert_5.R` is **a different methodological route** (fuzzy Delphi with triangular
+> numbers), not the engine's starting point. See section 0.4 of the specification.
 
-## Reparto de responsabilidades
+## Upstream bug reports
 
-El desarrollo, el despliegue y el mantenimiento son apoyo técnico. **Las decisiones
-metodológicas — de dónde salen las anclas y cómo se justifican — son del investigador,
-porque son las que se defienden ante el jurado.** La herramienta está diseñada
-precisamente para dejar constancia documentada de cada una.
+Work on this tool surfaced defects in the packages it wraps. Each one is documented with a
+reproducible example under [`docs/referencias/`](docs/referencias/):
+
+- `SetMethods` 4.1 — `rob.cases` broken; the `helper_rob` loop appears in three functions
+  and corrupts `rob.fit()` ([finding](docs/hallazgo-robfit-bucle-activo.md))
+- `QCA` — `minimize()` with `n.cut` ([report](docs/reporte-bug-qca-minimize.md))
+
+The calibrator itself is not affected by either.
+
+## Division of responsibility
+
+Development, deployment and maintenance are technical support. **The methodological
+decisions — where the anchors come from and how they are justified — belong to the
+researcher, because those are the ones defended before the committee.** The tool is designed
+precisely to leave a documented record of each one.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE). To cite it, see [`CITATION.cff`](CITATION.cff).

@@ -1,10 +1,63 @@
 # Especificación — Calibrador fsQCA para datos Likert
 
 **Versión:** 1.1 · **Fecha:** 2026-07-30
-**Estado:** completo y funcionando. Motor con 373 pruebas sin `skip`, interfaz Shiny de
-ocho pasos e informe Quarto en HTML y Word. **Se ejecuta en el equipo del investigador**
-(sección 8), con doble clic sobre `Ejecutar-en-Mac.command` o `Ejecutar-en-Windows.bat`.
-**Documento fuente:** `docs/referencias/Propuesta-herramienta-calibracion-fsQCA.pdf`
+**Estado:** completo y funcionando. Motor con 660 pruebas y 18 de interfaz, ninguna con
+`skip`, interfaz Shiny de ocho pasos e informe Quarto en HTML y Word. **Se ejecuta en el
+equipo del investigador** (sección 8), con doble clic sobre `Ejecutar-en-Mac.command` o
+`Ejecutar-en-Windows.bat`.
+
+---
+
+## Summary for the English-speaking reader
+
+**This document is in Spanish.** It is the engineering specification of the tool, and it
+stays in Spanish because that is the language of the interface, the report and the source
+identifiers. This section explains how to read it without Spanish, and what to look at
+first.
+
+**What the tool does.** It takes a file of 5-point Likert survey responses and walks the
+researcher through eight steps — ingest, measurement validation, aggregation, fuzzy
+calibration, necessity, sufficiency, robustness, report — producing an appendix ready for a
+doctoral dissertation. No statistical formula is reimplemented: every computation is
+delegated to `QCA`, `SetMethods`, `psych`, `lavaan` and `NCA`.
+
+**Where to look, by section.**
+
+| Section | Title | What is in it |
+|---|---|---|
+| 0 | *Marco* | Frame: what it is, who it is for, what it is **not** (0.3), and why `fuzzy_likert_5.R` is a different route (0.4) |
+| 1 | *Arquitectura* | Architecture: the `calibraqca` engine package, the Shiny app, the Quarto report |
+| 2 | *El asistente: compuertas, no bloqueos* | The wizard gates the researcher rather than blocking them: an alert must be resolved in writing, never silently |
+| 3 | *Los ocho pasos* | The eight steps, one subsection each — the longest section |
+| 4 | *El archivo de proyecto* | Schema of `proyecto.json`: anchors, justifications, alert resolutions. Carries no survey data |
+| 5 | *El informe* | The generated report |
+| 6 | *Plan de pruebas* | **The test plan — see below** |
+| 7 | *Estructura del repositorio* | Repository layout |
+| 8 | *Despliegue* | Deployment |
+| 9 | *Preguntas abiertas* | Open questions |
+| 10 | *No-objetivos* | Non-goals |
+
+**How to read the constants tables (section 6).** This is the part worth understanding even
+if you read no other Spanish here. Every numeric constant in the engine is tabulated with
+the *mutation* that must turn a specific test red — change the constant to the mutated
+value, and a named test must fail. A constant that survives its mutation is a constant
+without a test.
+
+The tables have two columns, `Mutación` and `Debe fallar` — *mutation* and *must fail*. A
+row reads like this:
+
+```
+| `ALFA_MINIMO` 0,70 → 0,50 | `test-validacion.R::A-06 se dispara` |
+```
+
+Left: the constant's name, its value, and the value to change it to. Right: the test file
+and the test name that must turn red under that change. Decimals use the comma, as in
+Spanish convention — `0,70` is 0.70.
+
+**Recurring vocabulary.** `paso` = step · `ancla` = anchor · `alerta` = alert ·
+`bitácora` = log/journal · `semáforo` = traffic light (the readiness indicator) ·
+`umbral` = threshold · `prueba` = test · `hallazgo` = finding · `techo` = ceiling (as in
+ceiling effect) · `deslizador` = slider · `compuerta` = gate.
 
 ---
 
