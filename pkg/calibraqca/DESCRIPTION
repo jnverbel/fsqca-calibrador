@@ -1,12 +1,13 @@
 Package: calibraqca
-Title: Motor de calibracion difusa de datos Likert para fsQCA
+Title: Fuzzy Calibration Engine for Likert Data in fsQCA
 Version: 0.1.0
 Authors@R: person("Javier", "Núñez", role = c("aut", "cre"),
                   email = "jnverbel@gmail.com")
-Description: Funciones puras para validar, agregar, calibrar y diagnosticar
-    escalas Likert de cinco puntos con destino a un analisis fsQCA. No
-    reimplementa calculos estadisticos: envuelve QCA, SetMethods, psych,
-    multilevel, lavaan y NCA.
+Description: Pure functions to validate, aggregate, calibrate and diagnose
+    five-point Likert scales bound for an fsQCA analysis. It reimplements no
+    statistical computation: it wraps QCA, SetMethods, psych, multilevel,
+    lavaan and NCA. Exported function names and messages are in Spanish, as
+    is the Shiny interface this engine backs.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.4)
