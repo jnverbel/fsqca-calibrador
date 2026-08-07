@@ -83,6 +83,12 @@ jobs:
       # haber abierto un navegador. El runner tambien la fija; aqui se
       # declara para que no dependa de eso.
       NOT_CRAN: "true"
+      # chromote se rinde a los 10 s si el puerto de depuracion no responde,
+      # y el runner compartido no siempre arranca Chrome en ese margen: el
+      # 2026-08-06 la prueba se omitio por eso y tumbo el trabajo, que volvio
+      # a verde sin tocar nada. Esperar mas no relaja la comprobacion; que la
+      # prueba se omita en silencio si lo haria.
+      CHROMOTE_TIMEOUT: "60"
 
     steps:
       - uses: actions/checkout@v4
