@@ -34,6 +34,11 @@ informe/*.docx
 *.sav
 *.dta
 
+# --- Notas de trabajo que no se publican ---
+# Estrategia de comunicacion con terceros y lecciones internas. La parte
+# tecnica de cada hallazgo si va en docs/.
+/docs/local/
+
 # --- Sistema ---
 .DS_Store
 *.log
