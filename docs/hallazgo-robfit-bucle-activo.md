@@ -1,7 +1,6 @@
 # El bucle de `helper_rob.R` está en tres sitios y uno de ellos corrompe `rob.fit()` hoy
 
-**Fecha:** 2026-08-06. **Estado:** verificado, **no comunicado a Oana todavía** (decisión de
-esperar a septiembre, ver el final).
+**Fecha:** 2026-08-06. **Estado:** verificado.
 **Reprex:** `referencias/robfit-solucion-media-ignorada.R` — corre entero, salidas pegadas.
 **Antecedente:** el seguimiento enviado el 2026-08-02 reportó este bucle en **un** sitio y con
 la salvedad de que estaba *enmascarado* por el Bug 1. **Las dos cosas resultaron ser
@@ -61,30 +60,3 @@ Es más grave que los dos bugs ya reportados: aquellos abortan, y un aborto se v
 ejecuta, y el bucle defectuoso tampoco. Comprobado por lectura del único punto de llamada:
 no hay ningún otro uso de `rob.fit` ni de `rob.cases` en el código de producción.
 
-## 5. Contexto para decidir cuándo escribir
-
-- SetMethods 4.1 está en CRAN desde **2025-03-21**. De la 4.0 (2023-03) a la 4.1 pasaron **dos
-  años**. La cadencia de mantenimiento no es semanal.
-- El correo a Oana salió el 07-31 y el seguimiento el 08-02: **cuatro días hábiles**, en
-  agosto, con el EUI en cierre estival. El silencio no es señal de nada.
-- Adrian Dușa contestó en **dos días** — pero por un issue de GitHub con notificaciones, no
-  por correo.
-- **Canal alternativo disponible:** `github.com/nenaoana/SetMethods` tiene los issues
-  habilitados y **cero issues abiertos en toda su historia**. Deja rastro público y fechado,
-  que es lo que conviene si esto va a JOSS.
-
-## Decisión tomada el 2026-08-06
-
-**Esperar a septiembre.** No enviar un tercer correo en agosto. Cuando se escriba, va **un
-solo** mensaje que junte, en este orden: (1) la rectificación del `toupper`, (2) esta
-rectificación del alcance del bucle, (3) el hallazgo de `esa()`, (4) el `rob.fit`, que es el
-argumento más fuerte porque es el único que corrompe resultados en vez de abortar.
-El borrador vive en `respuesta-oana-en-espera.md`.
-
-## Lección
-
-La misma de la revalidación del 08-02, y por segunda vez: **lo que se dice sobre el alcance de
-un defecto es tan conjetural como lo que se dice sobre su causa.** «Está en `robust.intersections`»
-y «está enmascarado por el Bug 1» se escribieron sin abrir el archivo entero ni buscar quién más
-llamaba a la función. Un `grep` del patrón en todo el fuente y otro de los llamadores habría dado
-las dos correcciones antes de que el correo saliera.
