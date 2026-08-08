@@ -83,7 +83,9 @@ reproducible example under [`docs/referencias/`](docs/referencias/):
 - `SetMethods` 4.1 — `rob.cases` broken; the `helper_rob` loop appears in three functions
   and corrupts `rob.fit()`
   ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
-- `QCA` — `minimize()` with `n.cut` ([report](docs/reporte-bug-qca-minimize.md))
+- `QCA` — `minimize()` silently rebuilds a modified truth table when passed `n.cut`
+  ([reprex](docs/referencias/qca-minimize-ncut-reprex.R),
+  [issue #4](https://github.com/dusadrian/QCA/issues/4))
 
 The calibrator itself is not affected by either.
 

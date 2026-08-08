@@ -84,7 +84,9 @@ documentado con un ejemplo reproducible en [`docs/referencias/`](docs/referencia
 - `SetMethods` 4.1 — `rob.cases` roto; el bucle de `helper_rob` está en tres funciones y
   corrompe `rob.fit()`
   ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
-- `QCA` — `minimize()` con `n.cut` ([reporte](docs/reporte-bug-qca-minimize.md))
+- `QCA` — `minimize()` reconstruye en silencio una tabla de verdad modificada cuando se le
+  pasa `n.cut` ([reprex](docs/referencias/qca-minimize-ncut-reprex.R),
+  [issue #4](https://github.com/dusadrian/QCA/issues/4))
 
 El calibrador no está afectado por ninguno de los dos.
 
