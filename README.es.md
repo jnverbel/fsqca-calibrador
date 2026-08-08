@@ -82,7 +82,8 @@ Trabajar en esta herramienta destapó defectos en los paquetes que envuelve. Cad
 documentado con un ejemplo reproducible en [`docs/referencias/`](docs/referencias/):
 
 - `SetMethods` 4.1 — `rob.cases` roto; el bucle de `helper_rob` está en tres funciones y
-  corrompe `rob.fit()` ([hallazgo](docs/hallazgo-robfit-bucle-activo.md))
+  corrompe `rob.fit()`
+  ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
 - `QCA` — `minimize()` con `n.cut` ([reporte](docs/reporte-bug-qca-minimize.md))
 
 El calibrador no está afectado por ninguno de los dos.

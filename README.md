@@ -81,7 +81,8 @@ Work on this tool surfaced defects in the packages it wraps. Each one is documen
 reproducible example under [`docs/referencias/`](docs/referencias/):
 
 - `SetMethods` 4.1 — `rob.cases` broken; the `helper_rob` loop appears in three functions
-  and corrupts `rob.fit()` ([finding](docs/hallazgo-robfit-bucle-activo.md))
+  and corrupts `rob.fit()`
+  ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
 - `QCA` — `minimize()` with `n.cut` ([report](docs/reporte-bug-qca-minimize.md))
 
 The calibrator itself is not affected by either.
