@@ -39,6 +39,28 @@ FILAS_LIMPIA <- 120
 #' olvide de esperar volveria a fallar solo en las maquinas lentas, que es
 #' la peor forma de fallar. Y se espera por condicion, no por un Sys.sleep
 #' con un numero inventado.
+#'
+#' `wait_for_idle()` NO sirve como esa condicion, y por eso esto siguio
+#' fallando en CI despues de ponerla. Su JavaScript resuelve en cuanto la
+#' pagina pasa `duration` milisegundos (500 por defecto) sin emitir
+#' `shiny:busy`, y arranca esa cuenta ya mismo si al llamarla la pagina no
+#' esta ocupada:
+#'
+#'     if (window.shinytest2.busy !== true) { idleFn(); }
+#'
+#' O sea que no distingue "ocioso porque ya termino" de "ocioso porque
+#' todavia no ha empezado". En el runner cargado gana la segunda lectura:
+#' el servidor aun no ha disparado su primer ciclo reactivo, los 500 ms de
+#' silencio se cumplen solos y la espera da por buena una pagina vacia. Se
+#' vio el 2026-08-08 con el mismo commit tres veces seguidas -- falla, pasa,
+#' falla --, y siempre igual: pasaban las dos pruebas que solo miran HTML
+#' estatico y caian todas las que consultan un uiOutput.
+#'
+#' Asi que se espera por lo que las pruebas necesitan de verdad y se puede
+#' observar: la regla dibujada, el panel con contenido y el input existiendo.
+#' Si eso no llega, `wait_for_js` revienta con un mensaje claro en lugar de
+#' devolver una aplicacion a medio dibujar y dejar caer doce aserciones
+#' sueltas que no dicen por que.
 abrir_app <- function() {
   app <- AppDriver$new(
     app_dir = raiz_repo(),
@@ -47,6 +69,19 @@ abrir_app <- function() {
     load_timeout = 90 * 1000,
     timeout = 30 * 1000
   )
+  # Se pregunta por `window.jQuery` y no por `$` a proposito: el sondeo de
+  # shinytest2 hace `catch (e) { reject(e) }`, de modo que una condicion que
+  # lanza NO se reintenta, revienta. Y `$` en la primera pasada, antes de que
+  # cargue jQuery, es un ReferenceError. `window.jQuery` no lanza: es
+  # undefined y la condicion simplemente todavia no se cumple.
+  app$wait_for_js(
+    "!!window.jQuery &&
+     window.jQuery('.pasos').text().trim().length > 0 &&
+     window.jQuery('#panel_paso').text().trim().length > 0 &&
+     window.jQuery('#archivo').length > 0",
+    timeout = 60 * 1000
+  )
+  # Ya con la aplicacion viva, esto si significa "ha terminado de trabajar".
   app$wait_for_idle(timeout = 30 * 1000)
   app
 }
