@@ -96,6 +96,18 @@ test_that("shinytest2 no se esta omitiendo a si mismo", {
   expect_true(nzchar(Sys.getenv("NOT_CRAN")))
 })
 
+test_that("chromote tiene margen de sobra para abrir el puerto de Chrome", {
+  # El margen de fabrica son 10 segundos y el runner compartido no siempre
+  # los cumple: cuando no llega, AppDriver no arranca y la prueba se OMITE
+  # -- que es la unica forma de fallar que este proyecto no acepta.
+  #
+  # Esto vigila la opcion de R, que es la que manda. Durante dos dias el
+  # flujo de CI exporto una variable de entorno CHROMOTE_TIMEOUT que no lee
+  # nadie, y nada aviso: si alguien vuelve a quitar el options() de
+  # tests/interfaz.R, esta prueba se pone roja en el acto.
+  expect_gte(getOption("chromote.timeout", 10), 60)
+})
+
 test_that("la aplicacion arranca y sirve su pagina", {
   app <- abrir_app()
   on.exit(app$stop(), add = TRUE)

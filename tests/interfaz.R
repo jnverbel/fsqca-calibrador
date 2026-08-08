@@ -17,6 +17,19 @@ if (!dir.exists(file.path("pkg", "calibraqca"))) {
 
 Sys.setenv(NOT_CRAN = "true")
 
+# chromote se rinde si el puerto de depuracion de Chrome no responde, y el
+# runner compartido no siempre lo abre en el margen de fabrica. Ese margen es
+# una OPCION de R, no una variable de entorno:
+#
+#     timeout <- getOption("chromote.timeout", 10)   # chromote/R/chrome.R
+#
+# El flujo de CI llego a exportar CHROMOTE_TIMEOUT=60 creyendo que servia. No
+# la lee nadie -- ni chromote ni shinytest2 la mencionan; las unicas que
+# chromote consulta son CHROMOTE_CHROME, CHROMOTE_HEADLESS y CI --, asi que
+# el margen seguia siendo de 10 segundos y el 2026-08-08 volvio a agotarse.
+# Se fija aqui para que valga tambien fuera del CI.
+options(chromote.timeout = 60)
+
 resultado <- as.data.frame(
   testthat::test_dir(file.path("tests", "testthat"), reporter = "summary")
 )
