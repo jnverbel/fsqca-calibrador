@@ -126,7 +126,8 @@ cd fsqca-calibrador
 flyctl auth login
 
 # 2. Create the app without deploying yet.
-#    Answer NO to "deploy now?": the password has to be set first.
+#    Answer NO to "deploy now?": the password has to be set first. This is
+#    not just advice -- on Fly the app refuses to start without CLAVE_APP.
 flyctl launch --no-deploy --copy-config --name calibrador-fsqca --region bog
 
 # 3. The access password, as a secret. Never in the repository, never in the image.
@@ -187,5 +188,16 @@ every `renv::install()`:
 Rscript -e 'renv::snapshot(type = "all", prompt = FALSE)'
 ```
 
-**The app starts but does not ask for a password** — `CLAVE_APP` is not set. On Fly, run
-`flyctl secrets list` to confirm it exists.
+**On Fly the machine does not come up, and the log says `CLAVE_APP no esta definida`** — that
+is the intended behaviour, not a fault: the repository is public and the app name is in
+`fly.toml`, so the URL can be worked out. Starting without a password would leave the whole
+tool open. Set it and redeploy:
+
+```bash
+flyctl secrets set CLAVE_APP="a-long-password-you-use-nowhere-else"
+flyctl deploy --remote-only
+```
+
+**It starts locally without asking for a password** — that is correct. Off Fly there is
+nobody to protect against, and the console says so out loud when it listens beyond
+`127.0.0.1`. Run `flyctl secrets list` to confirm the secret exists in production.

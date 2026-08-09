@@ -585,9 +585,13 @@ if (sys.nframe() == 0L) {
   # En el contenedor hay que escuchar en 0.0.0.0; en local basta 127.0.0.1.
   host <- Sys.getenv("HOST_APP", "127.0.0.1")
 
-  # El aviso solo tiene sentido si la aplicacion es alcanzable desde fuera
-  # del equipo. En 127.0.0.1 no hay a quien proteger, y sacarlo ahi solo
-  # alarma a quien la usa en su propia maquina.
+  # En un despliegue publico esto DETIENE el arranque: un aviso por consola
+  # no protege nada cuando la URL es alcanzable desde internet.
+  comprobar_acceso_al_arrancar()
+
+  # Fuera de Fly el aviso basta, y solo si la aplicacion es alcanzable desde
+  # fuera del equipo. En 127.0.0.1 no hay a quien proteger, y sacarlo ahi
+  # solo alarma a quien la usa en su propia maquina.
   if (is.null(clave_configurada()) && !identical(host, "127.0.0.1")) {
     message("AVISO: la aplicacion escucha en ", host,
             " y CLAVE_APP no esta definida: cualquiera que alcance este ",

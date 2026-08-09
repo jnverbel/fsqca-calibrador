@@ -120,6 +120,7 @@ flyctl auth login
 
 # 2. Crear la aplicación sin desplegar todavía.
 #    Responde NO a "¿desplegar ahora?": primero hay que poner la clave.
+#    No es solo un consejo: en Fly la app se niega a arrancar sin CLAVE_APP.
 flyctl launch --no-deploy --copy-config --name calibrador-fsqca --region bog
 
 # 3. La clave de acceso, como secreto. Nunca va en el repositorio ni en la imagen.
@@ -205,5 +206,16 @@ Tarda varios minutos: este R es el de Homebrew y compila desde fuente.
 Rscript -e 'renv::snapshot(type = "all", prompt = FALSE)'
 ```
 
-**La app arranca pero no pide clave** — `CLAVE_APP` no está definida. En Fly:
-`flyctl secrets list` para confirmar que existe.
+**En Fly la máquina no levanta y el registro dice `CLAVE_APP no esta definida`** — es el
+comportamiento buscado, no una avería: el repositorio es público y el nombre de la
+aplicación está en `fly.toml`, así que la URL se deduce. Arrancar sin clave dejaría la
+herramienta entera abierta. Defínela y vuelve a desplegar:
+
+```bash
+flyctl secrets set CLAVE_APP="una-clave-larga-y-que-no-uses-en-otro-sitio"
+flyctl deploy --remote-only
+```
+
+**En local arranca sin pedir clave** — es lo correcto. Fuera de Fly no hay a quien proteger,
+y la consola lo dice en voz alta si escucha más allá de `127.0.0.1`. Usa
+`flyctl secrets list` para confirmar que el secreto existe en producción.
