@@ -33,13 +33,14 @@ Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calib
 - Evidencia material: la publicación y los scripts hacen identificables el análisis de suficiencia y sus resultados de selección de casos, pero el único CSV contiene puntuaciones de conjunto del ejemplo de Pennings.
 - Motivo factual: **sin datos brutos**. No se depositaron los indicadores pre-calibración ni reglas/anclas suficientes para reconstruir las membresías del ejemplo.
 
-## E006 — Christensen (2022)
+## E007 — Sun et al. (2023)
 
-- DOI, datos y apéndice: [10.1002/eet.1978](https://doi.org/10.1002/eet.1978), CC-BY-4.0.
-- Código anunciado: `Script_appendix.R`, dentro del material suplementario del editor; no se localizó depósito independiente.
-- Evidencia material: el texto completo indexado identifica 82 tecnologías y los conjuntos `CLIM`, `SUS`, `JOB`, `ECON` y `COMP`; muestra la tabla de datos brutos, las calibraciones y los umbrales `CLIM 1/0.5/0`, `JOB 0.074/0/-0.074`, `ECON 0/0.082/0.246`, `COMP 0/1/2`, además de la escala sustantiva de `SUS`. Usa consistencia de necesidad 0.90 y publica la conclusión comparable de coherencia débil.
-- Motivo factual: **archivo inaccesible**. El XML y el suplemento del editor devolvieron HTTP 403 y el navegador mostró una intersticial de Cloudflare; por tanto no se abrió ni verificó materialmente `Script_appendix.R`. El resumen indexado que anuncia el script no basta para incluir el estudio.
+- DOI: [10.1017/mor.2022.41](https://doi.org/10.1017/mor.2022.41)
+- Datos y materiales: [OSF 84bxs](https://osf.io/84bxs/).
+- Archivos inspeccionados: `Raw Data.xlsx`, `Processed Data.xlsx`, `Questionnaire.pdf` y [`Truth Table.out`](https://osf.io/download/kb3df/). SHA-256 de los tres archivos descargados (`Raw Data.xlsx`, `Processed Data.xlsx` y `Truth Table.out`): `bdbafa53de9fbc82d0b70807153bde955f926fdb52d2212081f1566c0da166b1`, `a52d33a352a31e38f6f26358e11c79dac3ebd8b2b4f781220a97c77ce777d35a` y `fbb329aa8b5d9becfb89247824e0dd39019bcb734095cfc063a76d92d4b31529`.
+- Evidencia material: la salida declara calibraciones como `env=calibrate(env,25,12,1)` y `mgb=calibrate(mgb,5,3.7,1)`, modelo `amb=f(env,stg,stc,pro,rew,peo,mgb,mbb)`, frecuencia 2 y consistencia 0.859492 para el escenario principal, y soluciones compleja, parsimoniosa e intermedia comparables.
+- Motivo factual: **licencia incompatible**. El nodo público declara `node_license: null` y los archivos no incluyen una licencia explícita que autorice su reutilización. Se inspeccionaron, pero no se versionaron ni se promovieron a replicación.
 
 ## Regla aplicada
 
-Sólo E001 quedó incluido. Ningún caso excluido se promovió para alcanzar el mínimo de tres y no se descargó ni versionó ningún dato de terceros en el repositorio.
+E001 y E006 quedaron incluidos. Ningún caso excluido se promovió para alcanzar el mínimo de tres y no se descargó ni versionó ningún dato de terceros en el repositorio.

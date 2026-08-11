@@ -35,6 +35,25 @@ vacíos hasta que una fuente verificable aporte el valor correspondiente.
 | `decision` | Estado de selección: sólo `incluir`, `excluir` o `pendiente`. |
 | `motivo` | Justificación de la decisión de selección. |
 
+## `cribado-estudios.csv`
+
+| Columna | Definición |
+| --- | --- |
+| `registro_id` | Identificador único del registro en la cadena de cribado. |
+| `fuente_busqueda` | Uno o más IDs de `registro-busqueda.csv` separados por `;`. |
+| `identificador_fuente` | DOI o URL persistente del registro hallado. |
+| `titulo` | Título visible en el resultado de búsqueda. |
+| `doi_estudio` | DOI de publicación resuelto o `no_identificado`. |
+| `id_estudio_canonico` | ID final `E###` o grupo canónico usado al deduplicar. |
+| `etapa` | Última etapa alcanzada: `metadatos` o `texto_completo`. |
+| `decision` | `descartar_metadatos`, `duplicado` o `evaluacion_completa`. |
+| `motivo` | Evidencia breve de avance, descarte o deduplicación. |
+
+El archivo registra unidades de búsqueda, no afirma exhaustividad del universo.
+Las filas `evaluacion_completa` deben corresponder exactamente con
+`estudios.csv`; los descartes de metadatos permanecen visibles para auditar los
+límites de la búsqueda.
+
 ## `herramientas.csv`
 
 | Columna | Definición |
