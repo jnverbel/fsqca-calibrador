@@ -33,6 +33,13 @@ Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calib
 - Evidencia material: la publicación y los scripts hacen identificables el análisis de suficiencia y sus resultados de selección de casos, pero el único CSV contiene puntuaciones de conjunto del ejemplo de Pennings.
 - Motivo factual: **sin datos brutos**. No se depositaron los indicadores pre-calibración ni reglas/anclas suficientes para reconstruir las membresías del ejemplo.
 
+## E006 — Christensen (2022)
+
+- DOI, publicación y apéndice: [10.1002/eet.1978](https://doi.org/10.1002/eet.1978), CC-BY-4.0.
+- Código: `Script_appendix.R` se anuncia en el material suplementario, pero no se obtuvo un enlace directo verificable; `url_codigo` queda vacío en `estudios.csv`.
+- Evidencia material: el texto y el apéndice exponen datos brutos de 82 tecnologías, los conjuntos `CLIM`, `SUS`, `JOB`, `ECON` y `COMP`, sus reglas de calibración, el corte de consistencia de necesidad 0.90 y la matriz comparable de la Tabla 5.
+- Motivo factual: **umbral ausente**. El estudio no construye tabla de verdad y no publica frecuencia mínima o `n.cut`. La especificación de esta muestra exige umbrales exactos de consistencia y frecuencia; no se inventó ni se declaró no aplicable el valor faltante.
+
 ## E007 — Sun et al. (2023)
 
 - DOI: [10.1017/mor.2022.41](https://doi.org/10.1017/mor.2022.41)
@@ -43,4 +50,4 @@ Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calib
 
 ## Regla aplicada
 
-E001 y E006 quedaron incluidos. Ningún caso excluido se promovió para alcanzar el mínimo de tres y no se descargó ni versionó ningún dato de terceros en el repositorio.
+Sólo E001 quedó incluido. Ningún caso excluido se promovió para alcanzar el mínimo de tres y no se descargó ni versionó ningún dato de terceros en el repositorio.

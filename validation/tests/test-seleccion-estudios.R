@@ -42,7 +42,6 @@ validar_tabla <- function(x) {
     stopifnot(all(unlist(inc[criterios], use.names = FALSE) == "si"))
     stopifnot(all(nzchar(inc$url_publicacion)))
     stopifnot(all(nzchar(inc$url_datos)))
-    stopifnot(all(nzchar(inc$url_codigo)))
     stopifnot(length(unique(inc$doi)) == nrow(inc))
   }
   if (nrow(inc) >= 3L) {
@@ -168,6 +167,15 @@ validar_informe <- function(ruta, estudios, tabla, flujo) {
   stopifnot(identical(correspondencia, esperada))
 }
 
+validar_rama_muestra <- function(ruta_informe, estudios, tabla, flujo) {
+  if (nrow(tabla$incluidos) < 3L) {
+    validar_informe(ruta_informe, estudios, tabla, flujo)
+  } else {
+    stopifnot(!file.exists(ruta_informe))
+  }
+  invisible(TRUE)
+}
+
 falla <- function(expr) {
   error <- tryCatch({
     force(expr)
@@ -182,41 +190,60 @@ tabla <- validar_tabla(x)
 cribado <- read.csv("docs/validacion/cribado-estudios.csv", stringsAsFactors = FALSE)
 flujo <- validar_cribado(cribado, x, busquedas$id)
 
-if (nrow(tabla$incluidos) < 3L) {
-  validar_informe(
-    "docs/validacion/evidencia-insuficiente.md", x, tabla, flujo
-  )
-} else {
-  stopifnot(!file.exists("docs/validacion/evidencia-insuficiente.md"))
-}
+validar_rama_muestra(
+  "docs/validacion/evidencia-insuficiente.md", x, tabla, flujo
+)
 validar_exclusiones("docs/validacion/exclusiones-estudios.md", tabla)
 
 # Pruebas de mutación: estos artefactos defectuosos deben ser rechazados.
 stopifnot(falla(validar_tabla(x[0, , drop = FALSE])))
+candidato_sin_codigo <- x[1, , drop = FALSE]
+candidato_sin_codigo$decision <- "incluir"
+candidato_sin_codigo[criterios] <- "si"
+candidato_sin_codigo$url_codigo <- ""
+invisible(validar_tabla(candidato_sin_codigo))
+
 if (nrow(tabla$incluidos)) {
   incluido_debil <- x
   incluido_debil$datos_brutos[incluido_debil$decision == "incluir"][1] <- "no"
   stopifnot(falla(validar_tabla(incluido_debil)))
 }
-informe_vacio <- tempfile(fileext = ".md")
-invisible(file.create(informe_vacio))
-stopifnot(falla(validar_informe(informe_vacio, x, tabla, flujo)))
-unlink(informe_vacio)
+if (nrow(tabla$incluidos) < 3L) {
+  informe_vacio <- tempfile(fileext = ".md")
+  invisible(file.create(informe_vacio))
+  stopifnot(falla(validar_informe(informe_vacio, x, tabla, flujo)))
+  unlink(informe_vacio)
 
-informe_inconsistente <- tempfile(fileext = ".md")
-texto_informe <- readLines(
-  "docs/validacion/evidencia-insuficiente.md", warn = FALSE, encoding = "UTF-8"
-)
-texto_informe <- sub(
-  paste0("^- Total examinado: ", nrow(x), "$"),
-  paste0("- Total examinado: ", nrow(x) + 1L),
-  texto_informe
-)
-writeLines(texto_informe, informe_inconsistente, useBytes = TRUE)
-stopifnot(falla(validar_informe(informe_inconsistente, x, tabla, flujo)))
-unlink(informe_inconsistente)
+  informe_inconsistente <- tempfile(fileext = ".md")
+  texto_informe <- readLines(
+    "docs/validacion/evidencia-insuficiente.md", warn = FALSE,
+    encoding = "UTF-8"
+  )
+  texto_informe <- sub(
+    paste0("^- Total examinado: ", nrow(x), "$"),
+    paste0("- Total examinado: ", nrow(x) + 1L),
+    texto_informe
+  )
+  writeLines(texto_informe, informe_inconsistente, useBytes = TRUE)
+  stopifnot(falla(validar_informe(informe_inconsistente, x, tabla, flujo)))
+  unlink(informe_inconsistente)
+}
+
+# La rama de 3--5 inclusiones no debe leer un informe de insuficiencia ausente.
+muestra_3_5 <- candidato_sin_codigo[rep(1L, 3L), , drop = FALSE]
+muestra_3_5$id <- sprintf("S%03d", seq_len(3L))
+muestra_3_5$doi <- sprintf("10.0000/sintetico.%d", seq_len(3L))
+muestra_3_5$dominio <- c("dominio a", "dominio a", "dominio b")
+muestra_3_5$url_codigo <- ""
+tabla_3_5 <- validar_tabla(muestra_3_5)
+informe_ausente <- tempfile(fileext = ".md")
+stopifnot(!file.exists(informe_ausente))
+validar_rama_muestra(informe_ausente, muestra_3_5, tabla_3_5, flujo)
 
 cat(sprintf(
-  "seleccion valida: %d examinados; %d incluidos; %d excluidos; %d registros identificados\n",
+  paste0(
+    "seleccion valida: %d examinados; %d incluidos; %d excluidos; ",
+    "%d registros identificados; rama sintetica 3-5 valida\n"
+  ),
   nrow(x), nrow(tabla$incluidos), nrow(tabla$excluidos), flujo$identificados
 ))

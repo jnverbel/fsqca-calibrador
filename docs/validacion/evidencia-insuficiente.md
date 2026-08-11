@@ -10,12 +10,12 @@ Fecha de cierre de la muestra: 2026-08-10.
 - Descartados en metadatos: 49
 - Evaluados a texto completo: 7
 - Total examinado: 7
-- Incluidos: 2
-- Excluidos: 5
+- Incluidos: 1
+- Excluidos: 6
 - anclas ausentes: 2
 - sin datos brutos: 1
 - archivo inaccesible: 1
-- umbral ausente: 0
+- umbral ausente: 1
 - resultado no comparable: 0
 - licencia incompatible: 1
 
@@ -25,6 +25,7 @@ Fecha de cierre de la muestra: 2026-08-10.
 - E003 | anclas ausentes
 - E004 | archivo inaccesible
 - E005 | sin datos brutos
+- E006 | umbral ausente
 - E007 | licencia incompatible
 
 ## Cadena de cribado
@@ -52,9 +53,9 @@ materiales, se comprobó licencia y se aplicaron todos los criterios de
 `estudios.csv`. La correspondencia es exacta: cada `E001`–`E007` tiene una fila
 `evaluacion_completa` en el archivo de cribado.
 
-Se evaluaron a texto completo **7 estudios publicados** contra todos los requisitos obligatorios. **2 estudios** cumplieron conjuntamente: publicación persistente, datos brutos públicos con condiciones de reutilización, condiciones y resultado identificables, anclas sin ajuste retrospectivo, umbrales aplicables exactos y al menos un resultado publicado comparable.
+Se evaluaron a texto completo **7 estudios publicados** contra todos los requisitos obligatorios. **1 estudio** cumplió conjuntamente: publicación persistente, datos brutos públicos con condiciones de reutilización, condiciones y resultado identificables, anclas sin ajuste retrospectivo, umbrales exactos de consistencia y frecuencia, y al menos un resultado publicado comparable.
 
-La muestra cerrada contiene E001, Krogslund, Choi y Poertner (2015), y E006, Christensen (2022). E006 realiza exclusivamente análisis de necesidad: declara un corte de consistencia 0.90 y no construye tabla de verdad, por lo que un corte de frecuencia o `n.cut` no aplica y no fue inventado.
+La muestra cerrada contiene únicamente E001, Krogslund, Choi y Poertner (2015). E006 realiza exclusivamente análisis de necesidad y declara un corte de consistencia 0.90, pero no publica frecuencia mínima o `n.cut`. La especificación de esta selección exige ambos umbrales; la frecuencia no se infirió ni se trató como no aplicable.
 
 Con menos de tres estudios fuertes **no procede afirmar validación integral ni validación externa en varias replicaciones**. La búsqueda fue deliberadamente limitada; no demuestra que no existan otros estudios elegibles. Sí documenta de forma reproducible cuáles registros fueron vistos, cómo se deduplicaron y por qué sólo siete avanzaron.
 
