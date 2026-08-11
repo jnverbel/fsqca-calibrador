@@ -97,16 +97,24 @@ la cabecera `x-amzn-waf-action: challenge` (`server: awselb/2.0`):
 todo `dataverse.harvard.edu`, no a un archivo concreto. Lo que sí se verificó ese día, en
 `https://api.datacite.org/dois/10.7910/DVN/27100`: título «Replication data for: Fuzzy Sets
 on Shaky Ground…», versión `2.0`, `rightsIdentifier: cc0-1.0` con
-`rightsUri: https://creativecommons.org/publicdomain/zero/1.0/legalcode`, y una lista de 60
-tamaños y formatos de archivo **sin nombres de archivo**. Por eso este plan no escribe un
+`rightsUri: https://creativecommons.org/publicdomain/zero/1.0/legalcode`, y sendas listas de
+**144** tamaños y 144 formatos de archivo **sin nombres de archivo** (`length(sizes)` y
+`length(formats)` en el JSON, y 144 etiquetas `<size>` en
+`application/vnd.datacite.datacite+xml`, comprobado el 2026-08-11). Por eso este plan no escribe un
 nombre de archivo de E001: no lo tiene verificado, y no lo inventa. El único identificador
 en firme es el SHA-256 `58c75ec4d18f1914b0d442f40f19007375014140d7a2827afb0f7f11c8d60aae`
 del script oficial, congelado en `docs/validacion/estudios.csv` el 2026-08-10.
 
 ## Módulos declarados por estudio
 
-Copia literal de los campos `mod_*` de `docs/validacion/estudios.csv`. Solo se planifican
-las celdas `si`; `no_evaluable` no se replica y se informa como tal.
+Copia literal de los campos `mod_*` de `docs/validacion/estudios.csv`, volcada el
+2026-08-11 con este comando y no transcrita a mano:
+
+```bash
+Rscript --vanilla -e 'x <- read.csv("docs/validacion/estudios.csv"); inc <- subset(x, decision == "incluir"); print(inc[order(inc$id), c("id", grep("^mod_", names(x), value = TRUE))], row.names = FALSE)'
+```
+
+Solo se planifican las celdas `si`; `no_evaluable` no se replica y se informa como tal.
 
 | Estudio | calibracion | necesidad | tabla_verdad | minimizacion | ajuste | robustez |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -114,15 +122,60 @@ las celdas `si`; `no_evaluable` no se replica y se informa como tal.
 | E008 | si | si | si | si | si | si |
 | E009 | no_evaluable | si | si | no_evaluable | si | si |
 | E012 | si | si | si | si | si | si |
-| E014 | si | si | si | si | no_evaluable | no_evaluable |
+| E014 | si | si | si | no_evaluable | si | no_evaluable |
 | E015 | si | si | si | si | si | no_evaluable |
-| E025 | si | si | si | si | si | no_evaluable |
-| E026 | si | si | si | si | si | si |
-| E027 | si | si | si | si | si | no_evaluable |
+| E025 | si | si | si | no_evaluable | si | si |
+| E026 | si | si | si | no_evaluable | si | si |
+| E027 | si | si | si | no_evaluable | si | no_evaluable |
+
+**`minimizacion` es `si` en cuatro estudios y solo cuatro: E001, E008, E012 y E015.** En
+E009, E014, E025, E026 y E027 la selección la congeló como `no_evaluable` porque el estudio
+no publica el `include` con el que se obtuvo su solución. Ese hecho gobierna dos decisiones
+del plan que sin él serían errores:
+
+1. En esos cinco estudios **no se compara ninguna solución**, y en particular **no se
+   sustituye la intermedia publicada por la parsimoniosa**. Sus tablas de configuraciones
+   son intermedias: E014 lo dice literalmente («The intermediate solution with moderate
+   complexity and strong rationality is selected as the analysis result»), y E025, E026 y
+   E027 distinguen condiciones centrales de periféricas anidando la parsimoniosa dentro de
+   la intermedia. Comparar una intermedia publicada con la parsimoniosa de la aplicación
+   produciría un `D-APP` que culparía al motor de una diferencia que no es suya.
+2. Su módulo de **ajuste**, que sí está `si`, se rige por la regla de la sección siguiente.
+
+## Regla de tipo de solución y de ajuste
+
+Los parámetros de ajuste que publica un estudio son los **de la solución que ese estudio
+reporta**. Comparar el ajuste de la aplicación con ellos solo es decidible si la aplicación
+puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecutar nada:
+
+- **Una diferencia atribuible al tipo de solución nunca se clasifica `D-APP`.** Si los
+  términos de la aplicación difieren de los publicados solo por condiciones adicionales
+  compatibles con la relación parsimoniosa ⊆ intermedia ⊆ compleja, el código es `D-AMB`.
+- **`ajuste` decidible** en los cuatro estudios cuya solución sí es reproducible:
+  E001 (la produce su script oficial), E008 (la nota de su Tabla 7 declara **todas** las
+  condiciones mostradas como centrales, de modo que los términos exhibidos coinciden con los
+  de la parsimoniosa), E012 (publica el `include` en texto) y E015 (publica explícitamente
+  la más parsimoniosa, por Quine-McCluskey).
+- **`ajuste` prerregistrado `D-AMB`** en E009, E014, E025, E026 y E027: su ajuste publicado
+  es el de la solución intermedia y su `include` es ausente, así que no hay solución de la
+  aplicación con la que confrontarlo. La comparación **se ejecuta igualmente** y su fila
+  entra en el CSV con código `D-AMB`, la fuente de la expectativa y el ajuste que la
+  aplicación sí produce anotado en la columna `obtenido`, para que el informe muestre ambos
+  números sin declarar equivalencia. Un `D-AMB` no cuenta como aprobación.
+
+## Compuertas previas (no son módulos)
+
+`MODULOS` es un dominio cerrado de seis nombres. La verificación de la **agregación de ítem
+a constructo** no es ninguno de ellos: es una **compuerta previa**, sin fila en
+`docs/validacion/replicaciones.csv`. Se registra en `docs/validacion/compuertas.csv` con
+encabezado `id_estudio,compuerta,fuente,estado,detalle`, donde `estado` admite `pasa`,
+`no_pasa` y `no_aplica`. Afecta a E025, E027 y E009. Si una compuerta queda en `no_pasa`,
+**todas** las filas de resultados de ese estudio se registran `D-AMB`; nunca se omiten.
 
 ## Estructura de archivos
 
 - `validation/R/comun-replicacion.R`: descarga verificada, tolerancias, comparador y códigos `D-*`.
+- `docs/validacion/compuertas.csv`: estado de las compuertas previas de agregación.
 - `validation/manifiestos/<ID>.json`: procedencia, archivo servido, bytes, SHA-256, licencia y fecha.
 - `validation/prerregistros/<ID>.md`: decisiones, ausencias con localizador y límites.
 - `validation/expectativas/<ID>.csv`: expectativas legibles por máquina.
@@ -181,6 +234,26 @@ stopifnot(identical(COLUMNAS_RESULTADOS, c(
 )))
 stopifnot(identical(MODULOS, c("calibracion", "necesidad", "tabla_verdad",
                                "minimizacion", "ajuste", "robustez")))
+
+# Una diferencia atribuible al tipo de solucion nunca culpa a la aplicacion,
+# ni siquiera cuando la diferencia numerica es enorme.
+fila_amb <- data.frame(id_estudio = "E025", esperado = 0.915,
+                       precision = "decimales", decimales = 3,
+                       stringsAsFactors = FALSE)
+stopifnot(codigo_por_tipo_de_solucion(fila_amb, 0.915) == "D-AMB")
+stopifnot(codigo_por_tipo_de_solucion(fila_amb, 0.100) == "D-AMB")
+
+# Y en un estudio cuya solucion si es reproducible, el codigo vuelve a morder.
+fila_ok <- data.frame(id_estudio = "E015", esperado = 0.813,
+                      precision = "decimales", decimales = 3,
+                      stringsAsFactors = FALSE)
+stopifnot(codigo_por_tipo_de_solucion(fila_ok, 0.8132) == "D-OK")
+stopifnot(codigo_por_tipo_de_solucion(fila_ok, 0.700) == "D-APP")
+
+# `agregacion` no es un modulo: el dominio cerrado tiene que rechazarlo.
+stopifnot(!"agregacion" %in% MODULOS)
+stopifnot(identical(COLUMNAS_COMPUERTAS, c("id_estudio", "compuerta", "fuente",
+                                           "estado", "detalle")))
 ```
 
 - [ ] **Step 2: Ejecutar RED**
@@ -204,6 +277,9 @@ COLUMNAS_EXPECTATIVAS <- c("id_estudio", "modulo", "comparacion", "esperado",
 COLUMNAS_RESULTADOS <- c("id_estudio", "nivel", "modulo", "comparacion",
                          "esperado", "obtenido", "tolerancia", "codigo",
                          "fuente", "fecha")
+# Las compuertas previas no son modulos y viven en su propia tabla.
+COLUMNAS_COMPUERTAS <- c("id_estudio", "compuerta", "fuente", "estado",
+                         "detalle")
 
 # La tolerancia sale de la precision del dato publicado y de nada mas.
 tolerancia_de <- function(precision, decimales) {
@@ -221,6 +297,17 @@ comparar <- function(obtenido, esperado, tolerancia) {
   }
   d <- abs(obtenido - esperado)
   list(codigo = if (d <= tolerancia) "D-OK" else "D-APP", diferencia = d)
+}
+
+# Estudios cuya solucion publicada la aplicacion no puede reproducir porque el
+# estudio no publica su `include`. Su ajuste y su minimizacion no son
+# decidibles, y la diferencia NO es del motor: nunca se clasifica D-APP.
+SOLUCION_NO_REPRODUCIBLE <- c("E009", "E014", "E025", "E026", "E027")
+
+codigo_por_tipo_de_solucion <- function(fila, obtenido) {
+  if (fila$id_estudio %in% SOLUCION_NO_REPRODUCIBLE) return("D-AMB")
+  tol <- tolerancia_de(fila$precision, fila$decimales)
+  comparar(obtenido, fila$esperado, tol)$codigo
 }
 
 # Descarga fuera del repositorio y verifica el hash. Sin red o con hash
@@ -293,8 +380,8 @@ git commit -m "test: fijar contratos de replicacion"
 - Create: `validation/tests/testthat/test-replicacion-E025.R`
 
 **Interfaces:**
-- Consumes: `journal.pone.0291870.s001.csv` y las Tablas 8, 9 y 10 de la publicación.
-- Produces: comparaciones de calibración, necesidad, tabla de verdad, minimización y ajuste.
+- Consumes: `journal.pone.0291870.s001.csv` y las Tablas 8, 9, 10 y 11 de la publicación.
+- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad`, `tabla_verdad`, `ajuste` y `robustez`. `minimizacion` es `no_evaluable`.
 
 - [ ] **Step 1: Escribir el manifiesto**
 
@@ -333,11 +420,12 @@ git commit -m "test: fijar contratos de replicacion"
   «Analytical approaches» y «fsQCA results / Calibration» de
   <https://doi.org/10.1371/journal.pone.0291870> el 2026-08-11; el texto declara las anclas
   y remite a la Tabla 8, pero **no** declara cómo se combinan los cinco ítems en el
-  constructo. Se prerregistra la **media aritmética de los ítems** como hipótesis, y su
-  contraste es la comparación `agregacion_calibrada`: si la media y la desviación típica de
-  cada conjunto calibrado no reproducen la Tabla 8, la hipótesis queda refutada y todas las
-  comparaciones aguas abajo pasan a `D-AMB`. Esta compuerta **no** promueve E025 a Nivel A:
-  la regla la pone este plan, no los autores.
+  constructo. Se prerregistra la **media aritmética de los ítems** como hipótesis y se
+  comprueba como **compuerta previa** —fila en `docs/validacion/compuertas.csv`, no en
+  `replicaciones.csv`, porque `agregacion` no es un módulo canónico—: si la media y la
+  desviación típica de cada conjunto calibrado no reproducen la Tabla 8, la compuerta queda
+  en `no_pasa` y todas las filas de E025 se registran `D-AMB`. Esta compuerta **no**
+  promueve E025 a Nivel A: la regla la pone este plan, no los autores.
 - **Anclas** (Tabla 8, idénticas para las siete variables): plena `5.00`, cruce `3.50`,
   nula `1.00`; fuente de ancla `teoria` («Based on the suggestions made by Fiss»,
   sección «Calibration»). `idm = 0.95`: la Tabla 8 publica mín. `0.05` y máx. `0.95` para
@@ -348,16 +436,36 @@ git commit -m "test: fijar contratos de replicacion"
   comparación pasa a `D-AMB`.
 - **Umbrales**: `incl.cut = 0.80`, `pri.cut = 0.75`, `n.cut = 3` (sección «Sufficient
   conditions analysis»).
-- **`include`**: ausente. El artículo no publica expectativas direccionales; se compara la
-  **solución más parsimoniosa**, que no las necesita, y la intermedia se registra `D-AMB`.
-- **Robustez**: `mod_robustez = no_evaluable`; el barrido del paso 7 se ejecuta como
-  exigencia de la aplicación pero no se compara con nada.
+- **`include`**: ausente, y por eso `mod_minimizacion = no_evaluable` en la selección
+  congelada. **No se compara ninguna solución.** La Tabla 10 es la solución intermedia
+  —el texto declara que se usan «intermediate and parsimonious solutions to distinguish
+  between peripheral and core conditions»— y no se sustituye por la parsimoniosa de la
+  aplicación. `minimizar()` se ejecuta porque la tabla de verdad lo exige aguas abajo, y sus
+  términos se anotan en el informe como descripción, sin fila de comparación.
+- **Ajuste**: `mod_ajuste = si`. La `consistencia_solucion` `0.915` y la
+  `cobertura_solucion` `0.881` de la Tabla 10 son las de esa solución intermedia, así que la
+  comparación se ejecuta y entra **prerregistrada `D-AMB`**, con el ajuste de la solución que
+  la aplicación sí produce anotado al lado. Es la regla general de la sección «Regla de tipo
+  de solución y de ajuste».
+- **Robustez**: `mod_robustez = si`. Lo que el estudio publica como robustez es la
+  **validez predictiva** (Tabla 11 y sección «Predictive validity»): partición aleatoria en
+  submuestra y muestra de reserva, los mismos cortes, y dos modelos de la submuestra
+  —`M1: FUN*PU*PEOU*ATTs` con cobertura bruta `0.8035`, única `0.4796` y consistencia
+  `0.9306`; `M2: ~FUN*AES*~EXP*~PU*PEOU*ATTs` con `0.3435`, `0.0195` y `0.9817`; solución
+  `0.8230 / 0.9305`—. **La partición no está publicada**: ni la semilla, ni el tamaño, ni la
+  lista de casos de cada mitad; se buscó en la sección «Predictive validity» el 2026-08-11 y
+  solo consta «randomly divided into holdout samples and subsamples». Sin ella esos cuatro
+  decimales no son reproducibles, así que la comparación entra **prerregistrada `D-AMB`**
+  con las cifras publicadas en `esperado` y la razón en el informe. Los valores de la Fig 3
+  (consistencia `0.937`, cobertura `0.784`) no se usan: son de figura. Además se ejecuta el
+  barrido de anclas y umbrales del paso 7 del motor y se informa como descripción.
 
 - [ ] **Step 3: Escribir las expectativas**
 
 `validation/expectativas/E025.csv` (extracto exacto del encabezado y de las primeras filas;
 se completa con las 7 medias y 7 desviaciones de la Tabla 8, las 12 consistencias y 12
-coberturas de la Tabla 9 y las 6×3 cifras de la Tabla 10):
+coberturas de la Tabla 9 y las cifras de las Tablas 10 y 11). **No hay ninguna fila
+`modulo = minimizacion`**: la selección la congeló como `no_evaluable`.
 
 ```csv
 id_estudio,modulo,comparacion,esperado,precision,decimales,fuente
@@ -368,11 +476,19 @@ E025,calibracion,max_fs_PIs,0.95,decimales,2,Tabla 8
 E025,calibracion,n_casos,225,exacta,,Tabla 8
 E025,necesidad,consistencia_fs_ATTs,0.952,decimales,3,Tabla 9
 E025,necesidad,cobertura_fs_ATTs,0.860,decimales,3,Tabla 9
-E025,minimizacion,n_configuraciones,6,exacta,,Tabla 10
-E025,minimizacion,terminos_normalizados,~EXP*PU*ATTs | FUN*AES*PU*ATTs | FUN*PU*PEOU*ATTs | AES*PU*PEOU*ATTs | ~FUN*AES*~EXP*PEOU*ATTs | FUN*AES*EXP*PEOU*ATTs,exacta,,Tabla 10 y parrafo «The standard analyses…»
-E025,ajuste,consistencia_solucion,0.915,decimales,3,Tabla 10
-E025,ajuste,cobertura_solucion,0.881,decimales,3,Tabla 10
+E025,ajuste,consistencia_solucion,0.915,decimales,3,Tabla 10 (solucion intermedia: D-AMB prerregistrado)
+E025,ajuste,cobertura_solucion,0.881,decimales,3,Tabla 10 (solucion intermedia: D-AMB prerregistrado)
+E025,robustez,consistencia_M1_submuestra,0.9306,decimales,4,Tabla 11 (particion no publicada: D-AMB prerregistrado)
+E025,robustez,cobertura_bruta_M1_submuestra,0.8035,decimales,4,Tabla 11 (particion no publicada: D-AMB prerregistrado)
 ```
+
+**`tabla_verdad`**: `mod_tabla_verdad = si` porque el estudio declara los tres umbrales, no
+porque publique la tabla. No hay tabla de verdad impresa en el artículo ni en su suplemento;
+se buscó en las Tablas 1–11 y en la sección «Sufficient conditions analysis» el 2026-08-11.
+La fila entra con `esperado` vacío y código `D-AMB`, y el `obtenido` guarda el número de
+filas, sus frecuencias y sus consistencias para que queden publicadas. No se inventa una
+cuenta de filas a partir de las seis configuraciones de la Tabla 10: ese número no es el
+mismo objeto.
 
 - [ ] **Step 4: Escribir el adaptador**
 
@@ -429,10 +545,25 @@ test_that("la calibracion de E025 reproduce la Tabla 8", {
 })
 ```
 
-Las demás pruebas del archivo, con la misma forma: `de_fs_*`, `min/max`, `n_casos`,
-las doce consistencias y coberturas de necesidad con `analizar_necesidad()`, la tabla de
-verdad con `construir_tabla_verdad(..., consistencia = 0.80, pri = 0.75, frecuencia = 3)`,
-la solución parsimoniosa con `minimizar()` y el ajuste con `diagnosticar_suficiencia()`.
+Las demás pruebas del archivo, con la misma forma: `de_fs_*`, `min/max`, `n_casos` y las
+doce consistencias y coberturas de necesidad con `analizar_necesidad()`, que son las
+comparaciones que sí pueden dar `D-OK`; y la tabla de verdad con
+`construir_tabla_verdad(..., consistencia = 0.80, pri = 0.75, frecuencia = 3)`, el ajuste
+con `diagnosticar_suficiencia()` y la validez predictiva, que se ejecutan y **se afirman
+como `D-AMB`**, no como `D-OK`:
+
+```r
+test_that("el ajuste de E025 no es decidible y se registra asi", {
+  fila <- esperado("consistencia_solucion")
+  obtenido <- ajuste_de_la_app                      # solucion que la app si produce
+  expect_equal(codigo_por_tipo_de_solucion(fila, obtenido), "D-AMB")
+})
+```
+
+`codigo_por_tipo_de_solucion()` vive en `comun-replicacion.R` y devuelve `D-AMB` cuando la
+expectativa procede de una solución que la aplicación no puede reproducir, sin mirar la
+diferencia numérica: así la prueba no puede aprobar por casualidad ni fallar por una
+diferencia que no es del motor.
 
 - [ ] **Step 6: Ejecutar y registrar**
 
@@ -455,7 +586,7 @@ git commit -m "test: replicar E025 contra sus tablas publicadas"
 
 **Interfaces:**
 - Consumes: `journal.pone.0320723.s003.csv` y las Tablas 8, 9 y 10.
-- Produces: comparaciones de agregación, calibración, necesidad, tabla de verdad, minimización y ajuste.
+- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad`, `tabla_verdad` y `ajuste`. `minimizacion` y `robustez` son `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -473,39 +604,54 @@ CC BY 4.0, verificado el 2026-08-11.
   identificadora: el adaptador crea `caso = seq_len(318)`.
 - **Agregación: declarada.** «This was accomplished by taking an average of the associated
   indicators and using it to generate an index for each construct» (sección de calibración).
-  Se compara contra la Tabla 8: media, desviación típica, mínimo y máximo por constructo,
-  con dos decimales.
+  Se comprueba contra la Tabla 8 —media, desviación típica, mínimo y máximo por constructo,
+  con dos decimales— como **compuerta previa**, con fila en `docs/validacion/compuertas.csv`
+  y ninguna en `replicaciones.csv`: `agregacion` no es un módulo canónico. Aquí la compuerta
+  es más fuerte que en E025 y E009 porque la regla la declaran los autores, no el plan; aun
+  así su fallo no se atribuye al motor, sino que deja el estudio en `D-AMB`.
 - **Anclas**: plena `4`, cruce `3`, nula `2` para las siete variables (Tabla 8), con
   membresías `0.95 / 0.5 / 0.05` declaradas en el texto ⇒ `idm = 0.95`. Fuente de ancla
   `teoria`. Corrección declarada por el estudio: `+0.001` a las membresías iguales a `0.50`.
 - **Umbrales**: `incl.cut = 0.8`, `n.cut = 3` (sección de suficiencia). **PRI: ausente.**
   Se buscó «PRI» y «proportional reduction» en el texto completo el 2026-08-11: cero
   coincidencias. Se ejecuta con `pri = 0` y se hace la sensibilidad con `pri = 0.70`; si la
-  solución cambia entre ambas, la comparación de minimización pasa a `D-AMB`.
-- **`include`**: ausente ⇒ solución parsimoniosa; intermedia `D-AMB`.
+  tabla de verdad cambia entre ambas, sus comparaciones pasan a `D-AMB`.
+- **`include`**: ausente ⇒ `mod_minimizacion = no_evaluable`. **No se compara ninguna
+  solución**: la Tabla 10 es la intermedia —«The complex solution lacked explanatory value,
+  while the parsimonious and intermediate solutions successfully made a distinction between
+  the core and peripheral conditions»— y no se sustituye por la parsimoniosa.
+- **Ajuste**: `mod_ajuste = si`, con `consistencia_solucion 0.920` y
+  `cobertura_solucion 0.890` de esa misma solución intermedia ⇒ comparación ejecutada y
+  **prerregistrada `D-AMB`**, con el ajuste de la solución que la aplicación sí produce
+  anotado al lado.
 - **Robustez**: `no_evaluable`.
 
 - [ ] **Step 3: Expectativas**
 
-`validation/expectativas/E027.csv` recoge, de la Tabla 8, las 28 cifras de media,
-desviación típica, mínimo y máximo de los **promedios por constructo** —comparación del
-módulo de agregación, antes de calibrar, con dos decimales—:
+`docs/validacion/compuertas.csv` recoge, de la Tabla 8, las 28 cifras de media, desviación
+típica, mínimo y máximo de los **promedios por constructo** —la compuerta de agregación,
+antes de calibrar, con dos decimales—:
 `VG 3.52 / 0.62 / 1.7 / 5`, `MU 3.64 / 0.60 / 2.3 / 5`, `IR 3.69 / 0.61 / 2 / 5`,
 `CS 3.58 / 0.69 / 1.2 / 5`, `PE 3.48 / 0.67 / 1.2 / 5`, `QEU 3.56 / 0.68 / 1.2 / 5` y
-`LE 3.47 / 0.71 / 1 / 5`; de la Tabla 9, las seis consistencias de presencia
-(`VG 0.898`, `MU 0.922`, `IR 0.942`, `CS 0.916`, `PE 0.904`, `QEU 0.924`), sus seis de
-ausencia entre paréntesis y las doce coberturas (3 decimales); de la Tabla 10, las seis
-configuraciones `S-1` a `S-6`, sus consistencias y coberturas (3 decimales),
-`consistencia_solucion = 0.920` y `cobertura_solucion = 0.890`.
+`LE 3.47 / 0.71 / 1 / 5`. `validation/expectativas/E027.csv` recoge, de la Tabla 9, las seis
+consistencias de presencia (`VG 0.898`, `MU 0.922`, `IR 0.942`, `CS 0.916`, `PE 0.904`,
+`QEU 0.924`), sus seis de ausencia entre paréntesis y las doce coberturas (3 decimales) para
+el módulo `necesidad`; y de la Tabla 10, `consistencia_solucion = 0.920` y
+`cobertura_solucion = 0.890` para el módulo `ajuste`, marcadas en su columna `fuente` como
+solución intermedia y por tanto `D-AMB`. Las seis configuraciones `S-1` a `S-6` con sus
+consistencias y coberturas **no** entran como expectativas de minimización: ese módulo es
+`no_evaluable`. Se transcriben en el prerregistro para que el informe pueda enseñarlas junto
+a lo que produzca la aplicación, sin compararlas.
 
 - [ ] **Step 4: Adaptador y prueba**
 
 Igual forma que E025: `definir_mapeo()` con los siete constructos y sus ítems reales
 (`VG` = `VG2, VG4, VG5, VG6, VG9, VG10`; `MU` = `MU3, MU4, MU5, MU6`;
 `IR` = `IR2, IR3, IR6, IR7, IR8`; `CS`, `PE`, `QEU`, `LE` con sus cinco ítems),
-`escala = c(1, 5)`, `LE` con rol `resultado`. La prueba compara primero la agregación
-(Tabla 8) y solo después la cadena calibración → necesidad → tabla de verdad →
-minimización → ajuste.
+`escala = c(1, 5)`, `LE` con rol `resultado`. La prueba resuelve primero la compuerta de
+agregación (Tabla 8) y solo después la cadena calibración → necesidad → tabla de verdad →
+ajuste. El ajuste se afirma con `codigo_por_tipo_de_solucion()`, que devuelve `D-AMB` para
+E027, igual que en E025.
 
 - [ ] **Step 5: Commit**
 
@@ -544,9 +690,11 @@ inspeccionado, no como entrada.
   95, 50 y 5 de cada constructo así construido deben reproducir la Tabla 5
   (`EI 6.167/4.333/1.333`, `IP 6.667/5.000/1.667`, `MG 6.600/4.333/1.667`,
   `MSC 6.000/4.800/1.700`, `SF 5.667/4.333/1.500`, `TC 5.600/4.200/1.200`,
-  `TT 6.500/4.000/1.250`), con tres decimales. Si la compuerta falla, **todas** las
-  comparaciones de E009 se registran `D-AMB` y el estudio queda como no reproducible por
-  información insuficiente, no como fallo de la aplicación.
+  `TT 6.500/4.000/1.250`), con tres decimales. Es una **compuerta previa**: fila en
+  `docs/validacion/compuertas.csv`, ninguna en `replicaciones.csv`, porque `agregacion` no
+  es un módulo canónico. Si falla, **todas** las comparaciones de E009 se registran `D-AMB`
+  y el estudio queda como no reproducible por información insuficiente, no como fallo de la
+  aplicación.
 - **Cuantiles**: `stats::quantile(..., type = 7)`, el de R. La elección se prerregistra
   porque fs/QCA puede usar otra definición; una diferencia atribuible solo a eso es `D-DEP`
   y exige mostrar el valor con los dos tipos.
@@ -555,10 +703,12 @@ inspeccionado, no como entrada.
 - **Umbrales**: `incl.cut = 0.8`, `pri.cut = 0.8`, `n.cut = 3`, `+0.001` al `0.50`
   (sección de suficiencia; fsQCA 4.0).
 - **Expectativas**: Tabla 8 (necesidad, alto y bajo nivel de `EI`, 24 consistencias y 24
-  coberturas, 3 decimales) y Tabla 9 (siete columnas de configuración con sus coberturas y
-  consistencias, `consistencia_solucion` `0.923` y `0.929`, `cobertura_solucion` `0.625` y
-  `0.391`) para el módulo de **ajuste**. Las configuraciones en sí no se comparan:
-  `mod_minimizacion` es `no_evaluable` y el artículo no publica `include`.
+  coberturas, 3 decimales) para el módulo `necesidad`, que es el único de E009 que puede dar
+  `D-OK`. Del módulo **ajuste**, `consistencia_solucion` `0.923` y `0.929` y
+  `cobertura_solucion` `0.625` y `0.391` de la Tabla 9, **prerregistrados `D-AMB`**: el
+  artículo declara que «This study primarily relies on the intermediate solution» y no
+  publica su `include`. Las siete configuraciones de la Tabla 9 no entran como expectativas:
+  `mod_minimizacion` es `no_evaluable`, y no se sustituye la intermedia por la parsimoniosa.
 - **Robustez**: se compara la estabilidad de las consistencias de necesidad ante el
   desplazamiento de anclas del barrido del motor; sin expectativa publicada, el resultado se
   informa como descripción, y solo un cambio de veredicto respecto de la Tabla 8 se codifica.
@@ -620,13 +770,27 @@ Los tres suplementos con sus hashes de la tabla de artefactos. Entrada de datos:
   texto: ninguna consistencia de necesidad —presencia ni ausencia, alto ni bajo `ICSM`—
   alcanza `0.9`. Comparación proposicional `necesidad_ninguna_supera_0_9`, precisión
   `exacta`.
-- **`include`**: ausente ⇒ parsimoniosa; intermedia `D-AMB`.
+- **Tipo de solución y `include`**: `mod_minimizacion = si` en la selección congelada, y el
+  artefacto lo sostiene: el texto declara que se usan «nested results of simple and
+  intermediate solutions to determine core conditions» y la **nota de la Tabla 7 solo define
+  dos símbolos, ambos centrales** («● = existence of core condition; ⊗ = loss of core
+  condition»), sin símbolo periférico. Los términos exhibidos son, por tanto, los de la
+  solución parsimoniosa, que es la que la aplicación puede producir sin `include`. Es la
+  diferencia con E025, E026 y E027, cuyas tablas sí distinguen central de periférico. Si aun
+  así los términos de la aplicación difieren de la Tabla 7 solo por condiciones adicionales
+  compatibles con parsimoniosa ⊆ intermedia, el código es `D-AMB`, no `D-APP`.
 - **Expectativas de ajuste y minimización** (Tabla 7): cinco configuraciones, `CPSM1–CPSM3`
   para alto `ICSM` y `CPSM4–CPSM5` para bajo; consistencias `0.832, 0.893, 0.831, 0.879,
   0.902`; coberturas brutas `0.394, 0.324, 0.419, 0.257, 0.334`; únicas `0.101, 0.031,
   0.126, 0.084, 0.161`; solución alta `0.808 / 0.551` y baja `0.870 / 0.418`; tres
   decimales. De la Tabla 4 se comparan además media, desviación, mínimo y máximo de los
   cinco conjuntos calibrados (2 decimales).
+- **Robustez**: `mod_robustez = si`, pero el estudio **no publica un escenario alternativo
+  de umbrales ni de anclas**. Se buscaron «robust» y «sensitivity» en el texto completo el
+  2026-08-11: las coincidencias son prosa de la discusión sobre la combinación de métodos
+  —regresión, NCA, fsQCA y prueba de Mann-Whitney—, no una repetición del análisis con otros
+  cortes. La comparación entra **prerregistrada `D-AMB`** con esa cita como `fuente`, y el
+  barrido de anclas y umbrales del motor se informa como descripción.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -670,7 +834,7 @@ git commit -m "test: replicar E008 contra sus tablas publicadas"
 
 **Interfaces:**
 - Consumes: `dataset.csv` dentro de `journal.pone.0315249.s001.zip` y las Tablas 3, 4, 5 y 6.
-- Produces: comparaciones de los seis módulos, con la calibración contrastada **contra las columnas calibradas del propio archivo**.
+- Produces: comparaciones de `calibracion` —contrastada **contra las columnas calibradas del propio archivo**—, `necesidad`, `tabla_verdad`, `ajuste` y `robustez`. `minimizacion` es `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto con artefacto anidado**
 
@@ -706,11 +870,21 @@ adaptador extrae a la caché y vuelve a verificar el hash del archivo interno.
   `n.cut = 4` con `incl.cut = 0.82`; ambos se ejecutan y se comparan sus consistencias,
   coberturas y `cobertura_solucion` (`0.286` y `0.218`) y `consistencia_solucion`
   (`0.794` y `0.815`), tres decimales.
-- **`include`**: ausente ⇒ parsimoniosa; intermedia `D-AMB`.
-- **Expectativas**: Tabla 4 (24 consistencias y 24 coberturas de necesidad, 3 decimales),
-  Tabla 5 (cuatro configuraciones `H1, H2, H3a, H3b`, consistencias
-  `0.804, 0.792, 0.861, 0.843`, coberturas brutas `0.156, 0.174, 0.038, 0.044`, únicas
-  `0.084, 0.101, 0.022, 0.029`, solución `0.324 / 0.790`).
+- **`include`**: ausente ⇒ `mod_minimizacion = no_evaluable`. **No se compara ninguna
+  solución.** La nota de la Tabla 5 distingue condiciones centrales de periféricas
+  («● y ⨂ … condiciones centrales; ⚫ y ⊗ … condiciones periféricas»), es decir que lo
+  publicado es la intermedia; no se sustituye por la parsimoniosa de la aplicación.
+- **Expectativas**: Tabla 4 (24 consistencias y 24 coberturas de necesidad, 3 decimales)
+  para `necesidad`; de la Tabla 5, `cobertura_solucion 0.324` y `consistencia_solucion
+  0.790`, y de la Tabla 6 las de los dos escenarios, todas para `ajuste` y `robustez`
+  **prerregistradas `D-AMB`** por proceder de la solución intermedia. Las cuatro
+  configuraciones `H1, H2, H3a, H3b` y sus consistencias `0.804, 0.792, 0.861, 0.843`,
+  coberturas brutas `0.156, 0.174, 0.038, 0.044` y únicas `0.084, 0.101, 0.022, 0.029` se
+  transcriben en el prerregistro para exhibirlas junto a lo que produzca la aplicación, sin
+  compararlas.
+
+  La calibración de E026 sigue siendo la comparación más fuerte de toda la muestra —459 × 6
+  membresías publicadas por los propios autores— y no depende del tipo de solución.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -734,9 +908,10 @@ adaptar_E026 <- function(ruta_zip) {
 
 La prueba compara `calibrar()` de cada columna cruda con su columna publicada
 (459 filas × 6 condiciones, tolerancia `0.005`), recomputa los cuantiles 85/50/15 y los
-contrasta con la Tabla 3, y sigue con necesidad (Tabla 4), tabla de verdad
-(`consistencia = 0.8`, `pri = 0.6`, `frecuencia = 4`), solución parsimoniosa y ajuste
-(Tabla 5) y los dos escenarios de robustez (Tabla 6).
+contrasta con la Tabla 3, y sigue con necesidad (Tabla 4) y la tabla de verdad
+(`consistencia = 0.8`, `pri = 0.6`, `frecuencia = 4`). El ajuste (Tabla 5) y los dos
+escenarios de robustez (Tabla 6) se ejecutan y se afirman con
+`codigo_por_tipo_de_solucion()`, que devuelve `D-AMB` para E026.
 
 - [ ] **Step 4: Commit**
 
@@ -845,7 +1020,7 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
 
 **Interfaces:**
 - Consumes: `journal.pone.0301031.s001.csv` y las Tablas 2, 3, 4 y 5.
-- Produces: comparaciones de calibración, necesidad, tabla de verdad y minimización. `ajuste` y `robustez` son `no_evaluable`.
+- Produces: comparaciones de `calibracion` —declarada **no ejercitada por la aplicación**—, `necesidad`, `tabla_verdad` y `ajuste`. `minimizacion` y `robustez` son `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -858,9 +1033,14 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
   `area, "UI ", TO, TR, TF, TC, WTR2, SE, TS, STR, WAT, TEC`. **La segunda columna se llama
   `UI ` con un espacio final**; el adaptador la referencia con ese nombre exacto y luego la
   renombra, sin `make.names()` silencioso.
-- **Datos ya calibrados**: `tipo_datos = conjuntos_calibrados`. El módulo de calibración no
-  vuelve a calibrar: compara el archivo con la Tabla 2 del artículo, que publica los mismos
-  diez índices por área.
+- **Datos ya calibrados y calibración NO ejercitada.** `tipo_datos = conjuntos_calibrados`:
+  el estudio no publica los valores brutos previos, así que la aplicación no puede calibrar
+  nada. La comparación del archivo con la Tabla 2 es **coherencia entre dos artefactos de
+  terceros**, y no ejecuta una sola línea de `fsqca-calibrador`. Por eso su fila lleva
+  `comparacion = calibracion_no_ejercitada` y el informe la cuenta en una categoría propia:
+  **módulo no ejercitado por la aplicación**, nunca como módulo de calibración reproducido.
+  `test-consolidacion.R` comprueba que ninguna fila de E014 con módulo `calibracion` entre
+  en el recuento de módulos reproducidos.
 - **Correspondencia de columnas**, establecida el 2026-08-11 emparejando los valores de las
   diez áreas con la Tabla 2: `STR→C1` (estructura industrial), `WAT→C2` (dotación de agua),
   `TEC→C3` (nivel tecnológico), `TO→C4` (diseño del objeto imponible), `TR→C5` (diseño de
@@ -880,12 +1060,19 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
   the original consistency threshold is set to 0.75»). Umbral de necesidad `0.9`.
   **PRI ausente** ⇒ `pri = 0` y sensibilidad documentada.
 - **Expectativas**: Tabla 4 (diez consistencias y diez coberturas de necesidad,
-  2 decimales); Tabla 3 (dicotomización `0/1` de las diez condiciones en las diez áreas,
-  igualdad exacta, 100 celdas); Tabla 5 (cuatro configuraciones `H1–H4`, consistencias
-  `0.92, 1.00, 1.00, 0.83`, coberturas originales `0.25, 0.22, 0.14, 0.14`, únicas
-  `0.13, 0.10, 0.06, 0.12`, solución `0.91 / 0.55`, 2 decimales).
-- **`include`**: ausente ⇒ parsimoniosa; intermedia `D-AMB`. `ajuste` y `robustez` no se
-  comparan.
+  2 decimales) y Tabla 3 (dicotomización `0/1` de las diez condiciones en las diez áreas,
+  igualdad exacta, 100 celdas), que son las que pueden dar `D-OK`. De la Tabla 5,
+  `consistencia_solucion 0.91` y `cobertura_solucion 0.55` para el módulo `ajuste`,
+  **prerregistradas `D-AMB`**.
+- **`include`**: ausente ⇒ `mod_minimizacion = no_evaluable`. **No se compara ninguna
+  solución**, y esta vez el estudio lo dice con todas las letras: «The intermediate solution
+  with moderate complexity and strong rationality is selected as the analysis result from
+  the three output solutions, and the core conditions and secondary conditions are
+  distinguished by the simple solution (Table 5)». Las cuatro configuraciones `H1–H4` con
+  sus consistencias `0.92, 1.00, 1.00, 0.83`, coberturas originales `0.25, 0.22, 0.14, 0.14`
+  y únicas `0.13, 0.10, 0.06, 0.12` se transcriben en el prerregistro para exhibirlas, no
+  para compararlas.
+- **Robustez**: `no_evaluable`; el barrido del motor se informa como descripción.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -907,9 +1094,11 @@ adaptar_E014 <- function(ruta) {
 
 `name_repair = "minimal"` no es cosmético: sin él `readr` renombra `UI ` y la comprobación
 de encabezado —que es la que detecta que el archivo cambió en origen— dejaría de morder. La
-prueba compara primero las 100 celdas contra la Tabla 2, con las once discrepancias ya
-prerregistradas como `D-EST`, y sigue con necesidad (Tabla 4), la dicotomización de la
-Tabla 3 y la solución parsimoniosa con la Tabla 5.
+prueba compara primero las 100 celdas contra la Tabla 2 —fila
+`calibracion_no_ejercitada`, con las once discrepancias ya prerregistradas como `D-EST`— y
+sigue con necesidad (Tabla 4) y la dicotomización de la Tabla 3, que son las que sí ejecutan
+el motor. El ajuste de la Tabla 5 se afirma con `codigo_por_tipo_de_solucion()`, que
+devuelve `D-AMB` para E014. No se compara ninguna solución.
 
 - [ ] **Step 4: Commit**
 
@@ -953,9 +1142,14 @@ E015 queda **no ejecutable**.
   cutoff of 0.85 were used in both analyses»). **PRI ausente** ⇒ `pri = 0` y sensibilidad.
 - **Solución**: el artículo publica explícitamente la **más parsimoniosa** (Quine-McCluskey),
   que es la que se compara. No hay `include` ni solución intermedia que comparar.
-- **Expectativas**: Tabla 2 (necesidad de presencia y ausencia en los dos años, publicada en
-  porcentajes enteros ⇒ precisión `decimales` con `d = 0` sobre la escala porcentual, es
-  decir `0.005` en proporción); Tablas 3 y 4 (tablas de verdad de 2018 y 2021: cada fila con
+- **Expectativas**: Tabla 2 (necesidad de presencia y ausencia en los dos años). **La
+  Tabla 2 se publica en porcentajes enteros y así se guarda**: `esperado = 92`, no `0.92`,
+  con `precision = decimales` y `decimales = 0`, de modo que `tolerancia_de()` devuelve
+  `0.5` **puntos porcentuales**. El esquema de expectativas no tiene columna de escala, así
+  que el adaptador multiplica por 100 la consistencia y la cobertura que produce la
+  aplicación antes de comparar, y el prerregistro lo deja escrito. Guardar `0.92` con
+  `d = 0` daría una tolerancia de `0.5` sobre una escala de `0` a `1`: aprobaría cualquier
+  cosa. Tablas 3 y 4 (tablas de verdad de 2018 y 2021: cada fila con
   su vector `0/1`, su `f` entero y sus `Raw-consist`, `PRI-consist` y `SYM-consist` con tres
   decimales; igualdad exacta en el vector y en `f`); Tabla 5 (2018: `~BS*~DQ`, `~BS*OBH`,
   `~BS*BD` con coberturas `0.631/0.593/0.516`, únicas `0.029/0.050/0.023` y consistencias
@@ -1103,6 +1297,31 @@ reproducidos <- function(id) {
   nrow(r) > 0 && !any(r$codigo %in% c("D-APP", "D-AMB"))
 }
 stopifnot(is.logical(vapply(unique(res$id_estudio), reproducidos, logical(1))))
+
+# El dominio de modulos es cerrado: `agregacion` no cabe.
+stopifnot(all(res$modulo %in% MODULOS))
+
+# Las compuertas viven aparte y una compuerta caida arrastra a su estudio.
+comp <- utils::read.csv("docs/validacion/compuertas.csv", stringsAsFactors = FALSE)
+stopifnot(identical(names(comp), COLUMNAS_COMPUERTAS))
+stopifnot(all(comp$estado %in% c("pasa", "no_pasa", "no_aplica")))
+for (id in comp$id_estudio[comp$estado == "no_pasa"]) {
+  stopifnot(all(res$codigo[res$id_estudio == id] == "D-AMB"))
+}
+
+# Ningun estudio sin `include` publicado puede tener fila de minimizacion,
+# y su ajuste y su robustez solo pueden ser D-AMB. Esta es la comprobacion
+# que impide convertir una diferencia de tipo de solucion en culpa del motor.
+for (id in SOLUCION_NO_REPRODUCIBLE) {
+  r <- res[res$id_estudio == id, ]
+  stopifnot(!"minimizacion" %in% r$modulo)
+  stopifnot(all(r$codigo[r$modulo %in% c("ajuste", "robustez")] == "D-AMB"))
+}
+
+# E014 no ejercita la aplicacion en calibracion: no cuenta como reproducida.
+e014 <- res[res$id_estudio == "E014" & res$modulo == "calibracion", ]
+stopifnot(all(e014$comparacion == "calibracion_no_ejercitada"))
+stopifnot(!any(e014$codigo == "D-OK"))
 ```
 
 - [ ] **Step 2: Implementar el corredor**
@@ -1119,6 +1338,18 @@ Con las categorías de la especificación §9, aplicadas **solo a los módulos d
 *Reproducido* (todo dentro de tolerancia y sin `D-APP`), *Reproducción parcial* (algún
 `D-AMB` o no evaluable, ningún `D-APP`) y *No reproducido* (al menos un `D-APP` en
 membresías, selección de filas, solución o ajuste).
+
+El recuento por módulo distingue tres estados y no dos, porque `mod_* == "si"` significa
+«el estudio publica algo comparable», no «la aplicación lo reprodujo»:
+
+- **reproducido**: hay al menos una comparación `D-OK` y ninguna `D-APP`;
+- **no decidible**: todas sus comparaciones son `D-AMB` —el ajuste de E009, E014, E025,
+  E026 y E027, la robustez de E008 y E025, y la tabla de verdad de E025—;
+- **no ejercitado por la aplicación**: la comparación no ejecuta el motor. Hoy solo cae aquí
+  `calibracion_no_ejercitada` de E014.
+
+Un módulo «no decidible» o «no ejercitado» **no suma** al recuento de módulos reproducidos
+en ningún lugar del informe.
 
 - [ ] **Step 4: Ejecutar**
 
@@ -1193,8 +1424,10 @@ for (r in c("README.md", "README.es.md")) {
 `docs/validacion-integral.md` contiene, en este orden: la declaración de alcance literal; el
 protocolo y sus tolerancias congeladas; la tabla de artefactos con hashes; una sección por
 estudio con sus módulos declarados, sus comparaciones y su veredicto; la tabla de
-discrepancias por código; los denominadores **separados** —`Nivel A: 0 de 0 estudios, no
-evaluada`, y el recuento de Nivel B por módulo—; y los límites: la muestra no es exhaustiva,
+compuertas previas; la tabla de discrepancias por código; los denominadores **separados**
+—`Nivel A: 0 de 0 estudios, no evaluada`, y el recuento de Nivel B por módulo, con sus tres
+estados: reproducido, no decidible y no ejercitado por la aplicación—; y los límites: la
+minimización solo es comparable en E001, E008, E012 y E015; la muestra no es exhaustiva,
 Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió credenciales.
 
 - [ ] **Step 3: Corregir README y CITATION**
@@ -1248,11 +1481,12 @@ En `.github/workflows/pruebas.yml`, un trabajo nuevo con el mismo entorno que `t
 
       - name: Replicaciones
         run: |
-          rm -f docs/validacion/replicaciones.csv
+          rm -f docs/validacion/replicaciones.csv docs/validacion/compuertas.csv
           Rscript --vanilla validation/R/ejecutar-replicaciones.R
           Rscript -e '
-            if (!file.exists("docs/validacion/replicaciones.csv")) {
-              stop("El corredor no produjo resultados.")
+            for (f in c("docs/validacion/replicaciones.csv",
+                        "docs/validacion/compuertas.csv")) {
+              if (!file.exists(f)) stop("El corredor no produjo ", f, ".")
             }
             r <- as.data.frame(testthat::test_dir("validation/tests/testthat",
                                                   reporter = "silent"))
@@ -1324,3 +1558,23 @@ Comprobado antes del commit, el 2026-08-11:
   (`docs/validacion/estudios.csv`, `pkg/calibraqca/`, `.github/workflows/pruebas.yml`); las
   demás son creaciones declaradas en la sección «Estructura de archivos» y en el bloque
   **Files** de su tarea.
+
+### Segunda pasada, 2026-08-11 (revisión independiente)
+
+La primera versión de este plan copió mal la tabla de módulos: seis celdas de E014, E025,
+E026 y E027 no coincidían con `docs/validacion/estudios.csv`, y de ahí salían cuatro tareas
+que planificaban comparaciones de minimización sobre estudios cuya selección congelada las
+había declarado `no_evaluable`. La tabla se regeneró con el comando que ahora acompaña a la
+sección y las cuatro tareas se reescribieron. Reglas que nacieron de ese error y que este
+plan conserva porque valen más que el arreglo puntual:
+
+- La selección congelada manda sobre el plan, nunca al revés. Cualquier tabla que diga ser
+  copia literal de un CSV se genera con un comando, no a mano.
+- **Una diferencia de tipo de solución nunca se clasifica `D-APP`.** Comparar la intermedia
+  publicada con la parsimoniosa de la aplicación habría producido `D-APP` en cuatro
+  estudios: cuatro acusaciones falsas contra el motor.
+- Un módulo `si` en el CSV significa «el estudio publica algo comparable», no «la aplicación
+  lo reprodujo». De ahí los tres estados del recuento: reproducido, no decidible y no
+  ejercitado por la aplicación.
+- Una tolerancia solo es correcta **en la escala en que está guardado el valor esperado**:
+  `0.5 * 10^0` es media unidad, y sobre una proporción de 0 a 1 aprueba cualquier cosa.
