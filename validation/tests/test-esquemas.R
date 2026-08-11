@@ -3,18 +3,20 @@ leer <- function(nombre) utils::read.csv(nombre, check.names = FALSE,
 
 busquedas <- leer("docs/validacion/registro-busqueda.csv")
 stopifnot(identical(names(busquedas), c(
-  "id", "fecha", "fuente", "consulta", "url", "resultados_revisados",
-  "observaciones"
+  "id", "fecha", "alcance", "fuente", "consulta", "url",
+  "resultados_revisados", "observaciones"
 )))
+stopifnot(all(busquedas$alcance %in% c("herramientas", "estudios")))
 
 estudios <- leer("docs/validacion/estudios.csv")
 stopifnot(identical(names(estudios), c(
   "id", "doi", "titulo", "anio", "dominio", "url_publicacion",
   "url_datos", "url_codigo", "datos_brutos", "anclas_reconstruibles",
   "umbrales_reconstruibles", "resultado_comparable", "licencia",
-  "decision", "motivo"
+  "licencia_compatible", "decision", "motivo"
 )))
 stopifnot(all(estudios$decision %in% c("incluir", "excluir", "pendiente")))
+stopifnot(all(estudios$licencia_compatible %in% c("si", "no")))
 
 herramientas <- leer("docs/validacion/herramientas.csv")
 stopifnot(identical(names(herramientas), c(

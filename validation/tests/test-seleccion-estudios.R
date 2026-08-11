@@ -2,12 +2,13 @@ columnas_estudios <- c(
   "id", "doi", "titulo", "anio", "dominio", "url_publicacion",
   "url_datos", "url_codigo", "datos_brutos", "anclas_reconstruibles",
   "umbrales_reconstruibles", "resultado_comparable", "licencia",
-  "decision", "motivo"
+  "licencia_compatible", "decision", "motivo"
 )
 criterios <- c(
   "datos_brutos", "anclas_reconstruibles", "umbrales_reconstruibles",
   "resultado_comparable"
 )
+criterios_inclusion <- c(criterios, "licencia_compatible")
 motivos_permitidos <- c(
   "sin datos brutos", "anclas ausentes", "umbral ausente",
   "resultado no comparable", "licencia incompatible", "archivo inaccesible"
@@ -28,7 +29,7 @@ validar_tabla <- function(x) {
   stopifnot(nrow(x) > 0L)
   stopifnot(!anyDuplicated(x$id), !anyDuplicated(x$doi))
   stopifnot(all(x$decision %in% c("incluir", "excluir")))
-  stopifnot(all(unlist(x[criterios], use.names = FALSE) %in% c("si", "no")))
+  stopifnot(all(unlist(x[criterios_inclusion], use.names = FALSE) %in% c("si", "no")))
 
   obligatorias <- setdiff(columnas_estudios, "url_codigo")
   stopifnot(all(vapply(x[obligatorias], function(z) {
@@ -39,7 +40,7 @@ validar_tabla <- function(x) {
   exc <- x[x$decision == "excluir", , drop = FALSE]
   stopifnot(nrow(inc) <= 5L)
   if (nrow(inc)) {
-    stopifnot(all(unlist(inc[criterios], use.names = FALSE) == "si"))
+    stopifnot(all(unlist(inc[criterios_inclusion], use.names = FALSE) == "si"))
     stopifnot(all(nzchar(inc$url_publicacion)))
     stopifnot(all(nzchar(inc$url_datos)))
     stopifnot(length(unique(inc$doi)) == nrow(inc))
@@ -52,7 +53,8 @@ validar_tabla <- function(x) {
   if (nrow(exc)) {
     stopifnot(!anyNA(categorias))
     falla_criterio <- rowSums(exc[criterios] == "no") >= 1L
-    falla_licencia <- categorias == "licencia incompatible"
+    falla_licencia <- exc$licencia_compatible == "no"
+    stopifnot(all(categorias != "licencia incompatible" | falla_licencia))
     stopifnot(all(falla_criterio | falla_licencia))
   }
 
@@ -188,7 +190,8 @@ x <- read.csv("docs/validacion/estudios.csv", stringsAsFactors = FALSE)
 busquedas <- read.csv("docs/validacion/registro-busqueda.csv", stringsAsFactors = FALSE)
 tabla <- validar_tabla(x)
 cribado <- read.csv("docs/validacion/cribado-estudios.csv", stringsAsFactors = FALSE)
-flujo <- validar_cribado(cribado, x, busquedas$id)
+ids_busqueda_estudios <- busquedas$id[busquedas$alcance == "estudios"]
+flujo <- validar_cribado(cribado, x, ids_busqueda_estudios)
 
 validar_rama_muestra(
   "docs/validacion/evidencia-insuficiente.md", x, tabla, flujo
@@ -200,8 +203,19 @@ stopifnot(falla(validar_tabla(x[0, , drop = FALSE])))
 candidato_sin_codigo <- x[1, , drop = FALSE]
 candidato_sin_codigo$decision <- "incluir"
 candidato_sin_codigo[criterios] <- "si"
+candidato_sin_codigo$licencia_compatible <- "si"
 candidato_sin_codigo$url_codigo <- ""
 invisible(validar_tabla(candidato_sin_codigo))
+
+e007_promovido <- x
+fila_e007 <- e007_promovido$id == "E007"
+stopifnot(sum(fila_e007) == 1L)
+e007_promovido$decision[fila_e007] <- "incluir"
+e007_promovido[fila_e007, criterios] <- "si"
+stopifnot(falla(validar_tabla(e007_promovido)))
+e007_compatible <- e007_promovido
+e007_compatible$licencia_compatible[fila_e007] <- "si"
+invisible(validar_tabla(e007_compatible))
 
 if (nrow(tabla$incluidos)) {
   incluido_debil <- x
@@ -243,7 +257,10 @@ validar_rama_muestra(informe_ausente, muestra_3_5, tabla_3_5, flujo)
 cat(sprintf(
   paste0(
     "seleccion valida: %d examinados; %d incluidos; %d excluidos; ",
-    "%d registros identificados; rama sintetica 3-5 valida\n"
+    paste0(
+      "%d registros identificados; rama sintetica 3-5 valida; ",
+      "mutacion E007 sin licencia rechazada\n"
+    )
   ),
   nrow(x), nrow(tabla$incluidos), nrow(tabla$excluidos), flujo$identificados
 ))

@@ -9,6 +9,7 @@ vacíos hasta que una fuente verificable aporte el valor correspondiente.
 | --- | --- |
 | `id` | Identificador único de la búsqueda. |
 | `fecha` | Fecha en que se realizó la consulta. |
+| `alcance` | Parte del protocolo a la que aporta la fila: sólo `herramientas` o `estudios`. |
 | `fuente` | Base de datos, buscador o repositorio consultado. |
 | `consulta` | Texto de la consulta ejecutada. |
 | `url` | Enlace reproducible a la consulta o fuente. |
@@ -32,8 +33,15 @@ vacíos hasta que una fuente verificable aporte el valor correspondiente.
 | `umbrales_reconstruibles` | Si los umbrales pueden reconstruirse. |
 | `resultado_comparable` | Si el resultado permite comparación con la evidencia disponible. |
 | `licencia` | Licencia aplicable a los datos o al código, según corresponda. |
+| `licencia_compatible` | Si la licencia o las condiciones declaradas permiten usar los materiales para replicación: sólo `si` o `no`. |
 | `decision` | Estado de selección: sólo `incluir`, `excluir` o `pendiente`. |
 | `motivo` | Justificación de la decisión de selección. |
+
+Una fila sólo puede tener `decision = incluir` cuando los cuatro criterios
+materiales (`datos_brutos`, `anclas_reconstruibles`,
+`umbrales_reconstruibles` y `resultado_comparable`) y
+`licencia_compatible` son `si`. La disponibilidad pública sin licencia o
+condiciones declaradas no se considera compatible por sí sola.
 
 ## `cribado-estudios.csv`
 

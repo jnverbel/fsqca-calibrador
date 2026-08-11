@@ -2,6 +2,9 @@ lines <- readLines("docs/estado-del-arte.md", warn = FALSE)
 doc <- paste(lines, collapse = "\n")
 herr <- read.csv("docs/validacion/herramientas.csv", stringsAsFactors = FALSE)
 registro <- read.csv("docs/validacion/registro-busqueda.csv", stringsAsFactors = FALSE)
+registro_herramientas <- registro[
+  registro$alcance == "herramientas", , drop = FALSE
+]
 exclusion_lines <- readLines("docs/validacion/exclusiones-herramientas.md", warn = FALSE)
 
 capacidades <- c(
@@ -14,18 +17,32 @@ exclusiones <- exclusion_lines[
   startsWith(exclusion_lines, "| ") &
     grepl("https://", exclusion_lines, fixed = TRUE)
 ]
-fecha_corte <- unique(c(registro$fecha, herr$fecha_consulta))
+fecha_corte <- unique(c(registro_herramientas$fecha, herr$fecha_consulta))
 
 stopifnot(nrow(herr) == 14L)
-stopifnot(nrow(registro) == 32L)
-stopifnot(sum(registro$resultados_revisados) == 121L)
+stopifnot(nrow(registro_herramientas) == 32L)
+stopifnot(sum(registro_herramientas$resultados_revisados) == 121L)
+stopifnot(nrow(registro_herramientas) < nrow(registro))
 stopifnot(length(exclusiones) == 9L)
 stopifnot(length(fecha_corte) == 1L)
 stopifnot(grepl(fecha_corte, doc, fixed = TRUE))
 stopifnot(all(nzchar(herr$url_primaria)))
-stopifnot(grepl(sprintf("%d filas de búsqueda", nrow(registro)), doc, fixed = TRUE))
+stopifnot(grepl(sprintf("%d filas totales", nrow(registro)), doc, fixed = TRUE))
 stopifnot(grepl(
-  sprintf("%d apariciones revisadas", sum(registro$resultados_revisados)),
+  sprintf("%d apariciones revisadas en todo el registro", sum(registro$resultados_revisados)),
+  doc,
+  fixed = TRUE
+))
+stopifnot(grepl(
+  sprintf("%d filas de búsqueda de herramientas", nrow(registro_herramientas)),
+  doc,
+  fixed = TRUE
+))
+stopifnot(grepl(
+  sprintf(
+    "%d apariciones de herramientas revisadas",
+    sum(registro_herramientas$resultados_revisados)
+  ),
   doc,
   fixed = TRUE
 ))
@@ -73,6 +90,20 @@ stopifnot(identical(
 ))
 stopifnot(sum(estados == "no_verificado") == sum(herr[, capacidades] == "no_verificado"))
 stopifnot(grepl("`no_verificado` no equivale a `no`", doc, fixed = TRUE))
+
+setmethods <- herr[herr$nombre == "SetMethods", , drop = FALSE]
+stopifnot(nrow(setmethods) == 1L)
+stopifnot(setmethods$robustez == "parcial")
+stopifnot(grepl("reportado", setmethods$limitaciones, fixed = TRUE))
+reprex_setmethods <- c(
+  "docs/referencias/setmethods-4.1-reprex.R",
+  "docs/referencias/robfit-solucion-media-ignorada.R"
+)
+stopifnot(all(file.exists(reprex_setmethods)))
+stopifnot(all(vapply(reprex_setmethods, function(ruta) {
+  grepl(ruta, doc, fixed = TRUE)
+}, logical(1))))
+stopifnot(grepl("estado **reportado**", doc, fixed = TRUE))
 
 fuentes <- strsplit(herr$fuentes, " | ", fixed = TRUE)
 stopifnot(all(vapply(herr$url_primaria, function(x) {
