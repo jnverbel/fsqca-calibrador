@@ -129,3 +129,32 @@ Nivel B; ninguno alcanzó Nivel A. `busqueda-ampliada.md` congela la trazabilida
 de su ronda, archivos, licencia, constructos, anclas, umbrales y soluciones.
 Ningún caso excluido se promovió para alcanzar un cupo y no se descargó ni
 versionó ningún dato de terceros en el repositorio.
+
+## Localizadores primarios de cierre
+
+La inspección registrada no conserva una sección, tabla, página o hoja para los
+hechos que siguen. En cada caso el localizador granular está **ausente**; la
+fórmula de auditoría indica el archivo o URL primario inspeccionado y su fecha,
+sin suplirlo por inferencia.
+
+| Estudio | Archivo/URL y ausencia registrada |
+| --- | --- |
+| E002 | `R script - Calibration.R` y script de análisis en Dataverse; página/línea **ausente, inspeccionado en** <https://doi.org/10.1017/ipo.2020.18> y <https://doi.org/10.7910/DVN/HSMCTX> **el 2026-08-10**. |
+| E003 | Do-file `Adewusi_Kocadal__2021M103_Code-Do file.do`; sección/línea **ausente, inspeccionado en** <https://doi.org/10.33458/uidergisi.1153307> y <https://doi.org/10.7910/DVN/YAR3WJ> **el 2026-08-10**. |
+| E004 | `Sample_data.tab`; hoja/tabla **ausente, inspeccionado en** <https://doi.org/10.1057/s41599-025-04372-3> y <https://doi.org/10.7910/DVN/LDZHPO> **el 2026-08-10**. |
+| E005 | `pennings_2003.csv` y dos scripts Stata; fila/ancla **ausente, inspeccionado en** <https://doi.org/10.1177/0049124114532446> y <https://doi.org/10.7910/DVN/23637> **el 2026-08-10**. |
+| E006 | Publicación y `Script_appendix.R` anunciado; sección/frecuencia **ausente, inspeccionado en** <https://doi.org/10.1002/eet.1978> **el 2026-08-10**. |
+| E007 | `Raw Data.xlsx`, `Processed Data.xlsx`, `Questionnaire.pdf`, `Truth Table.out`; hoja/línea **ausente, inspeccionado en** <https://doi.org/10.1017/mor.2022.41> y <https://osf.io/84bxs/> **el 2026-08-10**. |
+| E010 | ZIP S1 y sus salidas QCA/LDA; archivo de entrada citado **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0329190> y <https://doi.org/10.1371/journal.pone.0329190.s001> **el 2026-08-11**. |
+| E011 | S1 CSV de 50 casos; página/frecuencia `n.cut` **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0259014> y <https://doi.org/10.1371/journal.pone.0259014.s001> **el 2026-08-11**. |
+| E013 | S1, S2 y S3; sección de retractación **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0300283> **el 2026-08-11**. |
+| E016 | S1--S4, incluidos S3 datos y S2 tabla; hoja/celda **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0305916> y <https://doi.org/10.1371/journal.pone.0305916.s003> **el 2026-08-11**. |
+| E017 | S4 Dataset; columna/monto ausente **inspeccionado en** <https://doi.org/10.1371/journal.pone.0308717> y <https://doi.org/10.1371/journal.pone.0308717.s004> **el 2026-08-11**. |
+| E018 | S1 DOCX y S2 XLSX; sección que evidencie GMM y ausencia de fsQCA **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0311543> y <https://doi.org/10.1371/journal.pone.0311543.s002> **el 2026-08-11**. |
+| E019 | S1 XLSX; sección que evidencie FE/RE/GMM y ausencia de fsQCA **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0316388> y <https://doi.org/10.1371/journal.pone.0316388.s001> **el 2026-08-11**. |
+| E020 | Publicación y S1/S2; sección que evidencie DID/PSM-DID y ausencia de fsQCA **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0323668> y <https://doi.org/10.1371/journal.pone.0323668.s001> **el 2026-08-11**. |
+| E021 | Publicación y declaración de disponibilidad; tabla/enlace de microdatos **ausente, inspeccionado en** <https://doi.org/10.3390/joitmc6030076> **el 2026-08-11**. |
+| E022 | Publicación y declaración de datos; archivo público de microdatos **ausente, inspeccionado en** <https://doi.org/10.3390/buildings12091349> y <https://www.mdpi.com/2075-5309/12/9/1349#data> **el 2026-08-11**. |
+| E023 | Publicación y suplementos de disponibilidad; matriz pre-calibración **ausente, inspeccionado en** <https://doi.org/10.3389/fpsyg.2021.733319> **el 2026-08-11**. |
+| E024 | Publicación y declaración de disponibilidad; paquete de casos **ausente, inspeccionado en** <https://doi.org/10.1057/s41599-025-05551-y> **el 2026-08-11**. |
+| E028 | S1 DOCX; 389 respuestas y hoja de datos **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0325933> y <https://doi.org/10.1371/journal.pone.0325933.s001> **el 2026-08-11**. |

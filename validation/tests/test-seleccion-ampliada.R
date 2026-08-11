@@ -17,6 +17,7 @@ modulos <- c(
 )
 
 validar_niveles <- function(estudios) {
+  stopifnot(all(estudios$decision %in% c("incluir", "excluir")))
   incluidos <- estudios[estudios$decision == "incluir", , drop = FALSE]
   nivel_a <- incluidos[incluidos$nivel == "A", , drop = FALSE]
   nivel_b <- incluidos[incluidos$nivel == "B", , drop = FALSE]
@@ -74,7 +75,10 @@ niveles <- validar_niveles(estudios)
 evidencia <- validar_trazabilidad_texto_completo(estudios, cribado)
 
 # Congelación explícita: los B cuentan como cobertura modular, no como A.
+stopifnot(nrow(estudios) == 28L)
 stopifnot(nrow(niveles$a) == 0L, nrow(niveles$b) == 9L)
+stopifnot(sum(estudios$decision == "excluir") == 19L)
+stopifnot(all(estudios$decision %in% c("incluir", "excluir")))
 stopifnot(identical(as.integer(rondas$nivel_a_nuevos),
                     vapply(rondas$ronda, function(ronda) {
                       sum(estudios$ronda_inclusion == ronda &
@@ -88,12 +92,20 @@ stopifnot(identical(as.integer(rondas$nivel_b_nuevos),
                             estudios$nivel == "B")
                     }, integer(1))))
 
-# E025 satisface los criterios comunes y es Likert, pero no publica una
-# minimización reproducible; cambiar sólo la etiqueta no puede contarlo como A.
-b_reetiquetado <- niveles$b[niveles$b$id == "E025", , drop = FALSE]
-stopifnot(nrow(b_reetiquetado) == 1L)
-b_reetiquetado$nivel <- "A"
-stopifnot(falla(validar_niveles(b_reetiquetado)))
+# La congelación no admite estados pendientes: no pueden ocultarse al filtrar
+# los incluidos ni posponerse después de que la selección quedó saturada.
+pendiente <- estudios
+pendiente$decision[1L] <- "pendiente"
+stopifnot(falla(validar_niveles(pendiente)))
+
+# Cada B falla si se cambia únicamente su etiqueta a A. Esto cubre tanto los
+# límites de tipo/constructo como los módulos A obligatorios.
+for (id_b in niveles$b$id) {
+  b_reetiquetado <- niveles$b[niveles$b$id == id_b, , drop = FALSE]
+  stopifnot(nrow(b_reetiquetado) == 1L)
+  b_reetiquetado$nivel <- "A"
+  stopifnot(falla(validar_niveles(b_reetiquetado)))
+}
 
 # El artefacto de auditoría es parte de la congelación de las evaluaciones.
 stopifnot(file.exists("docs/validacion/busqueda-ampliada.md"))

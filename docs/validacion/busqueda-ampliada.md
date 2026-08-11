@@ -32,17 +32,17 @@ de canónicos de R0/R1 siguen siendo duplicados y no alteran su ronda original.
 
 ## Incluidos Nivel B: ubicación material y límite A
 
-| ID/ronda | Archivos, licencia y localización exacta | Constructos, anclas, umbrales, solución | Decisión |
+| ID/ronda | Archivo, licencia y localizador primario | Constructos, anclas, umbrales, solución | Decisión |
 | --- | --- | --- | --- |
-| E001/R0 | Dataverse `10.7910/DVN/27100`: datos y script oficial SHA-256; CC0-1.0. | Script/tablas: calibración, tabla, minimización, ajuste y barridos de anclas, `n.cut` y consistencia. | B; necesidad no evaluada. |
-| E008/R1 | PLOS S1 algoritmo, S2 código NCA, S3 datos; CC BY 4.0. | S1/texto: `0.05/0.5/0.95`, `incl.cut=.8`, PRI `.6`, `n.cut=1`, necesidad, tabla, soluciones y robustez. | B; falta `include` fsQCA ejecutable. |
-| E009/R1 | PLOS S2 ítems/calibrados, S4 código NCA; CC BY 4.0. | Texto: `95/50/5`, `incl.cut`/PRI `.8`, `n.cut=3`, necesidad, tabla, soluciones, ajuste y robustez. | B; agregación e `include` ausentes. |
-| E012/R1 | PLOS S1/S2/S4/S5/S6: 80 países y materiales; CC BY 4.0. | Reglas, anclas, `incl.cut=.80`, `n.cut=1`, expectativas, soluciones y robustez `.85/.90`. | B; macrocomparativo. |
-| E014/R1 | PLOS S1 CSV, matriz de diez áreas; CC BY 4.0. | Reglas directa/indirecta, anclas, `incl.cut=.75`, `n.cut=1`, necesidad, tabla y ajuste. | B; sin `include`/robustez. |
-| E015/R1 | PLOS S1 PDF, matrices 2018/2021; CC BY 4.0. | `95/50/5`, `incl.cut=.85`, `n.cut=1`, necesidad, tabla, solución parsimoniosa y ajuste. | B; macrocomparativo, sin robustez. |
-| E025/R3 | PLOS S1 CSV, 225 ítems; CC BY 4.0. | Agregación, `5/3.5/1`, frecuencia 3, `.80`, PRI `.75`, necesidad, soluciones y cobertura. | B; sin código/`include`. |
-| E026/R3 | PLOS S1 ZIP, 459 casos crudos/calibrados; CC BY 4.0. | `85/50/15`, frecuencia 4, `.80`, PRI `.60`, necesidad, soluciones y robustez. | B; sin código/`include`. |
-| E027/R3 | PLOS S1 CSV, 318 ítems; CC BY 4.0. | Promedios, `4/3/2`, frecuencia 3, `.80`, necesidad, soluciones y cobertura. | B; sin código/`include`/robustez. |
+| E001/R0 | Paquete Dataverse `10.7910/DVN/27100`, datos y script SHA-256; CC0-1.0. Sección/tabla del script: **ausente, inspeccionado en** <https://doi.org/10.1093/pan/mpu016> y <https://doi.org/10.7910/DVN/27100> **el 2026-08-10**. | Script y salidas: calibración, tabla, minimización, ajuste y barridos de anclas, `n.cut` y consistencia. | B; necesidad no evaluada. |
+| E008/R1 | PLOS S1 algoritmo, S2 código NCA, S3 datos; CC BY 4.0. Sección/tabla: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0326226>, <https://doi.org/10.1371/journal.pone.0326226.s001>, <https://doi.org/10.1371/journal.pone.0326226.s002> y <https://doi.org/10.1371/journal.pone.0326226.s003> **el 2026-08-11**. | Anclas `0.05/0.5/0.95`, `incl.cut=.8`, PRI `.6`, `n.cut=1`, necesidad, tabla, soluciones y robustez. | B; falta `include` fsQCA ejecutable. |
+| E009/R1 | PLOS S2 ítems/calibrados y S4 código NCA; CC BY 4.0. Sección/tabla: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0348315>, <https://doi.org/10.1371/journal.pone.0348315.s002> y <https://doi.org/10.1371/journal.pone.0348315.s004> **el 2026-08-11**. | `95/50/5`, `incl.cut`/PRI `.8`, `n.cut=3`, necesidad, tabla, soluciones, ajuste y robustez. | B; agregación e `include` ausentes. |
+| E012/R1 | PLOS S1/S2/S4/S5/S6, 80 países; CC BY 4.0. Hoja/sección: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0282617> y S1--S6 registrados en `fuentes-ronda-1.md` **el 2026-08-11**. | Reglas, anclas, `incl.cut=.80`, `n.cut=1`, expectativas, soluciones y robustez `.85/.90`. | B; macrocomparativo. |
+| E014/R1 | PLOS S1 CSV, matriz de diez áreas; CC BY 4.0. Hoja/sección: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0301031> y <https://doi.org/10.1371/journal.pone.0301031.s001> **el 2026-08-11**. | Reglas directa/indirecta, anclas, `incl.cut=.75`, `n.cut=1`, necesidad, tabla y ajuste. | B; sin `include`/robustez. |
+| E015/R1 | PLOS S1 PDF, matrices 2018/2021; CC BY 4.0. Página/tabla: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0302210> y <https://doi.org/10.1371/journal.pone.0302210.s001> **el 2026-08-11**. | `95/50/5`, `incl.cut=.85`, `n.cut=1`, necesidad, tabla, solución parsimoniosa y ajuste. | B; macrocomparativo, sin robustez. |
+| E025/R3 | PLOS S1 CSV, 225 ítems; CC BY 4.0. Hoja/sección: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0291870> y <https://doi.org/10.1371/journal.pone.0291870.s001> **el 2026-08-11**. | Agregación, `5/3.5/1`, frecuencia 3, `.80`, PRI `.75`, necesidad, soluciones y cobertura. | B; sin código/`include`. |
+| E026/R3 | PLOS S1 ZIP, 459 casos crudos/calibrados; CC BY 4.0. Archivo interno/tabla: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0315249> y <https://doi.org/10.1371/journal.pone.0315249.s001> **el 2026-08-11**. | `85/50/15`, frecuencia 4, `.80`, PRI `.60`, necesidad, soluciones y robustez. | B; sin código/`include`. |
+| E027/R3 | PLOS S1 CSV, 318 ítems; CC BY 4.0. Hoja/sección: **ausente, inspeccionado en** <https://doi.org/10.1371/journal.pone.0320723> y <https://doi.org/10.1371/journal.pone.0320723.s003> **el 2026-08-11**. | Promedios, `4/3/2`, frecuencia 3, `.80`, necesidad, soluciones y cobertura. | B; sin código/`include`/robustez. |
 
 Los nueve B cubren conjuntamente calibración, necesidad, tabla de verdad,
 minimización, ajuste y robustez. Esa cobertura es modular y no se suma como A.
