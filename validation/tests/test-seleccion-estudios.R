@@ -12,9 +12,15 @@ criterios <- c(
   "resultado_comparable"
 )
 criterios_inclusion <- c(criterios, "licencia_compatible")
+criterios_nivel_a <- c(
+  "datos_brutos", "constructos_reconstruibles", "anclas_reconstruibles",
+  "umbrales_reconstruibles", "resultado_comparable", "licencia_compatible"
+)
+criterios_nivel_b <- setdiff(criterios_nivel_a, "constructos_reconstruibles")
 motivos_permitidos <- c(
   "sin datos brutos", "anclas ausentes", "umbral ausente",
-  "resultado no comparable", "licencia incompatible", "archivo inaccesible"
+  "resultado no comparable", "licencia incompatible", "archivo inaccesible",
+  "constructo no reconstruible"
 )
 
 categoria_motivo <- function(motivo) {
@@ -45,15 +51,32 @@ validar_tabla <- function(x) {
 
   inc <- x[x$decision == "incluir", , drop = FALSE]
   exc <- x[x$decision == "excluir", , drop = FALSE]
-  stopifnot(nrow(inc) <= 5L)
+  # El cupo 3--5 corresponde a la validación integral Nivel A; la cobertura
+  # modular Nivel B no se elimina para forzar ese tamaño de muestra.
+  stopifnot(sum(inc$nivel == "A") <= 5L)
   if (nrow(inc)) {
     stopifnot(all(unlist(inc[criterios_inclusion], use.names = FALSE) == "si"))
     stopifnot(all(nzchar(inc$url_publicacion)))
     stopifnot(all(nzchar(inc$url_datos)))
     stopifnot(length(unique(inc$doi)) == nrow(inc))
   }
-  if (nrow(inc) >= 3L) {
-    stopifnot(length(unique(inc$dominio)) >= 2L)
+  nivel_a <- inc[inc$nivel == "A", , drop = FALSE]
+  nivel_b <- inc[inc$nivel == "B", , drop = FALSE]
+  stopifnot(nrow(inc) == nrow(nivel_a) + nrow(nivel_b))
+  stopifnot(all(exc$nivel == "ninguno"))
+  if (nrow(nivel_a)) {
+    stopifnot(all(nivel_a$tipo_datos %in% c("likert", "multiitem")))
+    stopifnot(all(unlist(nivel_a[criterios_nivel_a], use.names = FALSE) == "si"))
+    stopifnot(all(nivel_a$mod_calibracion == "si"))
+    stopifnot(all(nivel_a$mod_tabla_verdad == "si"))
+    stopifnot(all(nivel_a$mod_minimizacion == "si"))
+  }
+  if (nrow(nivel_b)) {
+    stopifnot(all(unlist(nivel_b[criterios_nivel_b], use.names = FALSE) == "si"))
+    stopifnot(all(rowSums(nivel_b[modulos] == "si") >= 1L))
+  }
+  if (sum(inc$nivel == "A") >= 3L) {
+    stopifnot(length(unique(inc$dominio[inc$nivel == "A"])) >= 2L)
   }
 
   categorias <- vapply(exc$motivo, categoria_motivo, character(1))
@@ -214,6 +237,16 @@ cribado <- read.csv("docs/validacion/cribado-estudios.csv", stringsAsFactors = F
 ids_busqueda_estudios <- busquedas$id[busquedas$alcance == "estudios"]
 flujo <- validar_cribado(cribado, x, ids_busqueda_estudios)
 
+dois_reabiertos <- c(
+  "10.1371/journal.pone.0259014", "10.1371/journal.pone.0282617",
+  "10.1371/journal.pone.0300283", "10.1371/journal.pone.0301031",
+  "10.1371/journal.pone.0302210", "10.1371/journal.pone.0305916",
+  "10.1371/journal.pone.0308717"
+)
+stopifnot(all(dois_reabiertos %in% x$doi))
+stopifnot(all(dois_reabiertos %in%
+              cribado$doi_estudio[cribado$decision == "evaluacion_completa"]))
+
 cribado_ids_cruzados <- cribado
 filas_completas <- which(cribado_ids_cruzados$decision == "evaluacion_completa")
 stopifnot(length(filas_completas) >= 2L)
@@ -252,11 +285,26 @@ candidato_sin_codigo$licencia_compatible <- "si"
 candidato_sin_codigo$url_codigo <- "no_identificado"
 invisible(validar_tabla(candidato_sin_codigo))
 
+# Cambiar sólo la etiqueta de un B continuo/mixto no lo convierte en Nivel A.
+b_como_a <- x[x$decision == "incluir" & x$nivel == "B", , drop = FALSE][1L, ]
+stopifnot(b_como_a$tipo_datos == "mixto_publicado")
+b_como_a$nivel <- "A"
+stopifnot(falla(validar_tabla(b_como_a)))
+
+b_sin_modulo <- x
+fila_b <- which(b_sin_modulo$decision == "incluir" &
+                  b_sin_modulo$nivel == "B")[1L]
+b_sin_modulo[fila_b, grep("^mod_", names(b_sin_modulo), value = TRUE)] <-
+  "no_evaluable"
+stopifnot(falla(validar_tabla(b_sin_modulo)))
+
 e007_promovido <- x
 fila_e007 <- e007_promovido$id == "E007"
 stopifnot(sum(fila_e007) == 1L)
 e007_promovido$decision[fila_e007] <- "incluir"
 e007_promovido[fila_e007, criterios] <- "si"
+e007_promovido$nivel[fila_e007] <- "B"
+e007_promovido$mod_calibracion[fila_e007] <- "si"
 stopifnot(falla(validar_tabla(e007_promovido)))
 e007_compatible <- e007_promovido
 e007_compatible$licencia_compatible[fila_e007] <- "si"
@@ -295,6 +343,7 @@ muestra_3_5$doi <- sprintf("10.0000/sintetico.%d", seq_len(3L))
 muestra_3_5$id_estudio_canonico <- paste0("doi:", muestra_3_5$doi)
 muestra_3_5$dominio <- c("dominio a", "dominio a", "dominio b")
 muestra_3_5$nivel <- "A"
+muestra_3_5$tipo_datos <- "likert"
 muestra_3_5$url_codigo <- "no_identificado"
 tabla_3_5 <- validar_tabla(muestra_3_5)
 informe_ausente <- tempfile(fileext = ".md")

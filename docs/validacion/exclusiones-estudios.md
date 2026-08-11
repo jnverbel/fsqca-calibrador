@@ -1,6 +1,6 @@
 # Estudios excluidos de la muestra de replicación
 
-Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calibrador` y no se reajustaron a resultados de la aplicación. Un enlace o una declaración de disponibilidad no contó como verificación: se inspeccionaron la publicación y los archivos primarios, o se registró explícitamente la imposibilidad de abrirlos.
+Fecha de cierre: 2026-08-11. Las decisiones se tomaron sin ejecutar `fsqca-calibrador` y no se reajustaron a resultados de la aplicación. Un enlace o una declaración de disponibilidad no contó como verificación: se inspeccionaron la publicación y los archivos primarios, o se registró explícitamente la imposibilidad de abrirlos.
 
 ## E002 — Colli (2021)
 
@@ -55,8 +55,35 @@ Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calib
 - Evidencia material: el ZIP contiene corpus textuales, un cuaderno ejecutable de LDA y dos archivos de salida QCA con modelos, calibraciones y soluciones. Las salidas señalan como entrada un CSV QCA que no está incluido en el ZIP ni enlazado por la publicación.
 - Motivo factual: **sin datos brutos**. No se puede reconstruir la matriz de entrada QCA desde los corpus y el código LDA depositados; asignar membresías o regenerar resultados exigiría inventar una transformación no publicada.
 
+## E011 — Xu et al. (2021)
+
+- DOI y publicación: [10.1371/journal.pone.0259014](https://doi.org/10.1371/journal.pone.0259014), CC-BY-4.0.
+- Datos: [S1 Data](https://doi.org/10.1371/journal.pone.0259014.s001), CSV de 50 casos, SHA-256 `a2903dd5b226e5d2697c6cf6e56717374f549680c08c2ef0b00069d7ab3814a4`.
+- Evidencia material: la publicación codifica las escalas 1–4 como `0/0.33/0.67/1`, identifica resultado y siete condiciones, fija consistencia 0.8 y publica necesidad, tabla y soluciones intermedias.
+- Motivo factual: **umbral ausente**. Ni el texto ni S1 declaran la frecuencia mínima o `n.cut`; no se infirió `1` a partir de los 50 casos o de las frecuencias observadas.
+
+## E013 — Tahir et al. (2024)
+
+- DOI y publicación: [10.1371/journal.pone.0300283](https://doi.org/10.1371/journal.pone.0300283), página primaria que incorpora la retractación editorial del 23-10-2025.
+- Materiales inspeccionados: [S1](https://doi.org/10.1371/journal.pone.0300283.s001), [S2](https://doi.org/10.1371/journal.pone.0300283.s002) y [S3](https://doi.org/10.1371/journal.pone.0300283.s003), SHA-256 `69a723039eca50c1ea3da71c72a7a727db4c6b935bdafff14d3d86d08fb360d8`, `739ee86b356ab26f33ae82a828218504d0b69143217b59ec1db4f5d696216f15` y `89130e859fbe779666db43524a0914ea7577a511b749aea68470ee1143bf6d70`.
+- Motivo factual: **resultado no comparable**. PLOS retractó el artículo por dudas sobre validez y procedencia de los resultados, integridad de la revisión y autoría; los archivos suplementarios no revierten esa decisión editorial primaria.
+
+## E016 — Islam et al. (2024)
+
+- DOI y publicación: [10.1371/journal.pone.0305916](https://doi.org/10.1371/journal.pone.0305916), CC-BY-4.0.
+- Materiales: [S1 ítems](https://doi.org/10.1371/journal.pone.0305916.s001), [S2 tabla](https://doi.org/10.1371/journal.pone.0305916.s002), [S3 datos](https://doi.org/10.1371/journal.pone.0305916.s003) y [S4 apéndice](https://doi.org/10.1371/journal.pone.0305916.s004). SHA-256 respectivos: `7426d9b43e1c3cc79664fe53eac906d093003f73646abb7cc5bc58d503696f20`, `a26a13cdf50dbc6df38ebc1e2944e197bbfe8a97d7bc2f0727676ef708bcda08`, `4f8f3a8af7f6e39f61e86ffa941372627c92223d26864dda3636378d9a7055ec` y `bb57b4ba2e3ffe4039ae652fe5ec49cf81cebac87241b5a84c106380531eaf54`.
+- Evidencia material: hay 21 ítems Likert, regla de agregación por media, 71 filas, anclas exactas, `n.cut=1`, consistencia `>0.80`, solución intermedia y resultados publicados. Sin embargo, 67 de 71 valores de la columna `Reaction` no coinciden con la media de R1–R4 (caso 1: media `4.75`, valor publicado `4.08`). Tampoco se declara `include` ni una regla operativa para las 13 respuestas excluidas por “infidelity and missing information”.
+- Motivo factual: **constructo no reconstruible**. Aplicar la media publicada no reproduce el constructo usado; escoger la columna agregada o rehacerla sería una decisión retrospectiva y no permite elevar el estudio a A ni B.
+
+## E017 — Li y Wang (2024)
+
+- DOI y publicación: [10.1371/journal.pone.0308717](https://doi.org/10.1371/journal.pone.0308717), CC-BY-4.0.
+- Datos: [S4 Dataset](https://doi.org/10.1371/journal.pone.0308717.s004), 6.284 filas y 7 columnas, SHA-256 `2d01b2a6d59c7bdf0672373d94ba9f96396a05c7e2281691adbc24d62f3b9e3e`.
+- Evidencia material: el artículo declara que fsQCA usa los 64 proyectos del 1% superior por monto recaudado; S4 publica éxito, ratio, actualizaciones, compartidos, comentarios y una etiqueta K-means, pero no el monto recaudado ni los insumos vídeo/imagen/descripción del K-means.
+- Motivo factual: **sin datos brutos**. No se puede seleccionar desde S4 la muestra fsQCA publicada ni reconstruir una de sus condiciones; usar otra regla produciría un universo distinto.
+
 ## Regla aplicada
 
-E001, E008 y E009 quedaron incluidos como Nivel B; ninguno alcanzó Nivel A.
+E001, E008, E009, E012, E014 y E015 quedaron incluidos como Nivel B; ninguno alcanzó Nivel A.
 Ningún caso excluido se promovió para alcanzar un cupo y no se descargó ni
 versionó ningún dato de terceros en el repositorio.
