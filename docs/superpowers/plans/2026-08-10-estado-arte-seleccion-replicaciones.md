@@ -44,18 +44,20 @@ leer <- function(nombre) utils::read.csv(nombre, check.names = FALSE,
 
 busquedas <- leer("docs/validacion/registro-busqueda.csv")
 stopifnot(identical(names(busquedas), c(
-  "id", "fecha", "fuente", "consulta", "url", "resultados_revisados",
-  "observaciones"
+  "id", "fecha", "alcance", "fuente", "consulta", "url",
+  "resultados_revisados", "observaciones"
 )))
+stopifnot(all(busquedas$alcance %in% c("herramientas", "estudios")))
 
 estudios <- leer("docs/validacion/estudios.csv")
 stopifnot(identical(names(estudios), c(
   "id", "doi", "titulo", "anio", "dominio", "url_publicacion",
   "url_datos", "url_codigo", "datos_brutos", "anclas_reconstruibles",
   "umbrales_reconstruibles", "resultado_comparable", "licencia",
-  "decision", "motivo"
+  "licencia_compatible", "decision", "motivo"
 )))
 stopifnot(all(estudios$decision %in% c("incluir", "excluir", "pendiente")))
+stopifnot(all(estudios$licencia_compatible %in% c("si", "no")))
 
 herramientas <- leer("docs/validacion/herramientas.csv")
 stopifnot(identical(names(herramientas), c(
@@ -83,13 +85,13 @@ Expected: status distinto de cero porque los CSV no existen.
 `registro-busqueda.csv`:
 
 ```csv
-id,fecha,fuente,consulta,url,resultados_revisados,observaciones
+id,fecha,alcance,fuente,consulta,url,resultados_revisados,observaciones
 ```
 
 `estudios.csv`:
 
 ```csv
-id,doi,titulo,anio,dominio,url_publicacion,url_datos,url_codigo,datos_brutos,anclas_reconstruibles,umbrales_reconstruibles,resultado_comparable,licencia,decision,motivo
+id,doi,titulo,anio,dominio,url_publicacion,url_datos,url_codigo,datos_brutos,anclas_reconstruibles,umbrales_reconstruibles,resultado_comparable,licencia,licencia_compatible,decision,motivo
 ```
 
 `herramientas.csv`:
@@ -100,7 +102,7 @@ id,nombre,version,fecha_consulta,url_primaria,licencia,mantenida,validacion_medi
 
 - [ ] **Step 4: Documentar columnas y dominios**
 
-En `diccionario.md`, definir cada columna. Para capacidades permitir solo `si`, `no`, `parcial`, `no_verificado`; para `mantenida`, `si`, `no`, `incierto`; para `decision`, `incluir`, `excluir`, `pendiente`. `fuentes` contiene enlaces primarios separados por ` | `.
+En `diccionario.md`, definir cada columna. Para capacidades permitir solo `si`, `no`, `parcial`, `no_verificado`; para `mantenida`, `si`, `no`, `incierto`; para `licencia_compatible`, `si`, `no`; y para `decision`, `incluir`, `excluir`, `pendiente`. Toda inclusión exige `licencia_compatible == "si"`. `fuentes` contiene enlaces primarios separados por ` | `.
 
 - [ ] **Step 5: Ejecutar la prueba**
 
@@ -260,6 +262,7 @@ if (nrow(inc) >= 3L) {
   stopifnot(all(inc$anclas_reconstruibles == "si"))
   stopifnot(all(inc$umbrales_reconstruibles == "si"))
   stopifnot(all(inc$resultado_comparable == "si"))
+  stopifnot(all(inc$licencia_compatible == "si"))
   stopifnot(length(unique(inc$dominio)) >= 2L)
   stopifnot(length(unique(inc$doi)) == nrow(inc))
   stopifnot(all(nzchar(inc$url_datos)))
