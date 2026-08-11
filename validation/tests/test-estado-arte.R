@@ -2,6 +2,9 @@ lines <- readLines("docs/estado-del-arte.md", warn = FALSE)
 doc <- paste(lines, collapse = "\n")
 herr <- read.csv("docs/validacion/herramientas.csv", stringsAsFactors = FALSE)
 registro <- read.csv("docs/validacion/registro-busqueda.csv", stringsAsFactors = FALSE)
+registro_historico <- registro[
+  registro$ronda == 0L, , drop = FALSE
+]
 registro_herramientas <- registro[
   registro$alcance == "herramientas", , drop = FALSE
 ]
@@ -22,17 +25,34 @@ fecha_corte <- unique(c(registro_herramientas$fecha, herr$fecha_consulta))
 stopifnot(nrow(herr) == 14L)
 stopifnot(nrow(registro_herramientas) == 32L)
 stopifnot(sum(registro_herramientas$resultados_revisados) == 121L)
+stopifnot(all(registro_herramientas$ronda == 0L))
+stopifnot(nrow(registro_historico) < nrow(registro))
 stopifnot(nrow(registro_herramientas) < nrow(registro))
 stopifnot(length(exclusiones) == 9L)
 stopifnot(length(fecha_corte) == 1L)
 stopifnot(grepl(fecha_corte, doc, fixed = TRUE))
 stopifnot(all(nzchar(herr$url_primaria)))
-stopifnot(grepl(sprintf("%d filas totales", nrow(registro)), doc, fixed = TRUE))
+stopifnot(grepl(sprintf("%d filas totales", nrow(registro_historico)), doc,
+                fixed = TRUE))
 stopifnot(grepl(
-  sprintf("%d apariciones revisadas en todo el registro", sum(registro$resultados_revisados)),
+  sprintf("%d apariciones revisadas en todo el registro",
+          sum(registro_historico$resultados_revisados)),
   doc,
   fixed = TRUE
 ))
+
+# El documento conserva la fotografía de la búsqueda inicial. Una ronda futura
+# sintética no puede cambiar sus denominadores históricos.
+registro_con_ronda_futura <- rbind(registro, transform(
+  registro[1L, , drop = FALSE], id = "B-FUTURA", ronda = max(registro$ronda) + 1L,
+  resultados_revisados = 999999L
+))
+historico_mutado <- registro_con_ronda_futura[
+  registro_con_ronda_futura$ronda == 0L, , drop = FALSE
+]
+stopifnot(nrow(historico_mutado) == nrow(registro_historico))
+stopifnot(sum(historico_mutado$resultados_revisados) ==
+          sum(registro_historico$resultados_revisados))
 stopifnot(grepl(
   sprintf("%d filas de búsqueda de herramientas", nrow(registro_herramientas)),
   doc,

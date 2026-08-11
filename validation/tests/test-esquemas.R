@@ -100,7 +100,8 @@ validar_rondas(busquedas, cribado, estudios, rondas)
 
 cribado_duplicado_huerfano <- cribado
 fila_duplicada <- which(cribado_duplicado_huerfano$decision == "duplicado")
-stopifnot(length(fila_duplicada) == 1L)
+stopifnot(length(fila_duplicada) >= 1L)
+fila_duplicada <- fila_duplicada[[1L]]
 cribado_duplicado_huerfano$id_estudio_canonico[fila_duplicada] <-
   "repo:deposito-sin-principal"
 stopifnot(falla(validar_deduplicacion(cribado_duplicado_huerfano)))

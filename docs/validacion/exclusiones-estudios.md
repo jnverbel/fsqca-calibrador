@@ -48,6 +48,15 @@ Fecha de cierre: 2026-08-10. Las decisiones se tomaron sin ejecutar `fsqca-calib
 - Evidencia material: la salida declara calibraciones como `env=calibrate(env,25,12,1)` y `mgb=calibrate(mgb,5,3.7,1)`, modelo `amb=f(env,stg,stc,pro,rew,peo,mgb,mbb)`, frecuencia 2 y consistencia 0.859492 para el escenario principal, y soluciones compleja, parsimoniosa e intermedia comparables.
 - Motivo factual: **licencia incompatible**. El nodo público declara `node_license: null` y los archivos no incluyen una licencia explícita que autorice su reutilización. Se inspeccionaron, pero no se versionaron ni se promovieron a replicación.
 
+## E010 — Gurrutxaga y Luna (2025)
+
+- DOI y publicación: [10.1371/journal.pone.0329190](https://doi.org/10.1371/journal.pone.0329190), CC-BY-4.0.
+- Datos y código: [material suplementario S1](https://doi.org/10.1371/journal.pone.0329190.s001), ZIP inspeccionado íntegramente.
+- Evidencia material: el ZIP contiene corpus textuales, un cuaderno ejecutable de LDA y dos archivos de salida QCA con modelos, calibraciones y soluciones. Las salidas señalan como entrada un CSV QCA que no está incluido en el ZIP ni enlazado por la publicación.
+- Motivo factual: **sin datos brutos**. No se puede reconstruir la matriz de entrada QCA desde los corpus y el código LDA depositados; asignar membresías o regenerar resultados exigiría inventar una transformación no publicada.
+
 ## Regla aplicada
 
-Sólo E001 quedó incluido. Ningún caso excluido se promovió para alcanzar el mínimo de tres y no se descargó ni versionó ningún dato de terceros en el repositorio.
+E001, E008 y E009 quedaron incluidos como Nivel B; ninguno alcanzó Nivel A.
+Ningún caso excluido se promovió para alcanzar un cupo y no se descargó ni
+versionó ningún dato de terceros en el repositorio.

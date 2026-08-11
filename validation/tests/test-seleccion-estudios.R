@@ -188,7 +188,10 @@ validar_informe <- function(ruta, estudios, tabla, flujo) {
 }
 
 validar_rama_muestra <- function(ruta_informe, estudios, tabla, flujo) {
-  if (nrow(tabla$incluidos) < 3L) {
+  # La suficiencia integral depende de estudios Nivel A, no de sumar casos
+  # modulares Nivel B incorporados en rondas posteriores.
+  incluidos_a <- tabla$incluidos[tabla$incluidos$nivel == "A", , drop = FALSE]
+  if (nrow(incluidos_a) < 3L) {
     validar_informe(ruta_informe, estudios, tabla, flujo)
   } else {
     stopifnot(!file.exists(ruta_informe))
@@ -221,8 +224,8 @@ stopifnot(falla(validar_cribado(cribado_ids_cruzados, x,
 
 cribado_duplicado_huerfano <- cribado
 fila_duplicada <- which(cribado_duplicado_huerfano$decision == "duplicado")
-stopifnot(length(fila_duplicada) == 1L)
-cribado_duplicado_huerfano$id_estudio_canonico[fila_duplicada] <-
+stopifnot(length(fila_duplicada) >= 1L)
+cribado_duplicado_huerfano$id_estudio_canonico[fila_duplicada[1L]] <-
   "repo:deposito-sin-principal"
 stopifnot(falla(validar_cribado(cribado_duplicado_huerfano, x,
                                ids_busqueda_estudios)))
@@ -264,7 +267,7 @@ if (nrow(tabla$incluidos)) {
   incluido_debil$datos_brutos[incluido_debil$decision == "incluir"][1] <- "no"
   stopifnot(falla(validar_tabla(incluido_debil)))
 }
-if (nrow(tabla$incluidos) < 3L) {
+if (sum(tabla$incluidos$nivel == "A") < 3L) {
   informe_vacio <- tempfile(fileext = ".md")
   invisible(file.create(informe_vacio))
   stopifnot(falla(validar_informe(informe_vacio, x, tabla, flujo)))
@@ -285,12 +288,13 @@ if (nrow(tabla$incluidos) < 3L) {
   unlink(informe_inconsistente)
 }
 
-# La rama de 3--5 inclusiones no debe leer un informe de insuficiencia ausente.
+# La rama de 3--5 inclusiones Nivel A no debe leer un informe ausente.
 muestra_3_5 <- candidato_sin_codigo[rep(1L, 3L), , drop = FALSE]
 muestra_3_5$id <- sprintf("S%03d", seq_len(3L))
 muestra_3_5$doi <- sprintf("10.0000/sintetico.%d", seq_len(3L))
 muestra_3_5$id_estudio_canonico <- paste0("doi:", muestra_3_5$doi)
 muestra_3_5$dominio <- c("dominio a", "dominio a", "dominio b")
+muestra_3_5$nivel <- "A"
 muestra_3_5$url_codigo <- "no_identificado"
 tabla_3_5 <- validar_tabla(muestra_3_5)
 informe_ausente <- tempfile(fileext = ".md")
