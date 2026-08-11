@@ -1,0 +1,2 @@
+ronda,fecha_inicio,fecha_cierre,fuentes_definidas,registros_nuevos,nivel_a_nuevos,nivel_b_nuevos,modulos_nuevos,modulos_cubiertos_acumulados,saturada,observaciones
+0,2026-08-10,2026-08-10,busqueda_inicial,57,0,1,ninguno,ninguno,no,"Búsqueda histórica inicial; E001 queda provisionalmente en nivel B y los seis estudios excluidos en nivel ninguno."

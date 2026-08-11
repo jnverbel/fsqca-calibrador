@@ -1,8 +1,11 @@
 columnas_estudios <- c(
-  "id", "doi", "titulo", "anio", "dominio", "url_publicacion",
-  "url_datos", "url_codigo", "datos_brutos", "anclas_reconstruibles",
-  "umbrales_reconstruibles", "resultado_comparable", "licencia",
-  "licencia_compatible", "decision", "motivo"
+  "id", "id_estudio_canonico", "ronda_inclusion", "doi", "titulo",
+  "anio", "dominio", "tipo_datos", "nivel", "url_publicacion",
+  "url_datos", "url_codigo", "datos_brutos", "constructos_reconstruibles",
+  "anclas_reconstruibles", "umbrales_reconstruibles",
+  "resultado_comparable", "licencia", "licencia_compatible",
+  "mod_calibracion", "mod_necesidad", "mod_tabla_verdad",
+  "mod_minimizacion", "mod_ajuste", "mod_robustez", "decision", "motivo"
 )
 criterios <- c(
   "datos_brutos", "anclas_reconstruibles", "umbrales_reconstruibles",
@@ -28,11 +31,15 @@ validar_tabla <- function(x) {
   stopifnot(identical(names(x), columnas_estudios))
   stopifnot(nrow(x) > 0L)
   stopifnot(!anyDuplicated(x$id), !anyDuplicated(x$doi))
+  stopifnot(!anyDuplicated(x$id_estudio_canonico))
   stopifnot(all(x$decision %in% c("incluir", "excluir")))
   stopifnot(all(unlist(x[criterios_inclusion], use.names = FALSE) %in% c("si", "no")))
+  stopifnot(all(x$nivel %in% c("A", "B", "ninguno")))
+  modulos <- grep("^mod_", names(x), value = TRUE)
+  stopifnot(all(unlist(x[modulos], use.names = FALSE) %in%
+                c("si", "no", "no_evaluable")))
 
-  obligatorias <- setdiff(columnas_estudios, "url_codigo")
-  stopifnot(all(vapply(x[obligatorias], function(z) {
+  stopifnot(all(vapply(x[columnas_estudios], function(z) {
     all(!is.na(z) & nzchar(trimws(as.character(z))))
   }, logical(1))))
 
@@ -87,8 +94,10 @@ validar_exclusiones <- function(ruta, tabla) {
 
 validar_cribado <- function(cribado, estudios, ids_busqueda) {
   columnas <- c(
-    "registro_id", "fuente_busqueda", "identificador_fuente", "titulo",
-    "doi_estudio", "id_estudio_canonico", "etapa", "decision", "motivo"
+    "registro_id", "ronda", "fuente_busqueda", "posicion_fuente",
+    "identificador_fuente", "url_persistente", "titulo", "primer_autor",
+    "anio", "idioma", "doi_estudio", "id_estudio_canonico",
+    "nivel_candidato", "etapa", "decision", "motivo"
   )
   stopifnot(identical(names(cribado), columnas))
   stopifnot(nrow(cribado) > nrow(estudios), !anyDuplicated(cribado$registro_id))
@@ -106,7 +115,8 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
   completos <- cribado[cribado$decision == "evaluacion_completa", , drop = FALSE]
   stopifnot(nrow(completos) == nrow(estudios))
   stopifnot(!anyDuplicated(completos$id_estudio_canonico))
-  stopifnot(setequal(completos$id_estudio_canonico, estudios$id))
+  stopifnot(setequal(completos$id_estudio_canonico,
+                     estudios$id_estudio_canonico))
   stopifnot(all(completos$etapa == "texto_completo"))
 
   duplicados <- cribado[cribado$decision == "duplicado", , drop = FALSE]
@@ -204,7 +214,7 @@ candidato_sin_codigo <- x[1, , drop = FALSE]
 candidato_sin_codigo$decision <- "incluir"
 candidato_sin_codigo[criterios] <- "si"
 candidato_sin_codigo$licencia_compatible <- "si"
-candidato_sin_codigo$url_codigo <- ""
+candidato_sin_codigo$url_codigo <- "no_identificado"
 invisible(validar_tabla(candidato_sin_codigo))
 
 e007_promovido <- x
@@ -247,8 +257,9 @@ if (nrow(tabla$incluidos) < 3L) {
 muestra_3_5 <- candidato_sin_codigo[rep(1L, 3L), , drop = FALSE]
 muestra_3_5$id <- sprintf("S%03d", seq_len(3L))
 muestra_3_5$doi <- sprintf("10.0000/sintetico.%d", seq_len(3L))
+muestra_3_5$id_estudio_canonico <- paste0("doi:", muestra_3_5$doi)
 muestra_3_5$dominio <- c("dominio a", "dominio a", "dominio b")
-muestra_3_5$url_codigo <- ""
+muestra_3_5$url_codigo <- "no_identificado"
 tabla_3_5 <- validar_tabla(muestra_3_5)
 informe_ausente <- tempfile(fileext = ".md")
 stopifnot(!file.exists(informe_ausente))
