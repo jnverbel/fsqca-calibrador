@@ -126,6 +126,14 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
   stopifnot(all(completos$etapa == "texto_completo"))
 
   duplicados <- cribado[cribado$decision == "duplicado", , drop = FALSE]
+  frecuencias <- table(cribado$id_estudio_canonico)
+  stopifnot(all(frecuencias[duplicados$id_estudio_canonico] >= 2L))
+  repetidos <- names(frecuencias[frecuencias > 1L])
+  for (canonico in repetidos) {
+    grupo <- cribado[cribado$id_estudio_canonico == canonico, , drop = FALSE]
+    stopifnot(sum(grupo$decision != "duplicado") == 1L)
+    stopifnot(sum(grupo$decision == "duplicado") == nrow(grupo) - 1L)
+  }
 
   list(
     identificados = nrow(cribado),
@@ -209,6 +217,22 @@ stopifnot(length(filas_completas) >= 2L)
 cribado_ids_cruzados$id_estudio_canonico[filas_completas[1:2]] <-
   rev(cribado_ids_cruzados$id_estudio_canonico[filas_completas[1:2]])
 stopifnot(falla(validar_cribado(cribado_ids_cruzados, x,
+                               ids_busqueda_estudios)))
+
+cribado_duplicado_huerfano <- cribado
+fila_duplicada <- which(cribado_duplicado_huerfano$decision == "duplicado")
+stopifnot(length(fila_duplicada) == 1L)
+cribado_duplicado_huerfano$id_estudio_canonico[fila_duplicada] <-
+  "repo:deposito-sin-principal"
+stopifnot(falla(validar_cribado(cribado_duplicado_huerfano, x,
+                               ids_busqueda_estudios)))
+
+cribado_colision_principales <- cribado
+filas_principales <- which(cribado_colision_principales$decision != "duplicado")
+stopifnot(length(filas_principales) >= 2L)
+cribado_colision_principales$id_estudio_canonico[filas_principales[2]] <-
+  cribado_colision_principales$id_estudio_canonico[filas_principales[1]]
+stopifnot(falla(validar_cribado(cribado_colision_principales, x,
                                ids_busqueda_estudios)))
 
 validar_rama_muestra(

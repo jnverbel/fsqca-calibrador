@@ -16,10 +16,16 @@ stopifnot(identical(names(cribado), c(
   "anio", "idioma", "doi_estudio", "id_estudio_canonico",
   "nivel_candidato", "etapa", "decision", "motivo"
 )))
-stopifnot(!anyDuplicated(cribado$id_estudio_canonico))
 doi_resuelto <- cribado$doi_estudio != "no_identificado"
 stopifnot(all(cribado$id_estudio_canonico[doi_resuelto] ==
               paste0("doi:", tolower(cribado$doi_estudio[doi_resuelto]))))
+fila_d003 <- match("D003", cribado$registro_id)
+fila_d004 <- match("D004", cribado$registro_id)
+stopifnot(!anyNA(c(fila_d003, fila_d004)))
+stopifnot(cribado$identificador_fuente[fila_d003] !=
+          cribado$identificador_fuente[fila_d004])
+stopifnot(cribado$id_estudio_canonico[fila_d003] ==
+          cribado$id_estudio_canonico[fila_d004])
 
 estudios <- leer("docs/validacion/estudios.csv")
 stopifnot(identical(names(estudios), c(
@@ -51,6 +57,20 @@ falla <- function(expr) {
   inherits(error, "error")
 }
 
+validar_deduplicacion <- function(cribado) {
+  frecuencias <- table(cribado$id_estudio_canonico)
+  duplicados <- cribado$decision == "duplicado"
+  stopifnot(all(frecuencias[cribado$id_estudio_canonico[duplicados]] >= 2L))
+
+  repetidos <- names(frecuencias[frecuencias > 1L])
+  for (canonico in repetidos) {
+    grupo <- cribado[cribado$id_estudio_canonico == canonico, , drop = FALSE]
+    stopifnot(sum(grupo$decision != "duplicado") == 1L)
+    stopifnot(sum(grupo$decision == "duplicado") == nrow(grupo) - 1L)
+  }
+  invisible(TRUE)
+}
+
 validar_rondas <- function(busquedas, cribado, estudios, rondas) {
   stopifnot(!anyDuplicated(rondas$ronda))
   stopifnot(all(busquedas$ronda %in% rondas$ronda))
@@ -75,7 +95,22 @@ validar_rondas <- function(busquedas, cribado, estudios, rondas) {
   invisible(TRUE)
 }
 
+validar_deduplicacion(cribado)
 validar_rondas(busquedas, cribado, estudios, rondas)
+
+cribado_duplicado_huerfano <- cribado
+fila_duplicada <- which(cribado_duplicado_huerfano$decision == "duplicado")
+stopifnot(length(fila_duplicada) == 1L)
+cribado_duplicado_huerfano$id_estudio_canonico[fila_duplicada] <-
+  "repo:deposito-sin-principal"
+stopifnot(falla(validar_deduplicacion(cribado_duplicado_huerfano)))
+
+cribado_colision_principales <- cribado
+filas_principales <- which(cribado_colision_principales$decision != "duplicado")
+stopifnot(length(filas_principales) >= 2L)
+cribado_colision_principales$id_estudio_canonico[filas_principales[2]] <-
+  cribado_colision_principales$id_estudio_canonico[filas_principales[1]]
+stopifnot(falla(validar_deduplicacion(cribado_colision_principales)))
 
 busqueda_ronda_inexistente <- busquedas
 busqueda_ronda_inexistente$ronda[1] <- 999L

@@ -68,14 +68,14 @@ condiciones declaradas no se considera compatible por sí sola.
 | `ronda` | Ronda en la que se identificó el registro. |
 | `fuente_busqueda` | Uno o más IDs de `registro-busqueda.csv` separados por `;`. |
 | `posicion_fuente` | Posición recuperable en la fuente o `no_identificado`. |
-| `identificador_fuente` | DOI o URL persistente del registro hallado. |
+| `identificador_fuente` | DOI o URL persistente propio del registro hallado; se conserva aunque el registro sea duplicado. |
 | `url_persistente` | URL persistente normalizada o `no_identificado`. |
 | `titulo` | Título visible en el resultado de búsqueda. |
 | `primer_autor` | Primer autor informado o `no_identificado`. |
 | `anio` | Año informado o `no_identificado`. |
 | `idioma` | Idioma informado o `no_identificado`. |
 | `doi_estudio` | DOI de publicación resuelto o `no_identificado`. |
-| `id_estudio_canonico` | Identificador estable compartido por duplicados y estudios evaluados. |
+| `id_estudio_canonico` | Identificador estable del estudio o paquete deduplicado. Un duplicado confirmado hereda el canónico de su grupo, aunque tenga otro `identificador_fuente`; dentro del grupo se aplica la precedencia DOI del estudio, depósito principal y metadatos. |
 | `nivel_candidato` | Nivel tras evaluación completa o `no_identificado` mientras no corresponda evaluarlo. |
 | `etapa` | Última etapa alcanzada: `metadatos` o `texto_completo`. |
 | `decision` | `descartar_metadatos`, `duplicado` o `evaluacion_completa`. |
