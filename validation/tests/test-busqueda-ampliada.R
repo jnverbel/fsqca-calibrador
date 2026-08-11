@@ -29,6 +29,31 @@ stopifnot(!identical(meta_titulo, meta_distinto))
 
 leer <- function(nombre) utils::read.csv(nombre, check.names = FALSE,
                                          stringsAsFactors = FALSE)
+
+firma_atribuciones_r1 <- function(x) {
+  columnas <- c("registro_id", "fuente_busqueda", "posicion_fuente",
+                "identificador_fuente")
+  stopifnot(all(columnas %in% names(x)))
+  tuplas <- x[x$ronda == 1L, columnas, drop = FALSE]
+  stopifnot(nrow(tuplas) == 1407L, !anyDuplicated(tuplas$registro_id))
+  tuplas <- tuplas[order(tuplas$registro_id), , drop = FALSE]
+  archivo <- tempfile("atribuciones-r1-", fileext = ".tsv")
+  on.exit(unlink(archivo), add = TRUE)
+  utils::write.table(
+    tuplas, file = archivo, sep = "\t", quote = TRUE, row.names = FALSE,
+    col.names = FALSE, na = "NA", qmethod = "double", fileEncoding = "UTF-8",
+    eol = "\n"
+  )
+  unname(tools::sha256sum(archivo))
+}
+
+validar_atribuciones_r1 <- function(x) {
+  firma_esperada <-
+    "70191eb1430b4b83c9053f50e8bfb531dc84e35a1899e97567ef00974571c3cd"
+  stopifnot(identical(firma_atribuciones_r1(x), firma_esperada))
+  invisible(TRUE)
+}
+
 busquedas <- leer("docs/validacion/registro-busqueda.csv")
 cribado <- leer("docs/validacion/cribado-estudios.csv")
 
@@ -81,3 +106,24 @@ for (i in seq_len(nrow(fuentes_esperadas))) {
   stopifnot(sum(z$decision == "evaluacion_completa") ==
               fuentes_esperadas$completo[i])
 }
+
+# Una permutación entre lotes de igual tamaño conserva todos los conteos, pero
+# debe romper la identidad estable entre tarjeta, lote, posición e identificador.
+invisible(validar_atribuciones_r1(cribado))
+atribucion_compensada <- cribado
+filas_intercambiadas <- match(c("R1-1043", "R1-0043"),
+                              atribucion_compensada$registro_id)
+stopifnot(!anyNA(filas_intercambiadas))
+atribucion_compensada$fuente_busqueda[filas_intercambiadas] <-
+  rev(atribucion_compensada$fuente_busqueda[filas_intercambiadas])
+filas_lote_compensadas <- vapply(names(lotes_esperados), function(id) {
+  sum(atribucion_compensada$ronda == 1L &
+        atribucion_compensada$fuente_busqueda == id)
+}, integer(1))
+stopifnot(identical(unname(filas_lote_compensadas),
+                    unname(lotes_esperados)))
+error_atribucion <- tryCatch({
+  validar_atribuciones_r1(atribucion_compensada)
+  NULL
+}, error = identity)
+stopifnot(inherits(error_atribucion, "error"))
