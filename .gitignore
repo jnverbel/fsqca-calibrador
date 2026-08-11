@@ -45,6 +45,9 @@ informe/*.docx
 
 **/*.quarto_ipynb
 
+# Worktrees locales de desarrollo; cada una tiene su propia rama Git.
+/.worktrees/
+
 # --- Quarto: los renders se regeneran, no se versionan ---
 informe/informe.html
 informe/informe.docx
