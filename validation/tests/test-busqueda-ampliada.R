@@ -127,3 +127,18 @@ error_atribucion <- tryCatch({
   NULL
 }, error = identity)
 stopifnot(inherits(error_atribucion, "error"))
+
+rondas <- leer("docs/validacion/rondas-busqueda.csv")
+saturada <- with(rondas,
+  nivel_a_nuevos == 0L & modulos_nuevos == "ninguno")
+stopifnot(identical(rondas$saturada, ifelse(saturada, "si", "no")))
+ultimas <- tail(rondas, 2L)
+requeridos <- c("calibracion", "necesidad", "tabla_verdad",
+               "minimizacion", "ajuste", "robustez")
+mods_finales <- strsplit(tail(rondas$modulos_cubiertos_acumulados, 1L),
+                         "|", fixed = TRUE)[[1L]]
+objetivo_alcanzado <- sum(rondas$nivel_a_nuevos) >= 3L &&
+                      all(requeridos %in% mods_finales)
+if (!objetivo_alcanzado) {
+  stopifnot(nrow(ultimas) == 2L, all(ultimas$saturada == "si"))
+}
