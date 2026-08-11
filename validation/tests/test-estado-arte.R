@@ -1,0 +1,8 @@
+doc <- paste(readLines("docs/estado-del-arte.md", warn = FALSE), collapse = "\n")
+herr <- read.csv("docs/validacion/herramientas.csv", stringsAsFactors = FALSE)
+stopifnot(nrow(herr) >= 5L)
+stopifnot(all(nzchar(herr$url_primaria)))
+stopifnot(all(vapply(herr$nombre, function(x) grepl(x, doc, fixed = TRUE), logical(1))))
+stopifnot(grepl("novedad metodológica", doc, fixed = TRUE))
+stopifnot(grepl("integración instrumental", doc, fixed = TRUE))
+stopifnot(grepl("ausencia de evidencia", doc, fixed = TRUE))
