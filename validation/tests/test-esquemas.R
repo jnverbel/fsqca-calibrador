@@ -24,6 +24,9 @@ stopifnot(identical(names(herramientas), c(
   "casos", "informe_reproducible", "interfaz", "idioma",
   "validacion_publicada", "evidencia_uso", "limitaciones", "fuentes"
 )))
+permitidos_mantenida <- c("si", "no", "incierto")
+stopifnot(all(herramientas$mantenida %in% permitidos_mantenida))
+stopifnot(!all(c("si", "no_verificado") %in% permitidos_mantenida))
 
 capacidades <- c("validacion_medida", "agregacion", "calibracion",
                  "justifica_anclas", "necesidad", "suficiencia", "nca",
