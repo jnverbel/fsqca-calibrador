@@ -134,7 +134,8 @@ stopifnot(identical(names(cribado), c(
 )))
 
 stopifnot(identical(names(estudios), c(
-  "id", "doi", "titulo", "anio", "dominio", "tipo_datos", "nivel",
+  "id", "id_estudio_canonico", "ronda_inclusion", "doi", "titulo",
+  "anio", "dominio", "tipo_datos", "nivel",
   "url_publicacion", "url_datos", "url_codigo", "datos_brutos",
   "constructos_reconstruibles", "anclas_reconstruibles",
   "umbrales_reconstruibles", "resultado_comparable", "licencia",
@@ -200,7 +201,7 @@ id_canonico <- function(doi, deposito, titulo, primer_autor, anio) {
 
 Asignar `ronda = 0` a todas las búsquedas y registros existentes. Completar `universo_informado` con el total informado por la fuente cuando consta y `NA` cuando no; `enumeracion_completa` admite `si`, `no`, `no_aplica`. Para campos nuevos del cribado usar valores factuales recuperables; cuando no consten usar `no_identificado`, nunca celdas vacías.
 
-En `estudios.csv`, clasificar E001 como `tipo_datos = mixto_publicado`, `nivel = B` hasta verificar si sus datos sirven al flujo A. Los excluidos usan `nivel = ninguno`. Los seis campos `mod_*` admiten `si`, `no`, `no_evaluable`.
+En `estudios.csv`, completar `id_estudio_canonico` con la misma función usada en el cribado y `ronda_inclusion = 0` para E001–E007. Clasificar E001 como `tipo_datos = mixto_publicado`, `nivel = B` hasta verificar si sus datos sirven al flujo A. Los excluidos usan `nivel = ninguno`. Los seis campos `mod_*` admiten `si`, `no`, `no_evaluable`.
 
 - [ ] **Step 5: Crear el registro de rondas**
 
@@ -237,6 +238,7 @@ git commit -m "feat: modelar rondas y niveles de validación"
 **Files:**
 - Modify: `docs/validacion/registro-busqueda.csv`
 - Modify: `docs/validacion/cribado-estudios.csv`
+- Modify: `docs/validacion/estudios.csv`
 - Modify: `docs/validacion/rondas-busqueda.csv`
 - Create: `docs/validacion/fuentes-ronda-1.md`
 - Modify: `validation/tests/test-busqueda-ampliada.R`
@@ -275,7 +277,11 @@ Cada tarjeta o registro recibe `registro_id` nuevo, posición, URL, metadatos, n
 
 Usar decisiones `descartar_metadatos`, `duplicado` o `evaluacion_completa`. Avanzar cuando sea materialmente plausible verificar publicación, datos, decisiones y resultados. No exigir que el resumen diga "replication package" si los archivos lo demuestran.
 
-- [ ] **Step 5: Fortalecer la prueba de cobertura**
+- [ ] **Step 5: Evaluar texto completo antes de calcular la ronda**
+
+Para cada fila `evaluacion_completa`, inspeccionar publicación, datos, código, licencia y resultados con los criterios A/B de Task 5. Crear o actualizar su fila en `estudios.csv` usando el mismo `id_estudio_canonico` y `ronda_inclusion = 1`. Solo después de esta inspección asignar `nivel`, `decision` y módulos. Un candidato todavía no evaluado no cuenta como Nivel A ni como módulo cubierto.
+
+- [ ] **Step 6: Fortalecer la prueba de cobertura**
 
 En `test-busqueda-ampliada.R`, comprobar:
 
@@ -289,11 +295,11 @@ stopifnot(all(r1$enumeracion_completa %in% c("si", "no", "no_aplica")))
 stopifnot(sum(cribado$ronda == 1L) == sum(r1$resultados_revisados))
 ```
 
-- [ ] **Step 6: Cerrar ronda 1**
+- [ ] **Step 7: Cerrar ronda 1**
 
-Calcular `registros_nuevos`, niveles nuevos y módulos nuevos desde el cribado, escribirlos en `rondas-busqueda.csv` y documentar fuentes bloqueadas en `fuentes-ronda-1.md`. `modulos_cubiertos_acumulados` usa nombres ordenados y separados por `|` entre `calibracion`, `necesidad`, `tabla_verdad`, `minimizacion`, `ajuste` y `robustez`, o `ninguno`.
+Calcular `registros_nuevos` desde el cribado y `nivel_a_nuevos`, `nivel_b_nuevos` y `modulos_nuevos` exclusivamente desde las filas ya evaluadas de `estudios.csv` con `ronda_inclusion = 1`; escribirlos en `rondas-busqueda.csv` y documentar fuentes bloqueadas en `fuentes-ronda-1.md`. `modulos_cubiertos_acumulados` usa nombres ordenados y separados por `|` entre `calibracion`, `necesidad`, `tabla_verdad`, `minimizacion`, `ajuste` y `robustez`, o `ninguno`.
 
-- [ ] **Step 7: Ejecutar controles**
+- [ ] **Step 8: Ejecutar controles**
 
 Run:
 
@@ -305,7 +311,7 @@ git diff --check
 
 Expected: estado 0.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add docs/validacion validation/tests/test-busqueda-ampliada.R
@@ -319,6 +325,7 @@ git commit -m "docs: enumerar repositorios en ronda ampliada uno"
 **Files:**
 - Modify: `docs/validacion/registro-busqueda.csv`
 - Modify: `docs/validacion/cribado-estudios.csv`
+- Modify: `docs/validacion/estudios.csv`
 - Modify: `docs/validacion/rondas-busqueda.csv`
 - Create: `docs/validacion/fuentes-ronda-2.md`
 - Modify: `validation/tests/test-busqueda-ampliada.R`
@@ -351,11 +358,15 @@ inferir su contenido.
 
 Usar `ronda = 2`, conservar fuente y posición. Los duplicados de ronda 0/1 apuntan al mismo `id_estudio_canonico` y quedan visibles.
 
-- [ ] **Step 4: Calcular saturación**
+- [ ] **Step 4: Evaluar texto completo antes de calcular la ronda**
+
+Aplicar a cada candidato nuevo el mismo examen A/B usado en la ronda 1, crear o actualizar su fila en `estudios.csv` con `ronda_inclusion = 2` y registrar módulos solo cuando publicación y artefactos los hagan reproducibles. En rondas adicionales, usar su número real como `ronda_inclusion`. Ninguna etiqueta de metadatos cuenta como elegibilidad.
+
+- [ ] **Step 5: Calcular saturación**
 
 Una ronda es `saturada=si` solo si `nivel_a_nuevos=0` y `modulos_nuevos` está vacío o `ninguno`. Un nuevo estudio B que solo repite módulos ya cubiertos no reinicia la saturación, aunque permanece registrado en `nivel_b_nuevos`. La búsqueda completa exige dos rondas consecutivas saturadas; si ronda 1 produjo un A o un módulo nuevo y ronda 2 no, planificar una ronda 3 antes de cerrar.
 
-- [ ] **Step 5: Probar la regla**
+- [ ] **Step 6: Probar la regla**
 
 Agregar a `test-busqueda-ampliada.R`:
 
@@ -375,7 +386,7 @@ if (!objetivo_alcanzado) {
 }
 ```
 
-- [ ] **Step 6: Ejecutar controles**
+- [ ] **Step 7: Ejecutar controles**
 
 Run:
 
@@ -387,7 +398,7 @@ git diff --check
 
 Expected: estado 0 si se alcanzó saturación; si no, la tarea continúa con una ronda adicional estructuralmente idéntica, numerada y registrada, hasta satisfacer la regla.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add docs/validacion validation/tests/test-busqueda-ampliada.R
@@ -396,7 +407,7 @@ git commit -m "docs: completar rastreo de citas y saturación"
 
 ---
 
-### Task 5: Evaluar texto completo y congelar niveles A/B
+### Task 5: Auditar las evaluaciones completas y congelar niveles A/B
 
 **Files:**
 - Modify: `docs/validacion/estudios.csv`
@@ -408,7 +419,7 @@ git commit -m "docs: completar rastreo de citas y saturación"
 
 **Interfaces:**
 - Consumes: universo saturado y candidatos a texto completo.
-- Produces: selección congelada y separada de Nivel A, Nivel B y exclusiones.
+- Produces: auditoría integral y selección congelada, separada de Nivel A, Nivel B y exclusiones.
 
 - [ ] **Step 1: Escribir el validador de Nivel A**
 
@@ -430,14 +441,14 @@ stopifnot(all(nivel_a$mod_minimizacion == "si"))
 
 Para cada incluido B exigir criterios comunes en `si`, al menos un `mod_* == "si"` y que los demás sean `no` o `no_evaluable`. Prohibir contar B en el total A mediante una mutación que cambie solo la etiqueta.
 
-- [ ] **Step 3: Ejecutar RED**
+- [ ] **Step 3: Ejecutar el validador contra las evaluaciones de cada ronda**
 
 Run: `Rscript --vanilla validation/tests/test-seleccion-ampliada.R`  
-Expected: falla hasta que todas las evaluaciones completas tengan nivel y módulos consistentes.
+Expected: estado 0; si falla, corregir la evaluación documental o su trazabilidad antes de congelar, sin cambiar criterios para hacerla pasar.
 
-- [ ] **Step 4: Inspeccionar cada texto completo y archivos**
+- [ ] **Step 4: Auditar cada texto completo y sus archivos**
 
-Registrar ubicación exacta de constructos, anclas, umbrales, soluciones, licencia y archivos. Si falta cualquiera de los requisitos A, evaluar B sin promover automáticamente; si tampoco hay un módulo reproducible, excluir con motivo factual.
+Verificar que cada evaluación ya realizada en las rondas registre ubicación exacta de constructos, anclas, umbrales, soluciones, licencia y archivos, y que `id_estudio_canonico` y `ronda_inclusion` enlacen con el cribado. Si falta cualquiera de los requisitos A, evaluar B sin promover automáticamente; si tampoco hay un módulo reproducible, excluir con motivo factual.
 
 - [ ] **Step 5: Actualizar documentos**
 
