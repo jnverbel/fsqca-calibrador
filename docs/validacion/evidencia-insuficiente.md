@@ -4,19 +4,19 @@ Fecha de actualización de la muestra: 2026-08-11.
 
 ## Conteos verificables
 
-- Registros identificados: 1464
-- Duplicados: 943
-- Registros unicos: 521
-- Descartados en metadatos: 504
-- Evaluados a texto completo: 17
-- Total examinado: 17
-- Incluidos: 6
-- Excluidos: 11
+- Registros identificados: 1689
+- Duplicados: 985
+- Registros unicos: 704
+- Descartados en metadatos: 680
+- Evaluados a texto completo: 28
+- Total examinado: 28
+- Incluidos: 9
+- Excluidos: 19
 - anclas ausentes: 2
-- sin datos brutos: 3
+- sin datos brutos: 8
 - archivo inaccesible: 1
 - umbral ausente: 2
-- resultado no comparable: 1
+- resultado no comparable: 4
 - licencia incompatible: 1
 - constructo no reconstruible: 1
 
@@ -33,6 +33,14 @@ Fecha de actualización de la muestra: 2026-08-11.
 - E013 | resultado no comparable
 - E016 | constructo no reconstruible
 - E017 | sin datos brutos
+- E018 | resultado no comparable
+- E019 | resultado no comparable
+- E020 | resultado no comparable
+- E021 | sin datos brutos
+- E022 | sin datos brutos
+- E023 | sin datos brutos
+- E024 | sin datos brutos
+- E028 | sin datos brutos
 
 ## Cadena de cribado
 
@@ -46,23 +54,23 @@ federada reproducible, e ICPSR exigió credenciales para su API de exportación.
 Esos impedimentos se documentan por lote en `registro-busqueda.csv` y no se
 presentan como universos exhaustivos.
 
-Los 1.464 registros están enumerados en `cribado-estudios.csv`: 943 apariciones
-se conservaron como duplicados, 504 se descartaron en metadatos y 17 unidades
-canónicas avanzaron a texto completo. El cribado exigió resolver una publicación
+Los 1.689 registros están enumerados en `cribado-estudios.csv`: 985 apariciones
+se conservaron como duplicados, 680 se descartaron en metadatos y 28 unidades
+canónicas avanzaron o se reabrieron a texto completo. El cribado exigió resolver una publicación
 académica persistente y evidencia plausible de datos, calibración, umbrales o
 resultados. Los registros restringidos, sin publicación vinculada o compuestos
 sólo por fragmentos quedaron visibles como descartes; no se interpretaron como
 prueba de que el estudio nunca pueda ser elegible.
 
-Diecisiete unidades avanzaron a texto completo. Para ellas se abrieron publicación,
+Veintiocho unidades avanzaron o se reabrieron a texto completo. Para ellas se abrieron publicación,
 datos, código, licencia y resultados disponibles antes de asignar decisión,
 nivel o módulos. La correspondencia entre `estudios.csv` y las diecisiete filas
 `evaluacion_completa` del cribado es exacta. Siete grupos PLOS con señales
 conjuntas de datos, tabla de verdad o medición multiítem se reabrieron para
 evitar que una tarjeta representante ocultara los suplementos del mismo DOI.
 
-Se evaluaron a texto completo **17 estudios publicados**. **6 estudios** se
-incluyeron como evidencia Nivel B: E001, E008, E009, E012, E014 y E015. Ninguno alcanzó Nivel A,
+Se evaluaron a texto completo **28 estudios publicados**. **9 estudios** se
+incluyeron como evidencia Nivel B: E001, E008, E009, E012, E014, E015, E025, E026 y E027. Ninguno alcanzó Nivel A,
 porque no se verificó una cadena ejecutable completa con datos brutos,
 transformaciones, `include`, parámetros y resultado reproducible sin decisiones
 retrospectivas.
@@ -81,6 +89,12 @@ Los tres son Nivel B, no evidencia del flujo Likert. El caso multiítem E016
 agregación media, anclas, `n.cut=1`, `incl.cut>0.80`, solución intermedia y CC
 BY, 67 de 71 valores `Reaction` del CSV contradicen la media de R1–R4. También
 faltan `include` y la regla operativa que eliminó 13 respuestas.
+
+La ronda de citas R2 añadió siete exclusiones (E018--E024). La ronda R3 reabrió
+cuatro señales de suplemento PLOS: E025, E026 y E027 son Nivel B modular y E028
+se excluye porque el DOCX S1 es sólo el cuestionario, no las 389 respuestas.
+Los tres B no añaden módulos a los seis ya cubiertos y no se reclasifican como A
+sin código ni expectativas `include` reproducibles.
 
 Con cero estudios Nivel A **no procede afirmar validación integral ni validación
 externa en varias replicaciones**. Las fuentes no federadas o sin API estable

@@ -56,6 +56,8 @@ validar_atribuciones_r1 <- function(x) {
 
 busquedas <- leer("docs/validacion/registro-busqueda.csv")
 cribado <- leer("docs/validacion/cribado-estudios.csv")
+estudios <- leer("docs/validacion/estudios.csv")
+rondas <- leer("docs/validacion/rondas-busqueda.csv")
 
 r1 <- subset(busquedas, ronda == 1)
 stopifnot(all(c("Zenodo API", "Harvard Dataverse API", "OSF API nodes",
@@ -128,7 +130,132 @@ error_atribucion <- tryCatch({
 }, error = identity)
 stopifnot(inherits(error_atribucion, "error"))
 
-rondas <- leer("docs/validacion/rondas-busqueda.csv")
+# R2 y R3 no sólo deben cuadrar con sus propios totales: se fijan sus lotes,
+# decisiones y la identidad por fila, de modo que una edición coordinada de
+# tarjetas y conteos no pueda conservar la apariencia de una ronda válida.
+firma_atribuciones_ronda <- function(x, ronda) {
+  columnas <- c("registro_id", "fuente_busqueda", "posicion_fuente",
+                "identificador_fuente")
+  stopifnot(all(columnas %in% names(x)))
+  tuplas <- x[x$ronda == ronda, columnas, drop = FALSE]
+  stopifnot(!anyDuplicated(tuplas$registro_id))
+  tuplas <- tuplas[order(tuplas$registro_id), , drop = FALSE]
+  archivo <- tempfile(sprintf("atribuciones-r%s-", ronda), fileext = ".tsv")
+  on.exit(unlink(archivo), add = TRUE)
+  utils::write.table(
+    tuplas, file = archivo, sep = "\t", quote = TRUE, row.names = FALSE,
+    col.names = FALSE, na = "NA", qmethod = "double", fileEncoding = "UTF-8",
+    eol = "\n"
+  )
+  unname(tools::sha256sum(archivo))
+}
+
+validar_ronda_congelada <- function(busquedas, cribado, rondas, ronda,
+                                    lotes, decisiones, firma_esperada) {
+  fila_ronda <- rondas[match(ronda, rondas$ronda), , drop = FALSE]
+  stopifnot(nrow(fila_ronda) == 1L, !anyNA(fila_ronda$ronda))
+  filas_lote <- vapply(names(lotes), function(id) {
+    sum(cribado$ronda == ronda & cribado$fuente_busqueda == id)
+  }, integer(1))
+  posiciones <- match(names(lotes), busquedas$id)
+  stopifnot(!anyNA(posiciones))
+  stopifnot(identical(unname(filas_lote), unname(lotes)))
+  stopifnot(identical(as.integer(busquedas$resultados_revisados[posiciones]),
+                      unname(lotes)))
+  stopifnot(identical(as.integer(fila_ronda$registros_nuevos), sum(lotes)))
+  observadas <- vapply(names(decisiones), function(decision) {
+    sum(cribado$ronda == ronda & cribado$decision == decision)
+  }, integer(1))
+  stopifnot(identical(unname(observadas), unname(decisiones)))
+  stopifnot(identical(firma_atribuciones_ronda(cribado, ronda),
+                      firma_esperada))
+  invisible(TRUE)
+}
+
+falla <- function(expr) {
+  inherits(tryCatch(force(expr), error = identity), "error")
+}
+
+lotes_r2 <- c(B061 = 96L, B062 = 70L, B063 = 17L, B064 = 1L,
+              B065 = 0L, B066 = 0L, B067 = 25L, B068 = 8L)
+decisiones_r2 <- c(descartar_metadatos = 176L, duplicado = 34L,
+                   evaluacion_completa = 7L)
+validar_ronda_congelada(
+  busquedas, cribado, rondas, 2L, lotes_r2, decisiones_r2,
+  "434dfeaab9bc3efe7d06a7b3aab6b2b347fc92abd442395fca4d8eb73ab2b1ee"
+)
+
+lotes_r3 <- c(B069 = 0L, B070 = 4L, B071 = 4L)
+decisiones_r3 <- c(duplicado = 8L)
+validar_ronda_congelada(
+  busquedas, cribado, rondas, 3L, lotes_r3, decisiones_r3,
+  "0c288980b3b98146d1b44ba68a907145a5cea2bd53a5c465469adf6d67e82a8e"
+)
+
+estudios_r3 <- estudios[match(sprintf("E%03d", 25:28), estudios$id), ,
+                       drop = FALSE]
+stopifnot(identical(estudios_r3$id, sprintf("E%03d", 25:28)))
+stopifnot(identical(as.integer(estudios_r3$ronda_inclusion), rep(3L, 4L)))
+stopifnot(identical(estudios_r3$nivel, c("B", "B", "B", "ninguno")))
+stopifnot(identical(estudios_r3$decision,
+                    c("incluir", "incluir", "incluir", "excluir")))
+
+# Si se elimina una tarjeta y se rebajan coordinadamente el lote y el total de
+# ronda, la firma fija y los lotes explícitos deben impedir el falso positivo.
+cribado_r2_coordinado <- cribado[cribado$registro_id != "R2-0001", , drop = FALSE]
+busquedas_r2_coordinadas <- busquedas
+busquedas_r2_coordinadas$resultados_revisados[
+  match("B061", busquedas_r2_coordinadas$id)
+] <- 95L
+rondas_r2_coordinadas <- rondas
+rondas_r2_coordinadas$registros_nuevos[match(2L, rondas_r2_coordinadas$ronda)] <-
+  216L
+stopifnot(falla(validar_ronda_congelada(
+  busquedas_r2_coordinadas, cribado_r2_coordinado, rondas_r2_coordinadas,
+  2L, lotes_r2, decisiones_r2,
+  "434dfeaab9bc3efe7d06a7b3aab6b2b347fc92abd442395fca4d8eb73ab2b1ee"
+)))
+
+cribado_r3_coordinado <- cribado[cribado$registro_id != "R3-0001", , drop = FALSE]
+busquedas_r3_coordinadas <- busquedas
+busquedas_r3_coordinadas$resultados_revisados[
+  match("B070", busquedas_r3_coordinadas$id)
+] <- 3L
+rondas_r3_coordinadas <- rondas
+rondas_r3_coordinadas$registros_nuevos[match(3L, rondas_r3_coordinadas$ronda)] <-
+  7L
+stopifnot(falla(validar_ronda_congelada(
+  busquedas_r3_coordinadas, cribado_r3_coordinado, rondas_r3_coordinadas,
+  3L, lotes_r3, decisiones_r3,
+  "0c288980b3b98146d1b44ba68a907145a5cea2bd53a5c465469adf6d67e82a8e"
+)))
+
+# Permutar fuentes entre lotes conserva sus conteos, pero altera la identidad
+# de fila y debe fallar por la firma de atribuciones de la ronda correspondiente.
+permutada_r2 <- cribado
+filas_r2 <- c(which(permutada_r2$ronda == 2L &
+                      permutada_r2$fuente_busqueda == "B061")[1L],
+              which(permutada_r2$ronda == 2L &
+                      permutada_r2$fuente_busqueda == "B062")[1L])
+permutada_r2$fuente_busqueda[filas_r2] <-
+  rev(permutada_r2$fuente_busqueda[filas_r2])
+stopifnot(falla(validar_ronda_congelada(
+  busquedas, permutada_r2, rondas, 2L, lotes_r2, decisiones_r2,
+  "434dfeaab9bc3efe7d06a7b3aab6b2b347fc92abd442395fca4d8eb73ab2b1ee"
+)))
+
+permutada_r3 <- cribado
+filas_r3 <- c(which(permutada_r3$ronda == 3L &
+                      permutada_r3$fuente_busqueda == "B070")[1L],
+              which(permutada_r3$ronda == 3L &
+                      permutada_r3$fuente_busqueda == "B071")[1L])
+permutada_r3$fuente_busqueda[filas_r3] <-
+  rev(permutada_r3$fuente_busqueda[filas_r3])
+stopifnot(falla(validar_ronda_congelada(
+  busquedas, permutada_r3, rondas, 3L, lotes_r3, decisiones_r3,
+  "0c288980b3b98146d1b44ba68a907145a5cea2bd53a5c465469adf6d67e82a8e"
+)))
+
 saturada <- with(rondas,
   nivel_a_nuevos == 0L & modulos_nuevos == "ninguno")
 stopifnot(identical(rondas$saturada, ifelse(saturada, "si", "no")))

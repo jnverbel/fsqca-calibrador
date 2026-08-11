@@ -136,17 +136,30 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
   stopifnot(all(consultas %in% ids_busqueda))
 
   completos <- cribado[cribado$decision == "evaluacion_completa", , drop = FALSE]
-  stopifnot(nrow(completos) == nrow(estudios))
-  stopifnot(!anyDuplicated(completos$id_estudio_canonico))
-  posicion_estudio <- match(completos$doi_estudio, estudios$doi)
+  # Una reapertura de texto completo puede ser un duplicado de una tarjeta
+  # principal ya conservada en una ronda previa. Cuenta como evidencia del
+  # estudio si coincide con su ronda de inclusión; así se mantiene una sola
+  # tarjeta principal por canónico sin perder la evaluación posterior.
+  posicion_reabierto <- match(cribado$doi_estudio, estudios$doi)
+  reabiertos <- cribado[
+    cribado$decision == "duplicado" &
+      cribado$etapa == "texto_completo" &
+      !is.na(posicion_reabierto) &
+      cribado$ronda == estudios$ronda_inclusion[posicion_reabierto],
+    , drop = FALSE
+  ]
+  evidencias_estudio <- rbind(completos, reabiertos)
+  stopifnot(nrow(evidencias_estudio) == nrow(estudios))
+  stopifnot(!anyDuplicated(evidencias_estudio$id_estudio_canonico))
+  posicion_estudio <- match(evidencias_estudio$doi_estudio, estudios$doi)
   stopifnot(!anyNA(posicion_estudio))
-  stopifnot(identical(completos$id_estudio_canonico,
+  stopifnot(identical(evidencias_estudio$id_estudio_canonico,
                      estudios$id_estudio_canonico[posicion_estudio]))
-  stopifnot(identical(completos$nivel_candidato,
+  stopifnot(identical(evidencias_estudio$nivel_candidato,
                      estudios$nivel[posicion_estudio]))
-  stopifnot(identical(completos$ronda,
+  stopifnot(identical(evidencias_estudio$ronda,
                      estudios$ronda_inclusion[posicion_estudio]))
-  stopifnot(all(completos$etapa == "texto_completo"))
+  stopifnot(all(evidencias_estudio$etapa == "texto_completo"))
 
   duplicados <- cribado[cribado$decision == "duplicado", , drop = FALSE]
   frecuencias <- table(cribado$id_estudio_canonico)
@@ -163,7 +176,7 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
     duplicados = nrow(duplicados),
     unicos = nrow(cribado) - nrow(duplicados),
     descartados_metadatos = sum(cribado$decision == "descartar_metadatos"),
-    texto_completo = nrow(completos)
+    texto_completo = nrow(evidencias_estudio)
   )
 }
 
@@ -286,8 +299,9 @@ candidato_sin_codigo$url_codigo <- "no_identificado"
 invisible(validar_tabla(candidato_sin_codigo))
 
 # Cambiar sólo la etiqueta de un B continuo/mixto no lo convierte en Nivel A.
-b_como_a <- x[x$decision == "incluir" & x$nivel == "B", , drop = FALSE][1L, ]
-stopifnot(b_como_a$tipo_datos == "mixto_publicado")
+b_como_a <- x[x$decision == "incluir" & x$nivel == "B" &
+                x$tipo_datos == "mixto_publicado", , drop = FALSE][1L, ]
+stopifnot(nrow(b_como_a) == 1L, b_como_a$tipo_datos == "mixto_publicado")
 b_como_a$nivel <- "A"
 stopifnot(falla(validar_tabla(b_como_a)))
 
@@ -345,6 +359,7 @@ muestra_3_5$dominio <- c("dominio a", "dominio a", "dominio b")
 muestra_3_5$nivel <- "A"
 muestra_3_5$tipo_datos <- "likert"
 muestra_3_5$url_codigo <- "no_identificado"
+muestra_3_5[grep("^mod_", names(muestra_3_5), value = TRUE)] <- "si"
 tabla_3_5 <- validar_tabla(muestra_3_5)
 informe_ausente <- tempfile(fileext = ".md")
 stopifnot(!file.exists(informe_ausente))

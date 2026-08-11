@@ -82,6 +82,46 @@ Fecha de cierre: 2026-08-11. Las decisiones se tomaron sin ejecutar `fsqca-calib
 - Evidencia material: el artículo declara que fsQCA usa los 64 proyectos del 1% superior por monto recaudado; S4 publica éxito, ratio, actualizaciones, compartidos, comentarios y una etiqueta K-means, pero no el monto recaudado ni los insumos vídeo/imagen/descripción del K-means.
 - Motivo factual: **sin datos brutos**. No se puede seleccionar desde S4 la muestra fsQCA publicada ni reconstruir una de sus condiciones; usar otra regla produciría un universo distinto.
 
+## E018 — Zheng et al. (2025)
+
+- DOI y suplementos: [10.1371/journal.pone.0311543](https://doi.org/10.1371/journal.pone.0311543), S1/S2 oficiales.
+- Motivo factual: **resultado no comparable**. El texto completo y sus suplementos aplican regresión GMM, no fsQCA; no existe una tabla de verdad ni solución configuracional que reproducir.
+
+## E019 — Saleem et al. (2025)
+
+- DOI y suplemento: [10.1371/journal.pone.0316388](https://doi.org/10.1371/journal.pone.0316388), S1 oficial.
+- Motivo factual: **resultado no comparable**. La publicación usa modelos FE, RE y GMM, no fsQCA; no publica resultado configuracional comparable.
+
+## E020 — Zhang et al. (2025)
+
+- DOI y suplementos: [10.1371/journal.pone.0323668](https://doi.org/10.1371/journal.pone.0323668), S1/S2 oficiales.
+- Motivo factual: **resultado no comparable**. El análisis es DID/PSM-DID y no ejecuta fsQCA; una cita configuracional no sustituye una solución reproducible.
+
+## E021 — Ibarra et al. (2020)
+
+- DOI: [10.3390/joitmc6030076](https://doi.org/10.3390/joitmc6030076).
+- Motivo factual: **sin datos brutos**. La publicación no enlaza microdatos ni paquete de replicación reutilizable; no se reconstruyó una matriz desde tablas.
+
+## E022 — Li et al. (2022)
+
+- DOI: [10.3390/buildings12091349](https://doi.org/10.3390/buildings12091349).
+- Motivo factual: **sin datos brutos**. Aunque declara ítems, anclas y soluciones, los datos sólo se ofrecen por solicitud al autor y no existe paquete público.
+
+## E023 — Jiang et al. (2021)
+
+- DOI: [10.3389/fpsyg.2021.733319](https://doi.org/10.3389/fpsyg.2021.733319).
+- Motivo factual: **sin datos brutos**. El artículo agrega cuestionarios a provincias pero no publica la matriz de casos pre-calibración ni un suplemento descargable con ella.
+
+## E024 — Li et al. (2025)
+
+- DOI: [10.1057/s41599-025-05551-y](https://doi.org/10.1057/s41599-025-05551-y).
+- Motivo factual: **sin datos brutos**. La declaración primaria restringe los datos a solicitud; las anclas y resultados publicados no sustituyen el paquete de casos.
+
+## E028 — Liu et al. (2025)
+
+- DOI y suplemento: [10.1371/journal.pone.0325933](https://doi.org/10.1371/journal.pone.0325933), [S1](https://doi.org/10.1371/journal.pone.0325933.s001).
+- Motivo factual: **sin datos brutos**. S1 contiene el cuestionario, no las 389 respuestas; por ello no se pueden reconstruir los constructos ni la calibración declarada.
+
 ## Regla aplicada
 
 E001, E008, E009, E012, E014 y E015 quedaron incluidos como Nivel B; ninguno alcanzó Nivel A.
