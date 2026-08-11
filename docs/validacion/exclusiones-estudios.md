@@ -124,6 +124,8 @@ Fecha de cierre: 2026-08-11. Las decisiones se tomaron sin ejecutar `fsqca-calib
 
 ## Regla aplicada
 
-E001, E008, E009, E012, E014 y E015 quedaron incluidos como Nivel B; ninguno alcanzó Nivel A.
+E001, E008, E009, E012, E014, E015, E025, E026 y E027 quedaron incluidos como
+Nivel B; ninguno alcanzó Nivel A. `busqueda-ampliada.md` congela la trazabilidad
+de su ronda, archivos, licencia, constructos, anclas, umbrales y soluciones.
 Ningún caso excluido se promovió para alcanzar un cupo y no se descargó ni
 versionó ningún dato de terceros en el repositorio.
