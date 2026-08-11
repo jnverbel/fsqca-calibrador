@@ -16,6 +16,10 @@ stopifnot(identical(names(cribado), c(
   "anio", "idioma", "doi_estudio", "id_estudio_canonico",
   "nivel_candidato", "etapa", "decision", "motivo"
 )))
+stopifnot(!anyDuplicated(cribado$id_estudio_canonico))
+doi_resuelto <- cribado$doi_estudio != "no_identificado"
+stopifnot(all(cribado$id_estudio_canonico[doi_resuelto] ==
+              paste0("doi:", tolower(cribado$doi_estudio[doi_resuelto]))))
 
 estudios <- leer("docs/validacion/estudios.csv")
 stopifnot(identical(names(estudios), c(
@@ -38,6 +42,67 @@ stopifnot(identical(names(rondas), c(
   "modulos_nuevos", "modulos_cubiertos_acumulados", "saturada",
   "observaciones"
 )))
+
+falla <- function(expr) {
+  error <- tryCatch({
+    force(expr)
+    NULL
+  }, error = identity)
+  inherits(error, "error")
+}
+
+validar_rondas <- function(busquedas, cribado, estudios, rondas) {
+  stopifnot(!anyDuplicated(rondas$ronda))
+  stopifnot(all(busquedas$ronda %in% rondas$ronda))
+  stopifnot(all(cribado$ronda %in% rondas$ronda))
+  stopifnot(all(estudios$ronda_inclusion %in% rondas$ronda))
+  stopifnot(all(busquedas$enumeracion_completa %in%
+                c("si", "no", "no_aplica")))
+  stopifnot(all(cribado$nivel_candidato %in%
+                c("A", "B", "ninguno", "no_identificado")))
+  stopifnot(all(rondas$saturada %in% c("si", "no")))
+
+  registros <- vapply(rondas$ronda, function(x) sum(cribado$ronda == x), integer(1))
+  nivel_a <- vapply(rondas$ronda, function(x) {
+    sum(estudios$ronda_inclusion == x & estudios$nivel == "A")
+  }, integer(1))
+  nivel_b <- vapply(rondas$ronda, function(x) {
+    sum(estudios$ronda_inclusion == x & estudios$nivel == "B")
+  }, integer(1))
+  stopifnot(identical(as.integer(rondas$registros_nuevos), registros))
+  stopifnot(identical(as.integer(rondas$nivel_a_nuevos), nivel_a))
+  stopifnot(identical(as.integer(rondas$nivel_b_nuevos), nivel_b))
+  invisible(TRUE)
+}
+
+validar_rondas(busquedas, cribado, estudios, rondas)
+
+busqueda_ronda_inexistente <- busquedas
+busqueda_ronda_inexistente$ronda[1] <- 999L
+stopifnot(falla(validar_rondas(busqueda_ronda_inexistente, cribado,
+                              estudios, rondas)))
+busqueda_enumeracion_invalida <- busquedas
+busqueda_enumeracion_invalida$enumeracion_completa[1] <- "parcial"
+stopifnot(falla(validar_rondas(busqueda_enumeracion_invalida, cribado,
+                              estudios, rondas)))
+cribado_nivel_invalido <- cribado
+cribado_nivel_invalido$nivel_candidato[1] <- "pendiente"
+stopifnot(falla(validar_rondas(busquedas, cribado_nivel_invalido,
+                              estudios, rondas)))
+rondas_saturacion_invalida <- rondas
+rondas_saturacion_invalida$saturada[1] <- "pendiente"
+stopifnot(falla(validar_rondas(busquedas, cribado, estudios,
+                              rondas_saturacion_invalida)))
+rondas_conteo_incoherente <- rondas
+rondas_conteo_incoherente$registros_nuevos[1] <-
+  rondas_conteo_incoherente$registros_nuevos[1] + 1L
+stopifnot(falla(validar_rondas(busquedas, cribado, estudios,
+                              rondas_conteo_incoherente)))
+rondas_nivel_incoherente <- rondas
+rondas_nivel_incoherente$nivel_b_nuevos[1] <-
+  rondas_nivel_incoherente$nivel_b_nuevos[1] + 1L
+stopifnot(falla(validar_rondas(busquedas, cribado, estudios,
+                              rondas_nivel_incoherente)))
 
 herramientas <- leer("docs/validacion/herramientas.csv")
 stopifnot(identical(names(herramientas), c(

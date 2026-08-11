@@ -115,17 +115,17 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
   completos <- cribado[cribado$decision == "evaluacion_completa", , drop = FALSE]
   stopifnot(nrow(completos) == nrow(estudios))
   stopifnot(!anyDuplicated(completos$id_estudio_canonico))
-  stopifnot(setequal(completos$id_estudio_canonico,
-                     estudios$id_estudio_canonico))
+  posicion_estudio <- match(completos$doi_estudio, estudios$doi)
+  stopifnot(!anyNA(posicion_estudio))
+  stopifnot(identical(completos$id_estudio_canonico,
+                     estudios$id_estudio_canonico[posicion_estudio]))
+  stopifnot(identical(completos$nivel_candidato,
+                     estudios$nivel[posicion_estudio]))
+  stopifnot(identical(completos$ronda,
+                     estudios$ronda_inclusion[posicion_estudio]))
   stopifnot(all(completos$etapa == "texto_completo"))
 
   duplicados <- cribado[cribado$decision == "duplicado", , drop = FALSE]
-  if (nrow(duplicados)) {
-    canonicos_no_duplicados <- cribado$id_estudio_canonico[
-      cribado$decision != "duplicado"
-    ]
-    stopifnot(all(duplicados$id_estudio_canonico %in% canonicos_no_duplicados))
-  }
 
   list(
     identificados = nrow(cribado),
@@ -202,6 +202,14 @@ tabla <- validar_tabla(x)
 cribado <- read.csv("docs/validacion/cribado-estudios.csv", stringsAsFactors = FALSE)
 ids_busqueda_estudios <- busquedas$id[busquedas$alcance == "estudios"]
 flujo <- validar_cribado(cribado, x, ids_busqueda_estudios)
+
+cribado_ids_cruzados <- cribado
+filas_completas <- which(cribado_ids_cruzados$decision == "evaluacion_completa")
+stopifnot(length(filas_completas) >= 2L)
+cribado_ids_cruzados$id_estudio_canonico[filas_completas[1:2]] <-
+  rev(cribado_ids_cruzados$id_estudio_canonico[filas_completas[1:2]])
+stopifnot(falla(validar_cribado(cribado_ids_cruzados, x,
+                               ids_busqueda_estudios)))
 
 validar_rama_muestra(
   "docs/validacion/evidencia-insuficiente.md", x, tabla, flujo

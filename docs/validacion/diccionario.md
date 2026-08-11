@@ -2,7 +2,9 @@
 
 Estas tablas registran evidencia de forma auditable. Los valores factuales que
 no constan en una fuente se registran como `no_identificado`; no se dejan celdas
-vacías.
+vacías. Los identificadores canónicos tratan `no_identificado` como ausencia,
+normalizan prefijos y URL de DOI, y aplican la precedencia DOI del estudio,
+depósito y metadatos.
 
 ## `registro-busqueda.csv`
 
