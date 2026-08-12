@@ -217,9 +217,18 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   exploit; un archivo al que le quitaron los ceros finales es el accidente; los dos chillan.
   Esta comprobación sustituye a `stopifnot(is.character(exp_todas$esperado))`, que era una
   aserción que no podía fallar: afirmaba una propiedad de `leer_csv()`, que fuerza
-  `colClasses = "character"`. **Lo que queda abierto** y hay que decirlo: un grupo de una
-  sola fila no restringe nada, y una tabla en la que *todos* los valores terminan en cero
-  pierde los ceros de forma uniforme y pasa.
+  `colClasses = "character"`.
+
+  **Y la clave del grupo no puede ser texto libre**, o la comprobación se esquiva
+  fabricándose un grupo propio: bastaba retocar `fuente` en la misma fila —«Tabla 9» →
+  «Tabla 9 (cobertura)»— para quedarse solo en el grupo, con el censo cuadrado y la biyección
+  intacta. `fuente` es ahora un **dominio cerrado declarado en el manifiesto del estudio**
+  (`"fuentes": [...]`), y el guardián exige además que la `fuente` del resultado sea la de su
+  expectativa. **Lo que queda abierto** y hay que decirlo: los grupos que ya son de una sola
+  fila —hoy siete de veinticinco, entre ellos las dos únicas comparaciones de `necesidad` con
+  `decidible = si` de E008 y E014— no restringen nada, aunque ya no se pueden fabricar; y una
+  tabla en la que *todos* los valores terminan en cero pierde los ceros de forma uniforme y
+  pasa.
 - **`ajuste` decidible** en los cuatro estudios cuya solución sí es reproducible:
   E001 (la produce su script oficial), E008 (la nota de su Tabla 7 declara **todas** las
   condiciones mostradas como centrales, de modo que los términos exhibidos coinciden con los
@@ -304,18 +313,22 @@ prueba de contratos—, no absuelve a ningún estudio y no existe `COMPUERTA_ABS
 - Existe **exactamente** para los tres estudios cuyo constructo hay que armar desde los
   ítems: `COMPUERTAS_AGREGACION = c("E009", "E025", "E027")`. Una fila de compuerta para
   cualquier otro estudio aborta el guardián.
-- **La media se calcula dos veces**, con `calibraqca::promediar_constructos()` y con
-  `rowMeans()` de base R sobre los mismos ítems, y de ahí sale el estado:
-  `ESTADOS_COMPUERTA = c("pasa", "no_pasa_regla", "no_pasa_app", "no_aplica")`.
-  `no_pasa_regla` es que ninguna de las dos reproduce la tabla publicada —la hipótesis de
-  agregación del plan es la equivocada—; `no_pasa_app` es que base R la reproduce y la del
-  paquete no, es decir **un defecto de `fsqca-calibrador`**. Son tres líneas en el corredor y
-  son la pareja de casos opuestos que faltaba: hasta ahora solo existía el caso en que hay
-  que callar.
+- **`no_pasa` es AMBIGUO, y el plan lo dice en vez de prometer lo contrario.**
+  `ESTADOS_COMPUERTA = c("pasa", "no_pasa", "no_aplica")`. La revisión anterior prometía
+  distinguir «la regla de agregación que propone el plan es la equivocada» de
+  «`promediar_constructos()` está roto» calculando la media dos veces, con esa función y con
+  `rowMeans()` de base R. **Esa promesa era falsa y se retira.** Medido el motor real
+  —`pkg/calibraqca/R/agregacion.R:14-27`—, `promediar_constructos()` **es**
+  `rowMeans(x, na.rm = TRUE)` más la regla `PROPORCION_MINIMA_ITEMS <- 0.5`: sobre datos
+  completos las dos son idénticas bit a bit, y la única divergencia posible es una fila con
+  menos de la mitad de sus ítems. El discriminador estaba muerto, y dejarlo escrito habría
+  publicado como culpa del plan lo que fuera culpa del motor. Una promesa en prosa con el
+  discriminador muerto es peor que no tener discriminador.
 - Una compuerta caída **no cambia ningún código**. Las comparaciones de ese estudio se
-  ejecutan y se registran como salgan; si salen `D-APP` y el estado es `no_pasa_regla`, el
-  informe dice, junto al veredicto, que esas diferencias pueden venir de la hipótesis de
-  agregación y no del motor. Es una frase del informe, no un código que silencia.
+  ejecutan y se registran como salgan; el informe publica el estado junto al veredicto y
+  **declara la ambigüedad con todas las letras**: una compuerta en `no_pasa` significa que la
+  media de ítems no reproduce la tabla publicada, y que el plan **no puede decir** si eso
+  viene de su hipótesis de agregación o de `promediar_constructos()`.
 
 ## Estructura de archivos
 
@@ -381,8 +394,7 @@ stopifnot(identical(COLUMNAS_COMPUERTAS, c("id_estudio", "compuerta", "fuente",
 stopifnot(length(SIN_EXPECTATIVA_PUBLICADA) == 2L)
 stopifnot(length(ESTUDIOS_NO_EJECUTABLES) == 1L)
 stopifnot(length(COMPUERTAS_AGREGACION) == 3L)
-stopifnot(identical(ESTADOS_COMPUERTA,
-                    c("pasa", "no_pasa_regla", "no_pasa_app", "no_aplica")))
+stopifnot(identical(ESTADOS_COMPUERTA, c("pasa", "no_pasa", "no_aplica")))
 # La compuerta no puede absolver porque no entra en la derivacion del codigo.
 stopifnot(identical(names(formals(codigo_de_la_fila)),
                     c("fila", "obtenido", "estudios")))
@@ -455,10 +467,23 @@ for (m in siempre) {
   stopifnot(inherits(try(codigo(f, 19), silent = TRUE), "try-error"))
 }
 
-# 3. `no_tipo_solucion` no vale donde la seleccion congelada dice que la
-#    solucion SI es reproducible: sale de estudios.csv, no de una lista.
-stopifnot(identical(sort(inc$id[inc$mod_minimizacion == "si"]),
-                    c("E001", "E008", "E012", "E015")))
+# 3. La seleccion congelada se congela AQUI: apagar una celda `si` a
+#    `no_evaluable` borraba el modulo del censo, del manifiesto y del informe
+#    —indistinguible de una limitacion genuina— y 35 de 44 pasaban en verde.
+CONGELADO <- c(
+  "E001 si no_evaluable si si si si",
+  "E008 si si si si si si",
+  "E009 no_evaluable si si no_evaluable si si",
+  "E012 si si si si si si",
+  "E014 si si si no_evaluable si no_evaluable",
+  "E015 si si si si si no_evaluable",
+  "E025 si si si no_evaluable si si",
+  "E026 si si si no_evaluable si si",
+  "E027 si si si no_evaluable si no_evaluable")
+o <- inc[order(inc$id), , drop = FALSE]
+stopifnot(identical(
+  paste(o$id, apply(o[, paste0("mod_", MODULOS)], 1L, paste, collapse = " ")),
+  CONGELADO))
 for (id in c("E008", "E012", "E015")) {
   f <- fila(id, "ajuste", "0.808", "no_tipo_solucion")
   stopifnot(inherits(try(codigo(f, 0.1), silent = TRUE), "try-error"))
@@ -570,16 +595,16 @@ ESTUDIOS_NO_EJECUTABLES <- "E001"
 COMPUERTAS_AGREGACION <- c("E009", "E025", "E027")
 
 # La compuerta NO absuelve a nadie: es un dato que el informe publica, no un
-# codigo. Absolver por compuerta era el absorbedor por estudio otra vez, y
-# ademas automatizado, porque quien construye los constructos que la compuerta
-# contrasta es promediar_constructos(), codigo de la propia aplicacion.
-# La media se calcula DOS veces, con promediar_constructos() y con rowMeans()
-# de base R, y el estado dice cual de las dos causas es:
-#   no_pasa_regla  ninguna de las dos reproduce la tabla => la hipotesis de
-#                  agregacion que propone este plan es la equivocada;
-#   no_pasa_app    base R la reproduce y la del paquete no => defecto de
-#                  fsqca-calibrador, y las diferencias aguas abajo son suyas.
-ESTADOS_COMPUERTA <- c("pasa", "no_pasa_regla", "no_pasa_app", "no_aplica")
+# codigo. Y `no_pasa` es AMBIGUO por construccion: no distingue «la regla de
+# agregacion que propone el plan es la equivocada» de «promediar_constructos()
+# esta roto». La ronda anterior prometia distinguirlo calculando la media dos
+# veces, con esa funcion y con rowMeans(); medido el motor real
+# (pkg/calibraqca/R/agregacion.R:14-27), promediar_constructos() ES
+# rowMeans(x, na.rm = TRUE) mas la regla de PROPORCION_MINIMA_ITEMS, asi que
+# sobre datos completos las dos son identicas y el discriminador esta muerto.
+# Prometerlo era peor que no tenerlo: publicaria como culpa del plan lo que
+# fuera culpa del motor. El informe declara la ambiguedad.
+ESTADOS_COMPUERTA <- c("pasa", "no_pasa", "no_aplica")
 
 # Todo CSV se lee como TEXTO: de la cadena `esperado` sale la tolerancia, y
 # leerla como numero convierte "0.860" en 0.86 y la multiplica por diez.
@@ -817,11 +842,19 @@ una fila: el conteo no se ajusta al resultado.
     "tabla_verdad": 0,
     "ajuste": 2,
     "robustez": 8
-  }
+  },
+  "fuentes": ["Tabla 8", "Tabla 9", "Tabla 10", "Tabla 11"]
 }
 ```
 
-Las claves son exactamente los módulos que `estudios.csv` declara `si` para E025;
+`fuentes` es el **dominio cerrado** de la columna `fuente` de las expectativas: son las tablas
+publicadas de las que sale cada valor, y ninguna fila puede citar una que no esté aquí. Sin
+eso, `fuente` era texto libre —y es la clave con la que se agrupa la uniformidad de
+decimales—, así que bastaba retocarla en una fila para quedarse solo en el grupo y dejar la
+comprobación inerte.
+
+Las claves de `comparaciones` son exactamente los módulos que `estudios.csv` declara `si` para
+E025;
 `minimizacion` no aparece porque es `no_evaluable`. El manifiesto de cada estudio se escribe
 en su propia tarea y no se vuelve a tocar: cualquier cambio posterior a `comparaciones` va
 en un commit propio, con la tabla recontada.
@@ -844,12 +877,11 @@ en un commit propio, con la tabla recontada.
   constructo. Se prerregistra la **media aritmética de los ítems** como hipótesis y se
   comprueba como **compuerta previa** —fila en `docs/validacion/compuertas.csv`, no en
   `replicaciones.csv`, porque `agregacion` no es un módulo canónico—: si la media y la
-  desviación típica de cada conjunto calibrado no reproducen la Tabla 8 —ni con
-  `promediar_constructos()` ni con `rowMeans()` de base R—, la compuerta queda en
-  `no_pasa_regla`; si base R sí la reproduce y la del paquete no, queda en `no_pasa_app` y
-  eso es un defecto de la aplicación. **En ninguno de los dos casos cambia el código de
-  ninguna fila**: las comparaciones de E025 se ejecutan y se registran como salgan, y el
-  informe publica el estado de la compuerta junto al veredicto. Esta compuerta **no** promueve
+  desviación típica de cada conjunto calibrado no reproducen la Tabla 8, la compuerta queda
+  en `no_pasa`, que es **ambiguo por construcción**: no distingue si falla la hipótesis de
+  agregación del plan o `promediar_constructos()`. **No cambia el código de ninguna fila**:
+  las comparaciones de E025 se ejecutan y se registran como salgan, y el informe publica el
+  estado junto al veredicto, con la ambigüedad declarada. Esta compuerta **no** promueve
   E025 a Nivel A: la regla la pone este plan, no los autores.
 - **Anclas** (Tabla 8, idénticas para las siete variables): plena `5.00`, cruce `3.50`,
   nula `1.00`; fuente de ancla `teoria` («Based on the suggestions made by Fiss»,
@@ -989,12 +1021,12 @@ test_that("la calibracion de E025 reproduce la Tabla 8", {
                           "para escalas Likert de cinco puntos."))
   fs <- calibraqca::calibrar(a$promedios$FUN, anclas, idm = 0.95)
   fila <- esperado("media_fs_FUN")
-  # La prueba NO afirma que salga D-OK: mide y entrega el valor. El codigo lo
-  # deriva el corredor y lo recalcula el guardian. Una prueba que exigiera
+  # La prueba NO afirma que salga D-OK: comprueba que la cadena PRODUCE un
+  # numero. Quien escribe `obtenido` en replicaciones.csv es el corredor, y
+  # quien deriva el codigo es codigo_de_la_fila(). Una prueba que exigiera
   # D-OK convertiria un defecto real de la aplicacion en CI rojo, y esa es
   # exactamente la presion que fabrico seis absorbedores en cuatro rondas.
   expect_true(is.finite(mean(fs)))
-  registrar("media_fs_FUN", mean(fs))
 })
 ```
 
@@ -1085,9 +1117,8 @@ CC BY 4.0, verificado el 2026-08-11.
   y ninguna en `replicaciones.csv`: `agregacion` no es un módulo canónico. La compuerta no
   absuelve nada —ninguna lo hace ya—, pero aquí además **la regla la declaran los autores**,
   así que si la media de los ítems no reproduce la Tabla 8 la diferencia es un candidato a
-  `D-APP` sin matices: el estado de la compuerta ni siquiera admite la lectura «la hipótesis
-  del plan era otra». La doble media —`promediar_constructos()` y `rowMeans()`— sigue
-  haciendo falta para distinguir `no_pasa_regla` de `no_pasa_app`.
+  `D-APP` sin matices: aquí ni siquiera cabe la lectura «la hipótesis del plan era otra»,
+  porque la hipótesis no es del plan. Es el único de los tres donde `no_pasa` no es ambiguo.
 - **Anclas**: plena `4`, cruce `3`, nula `2` para las siete variables (Tabla 8), con
   membresías `0.95 / 0.5 / 0.05` declaradas en el texto ⇒ `idm = 0.95`. Fuente de ancla
   `teoria`. Corrección declarada por el estudio: `+0.001` a las membresías iguales a `0.50`.
@@ -1179,11 +1210,10 @@ inspeccionado, no como entrada.
   estudio quedaba «no reproducible por información insuficiente, **no como fallo de la
   aplicación**», y eso era una premisa falsa: quien construye los constructos que la
   compuerta contrasta contra la Tabla 5 es `promediar_constructos()`, código de
-  `fsqca-calibrador`. Por eso la media se calcula **dos veces**, con esa función y con
-  `rowMeans()` de base R: si base R reproduce la Tabla 5 y la del paquete no, el estado es
-  `no_pasa_app` y las diferencias aguas abajo **son de la aplicación**. Si ninguna la
-  reproduce, el estado es `no_pasa_regla` y el informe lo dice junto al veredicto, sin tocar
-  ningún código.
+  `fsqca-calibrador`. Y el plan **no puede** distinguir las dos causas: esa función es
+  `rowMeans(x, na.rm = TRUE)` más la regla del 50 % de ítems, así que compararla con
+  `rowMeans()` sobre datos completos da lo mismo por construcción. El estado es `no_pasa` a
+  secas y el informe declara la ambigüedad, sin tocar ningún código.
 - **Cuantiles**: `stats::quantile(..., type = 7)`, el de R. La elección se prerregistra
   porque fs/QCA puede usar otra definición. Si aparece una diferencia, se registra `D-APP` y
   el informe muestra el valor con los dos tipos y la conclusión; **no hay un código que la
@@ -1749,6 +1779,7 @@ artículo para simular la replicación.
     "calibracion": 0, "tabla_verdad": 0, "minimizacion": 0,
     "ajuste": 0, "robustez": 0
   },
+  "fuentes": [],
   "no_ejecutable": {
     "motivo": "deposito inaccesible",
     "evidencia": "HTTP 202 con x-amzn-waf-action challenge en seis rutas de dataverse.harvard.edu",
@@ -1933,6 +1964,9 @@ for (i in seq_len(nrow(inc))) {
                                    nchar(a$sha256) == 64L, logical(1))))
   stopifnot(all(e$id_estudio == id), all(e$modulo %in% declarados),
             all(r$modulo %in% declarados))
+  # `fuente` agrupa la uniformidad de decimales, asi que no puede ser texto
+  # libre: retocarla dejaba a la fila sola en su grupo. Va en el manifiesto.
+  stopifnot(length(m$fuentes) > 0L, all(e$fuente %in% unlist(m$fuentes)))
 
   # Cuenta congelada, modulo a modulo, en las dos direcciones. Cero solo donde
   # la lista cerrada lo admite; al menos una en todo lo demas.
@@ -1976,6 +2010,10 @@ for (i in seq_len(nrow(res))) {
          res$comparacion[i], " no tiene exactamente una expectativa (",
          nrow(f), ").", call. = FALSE)
   }
+  if (!identical(res$fuente[i], f$fuente)) {
+    stop("La `fuente` del resultado ", res$id_estudio[i], "/",
+         res$comparacion[i], " no es la de su expectativa.", call. = FALSE)
+  }
   if (!identical(res$esperado[i], f$esperado)) {
     stop("El `esperado` del resultado ", res$id_estudio[i], "/",
          res$comparacion[i], " ('", res$esperado[i],
@@ -2015,10 +2053,16 @@ con las columnas de `COLUMNAS_RESULTADOS`. El corredor **falla** si un manifiest
 prueba, si una prueba no tiene manifiesto, si una comparación queda sin código o si aparece
 un módulo que el estudio no declara.
 
+El corredor escribe **también** `docs/validacion/compuertas.csv`, con una fila por estudio de
+`COMPUERTAS_AGREGACION`: compara los promedios por constructo contra la tabla publicada del
+estudio y anota `pasa`, `no_pasa` o `no_aplica`, con las cifras de las dos en `detalle`. El CI
+le hace `rm -f` a ese archivo y exige que reaparezca, así que el corredor tiene que
+producirlo; hasta la revisión anterior el plan no lo decía en ninguna parte.
+
 **El corredor no escribe el código: lo pide a `codigo_de_la_fila()`**, con la misma llamada
-que el guardián repite después. Y no escribe `esperado`: lo copia de la expectativa, carácter
-a carácter, porque el guardián compara las dos cadenas. Lo único que el corredor produce por
-su cuenta es `obtenido`.
+que el guardián repite después. Y no escribe `esperado` ni `fuente`: los copia de la
+expectativa, carácter a carácter, porque el guardián compara las dos cadenas. Lo único que el
+corredor produce por su cuenta es `obtenido`.
 
 - [ ] **Step 3: Calcular los veredictos por estudio**
 
@@ -2083,6 +2127,7 @@ git commit -m "feat: consolidar resultados de replicacion por modulo"
 En `validation/tests/test-informe-validacion.R`:
 
 ```r
+source("validation/R/comun-replicacion.R")
 doc <- paste(readLines("docs/validacion-integral.md", warn = FALSE), collapse = "\n")
 
 # La declaracion de alcance va literal y completa.
@@ -2098,19 +2143,27 @@ stopifnot(cuenta("validación externa integral") ==
           cuenta("No existe validación externa integral"))
 stopifnot(cuenta("varias replicaciones completas") == 0L)
 
-# Cada estudio incluido aparece con su nivel y sus modulos.
-est <- utils::read.csv("docs/validacion/estudios.csv", stringsAsFactors = FALSE)
-inc <- subset(est, decision == "incluir")
-stopifnot(all(vapply(inc$id, function(x) grepl(x, doc, fixed = TRUE), logical(1))))
-
-# Ninguna cifra del informe se escribe a mano.
-res <- utils::read.csv("docs/validacion/replicaciones.csv", stringsAsFactors = FALSE)
-stopifnot(nrow(res) > 0L)
+# El informe no se cree: se GENERA desde el CSV y los manifiestos. Sin esto
+# podia decir «E025: reproducido» con un D-APP registrado, y era la unica
+# sancion que quedaba tras sacar el D-APP del CI.
+res <- leer_csv("docs/validacion/replicaciones.csv")
+inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
+exige <- function(x) if (!grepl(x, doc, fixed = TRUE)) {
+  stop("Falta en el informe, y sale del CSV: ", x, call. = FALSE)
+}
+exige(paste("D-APP registrados:", sum(res$codigo == "D-APP")))
+for (i in seq_len(nrow(inc))) {
+  exige(paste0(inc$id[i], ": ", veredicto(res, inc$id[i])))
+  m <- jsonlite::fromJSON(sprintf("validation/manifiestos/%s.json", inc$id[i]),
+                          simplifyVector = FALSE)$comparaciones
+  for (k in names(m)) exige(sprintf("%s/%s: %s", inc$id[i], k, m[[k]]))
+}
 
 for (r in c("README.md", "README.es.md")) {
   txt <- paste(readLines(r, warn = FALSE), collapse = "\n")
   stopifnot(!grepl("validada externamente", txt, fixed = TRUE))
 }
+cat("informe: coincide con", nrow(res), "comparaciones del CSV\n")
 ```
 
 - [ ] **Step 2: Redactar el informe**
@@ -2123,6 +2176,18 @@ compuertas previas; la tabla de discrepancias por código; los denominadores **s
 estados: reproducido, no decidible y no ejercitado por la aplicación—; y los límites: la
 minimización solo es comparable en E001, E008, E012 y E015; la muestra no es exhaustiva,
 Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió credenciales.
+
+**El informe no se redacta: se genera desde `docs/validacion/replicaciones.csv` y los
+manifiestos**, y `test-informe-validacion.R` lo comprueba exigiendo que aparezcan **literales**
+tres familias de cadenas construidas desde esos archivos: `<ID>: <veredicto>` por estudio,
+`D-APP registrados: <n>` y `<ID>/<módulo>: <n>` para todo el censo. Sin eso, el informe era la
+única sanción que quedaba tras sacar el `D-APP` del CI y **nada lo ataba al CSV**: podía decir
+«E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde. Y convierte en
+real la mitigación del censo: bajar un conteo obliga a cambiar el documento público.
+
+Además, junto a la tabla de compuertas, el informe **declara la ambigüedad de `no_pasa`**: que
+la media de ítems no reproduzca la tabla publicada puede venir de la hipótesis de agregación
+de este plan o de `promediar_constructos()`, y el plan no puede distinguirlas.
 
 - [ ] **Step 3: Corregir README y CITATION**
 
@@ -2585,4 +2650,55 @@ Dónde puede mudarse ahora:
    de forma uniforme y pasa.
 3. **`no_pasa_regla` frente a `no_pasa_app` lo mide el corredor**, y ningún guardián puede
    recomputarlo. Ya no absuelve a nadie, así que mentir ahí solo desinforma al lector del
-   informe; pero desinforma.
+   informe; pero desinforma. *(La séptima pasada retira esa distinción entera: no era
+   medible.)*
+
+### Séptima pasada, 2026-08-11 (cerrar las claves de texto libre y la promesa muerta)
+
+Cuatro cosas, y tres de ellas son la misma de siempre con otro disfraz.
+
+1. **La clave del grupo de tolerancia era texto libre.** La uniformidad de decimales agrupa
+   por `(id_estudio, fuente)`, y `fuente` se escribía en la fila: dos celdas de la misma línea
+   —`"0.860"` → `"0.86"` y `"Tabla 9"` → `"Tabla 9 (cobertura)"`— dejaban a esa fila sola en
+   su grupo, con el censo cuadrado, la biyección intacta y el diff con aspecto de corrección
+   editorial. Es la novena mudanza y es literalmente el patrón que esta rama lleva persiguiendo
+   desde `no_sin_fuente`. **`fuente` pasa a ser un dominio cerrado declarado en el manifiesto**
+   (`"fuentes": [...]`), y el resultado tiene que citar la misma que su expectativa.
+2. **La selección congelada no la congelaba ninguna prueba.** De las 44 celdas `mod_* == "si"`,
+   35 podían apagarse a `no_evaluable` —con la poda coordinada que el censo exige— y salir en
+   verde, incluidas todas las de `necesidad` salvo E009 y todas las de `tabla_verdad`. Y esta
+   vía **esquivaba la mitigación publicada del censo**: al dejar de estar declarado el módulo,
+   su línea desaparece del manifiesto y del informe, indistinguible de una limitación genuina.
+   Las 44 celdas quedan fijadas en `test-contratos-replicacion.R` como tabla de valores
+   esperados, el mismo mecanismo que ya anclaba `mod_minimizacion`.
+3. **El informe era la única sanción de un `D-APP` y nada lo ataba al CSV.** Podía decir
+   «E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde. Ahora
+   `test-informe-validacion.R` **genera** desde `replicaciones.csv` y los manifiestos las
+   cadenas que el documento debe contener —`<ID>: <veredicto>`, `D-APP registrados: <n>` y
+   `<ID>/<módulo>: <n>`— y exige que aparezcan literales. Eso convierte además la mitigación
+   del censo de decorativa en real: bajar un conteo obliga a cambiar el documento público.
+4. **La doble media no discriminaba, y no existía.** Medido el motor real,
+   `promediar_constructos()` **es** `rowMeans(x, na.rm = TRUE)` más `PROPORCION_MINIMA_ITEMS`:
+   sobre datos completos las dos medias coinciden bit a bit, así que `no_pasa_app` era
+   inalcanzable y toda caída de compuerta se habría publicado como culpa del plan, incluida la
+   que fuera culpa del motor. Y la doble media solo vivía en prosa. **Se retira la promesa**:
+   `ESTADOS_COMPUERTA` colapsa a `pasa | no_pasa | no_aplica`, `no_pasa` se declara **ambiguo
+   por construcción** y el informe lo explica. Una promesa con el discriminador muerto es peor
+   que no tener discriminador.
+
+De paso: `registrar()`, que la prueba ejemplar de la Task 2 llamaba sin estar definida en
+ningún bloque —y esa prueba es la plantilla que copian los ocho estudios—, se retira; y el
+corredor gana por escrito la obligación de producir `docs/validacion/compuertas.csv`, que el
+CI le borraba y le exigía sin que el plan lo dijera en ninguna parte.
+
+Dónde puede mudarse ahora:
+
+1. **El censo y la fuente se pueden mover a la vez.** Con `fuente` cerrada hacen falta cuatro
+   cambios coordinados —el valor, la `fuente` de la expectativa, la del resultado y la entrada
+   en `fuentes` del manifiesto— para fabricarse un grupo. Sigue siendo posible; ningún
+   artefacto del repositorio puede recontar la tabla de un artículo.
+2. **Siete de los veinticinco grupos son de una sola fila** y ahí la uniformidad es inerte de
+   nacimiento, entre ellos las dos únicas comparaciones de `necesidad` con `decidible = si` de
+   E008 y E014. Ya no se pueden fabricar, pero los que había siguen ahí.
+3. **`no_pasa` es ambiguo y así se publica.** El plan ya no puede decir si una compuerta caída
+   acusa a su propia hipótesis o al motor.
