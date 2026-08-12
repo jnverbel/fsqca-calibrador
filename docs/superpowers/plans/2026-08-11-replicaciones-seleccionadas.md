@@ -1488,6 +1488,13 @@ for (id in inc$id[inc$mod_minimizacion == "si"]) {
   stopifnot(nrow(m) > 0L, all(m$decidible == "si"))
 }
 
+# Y al reves: si la solucion del estudio SI es reproducible, ninguna de sus
+# filas puede excusarse con el tipo de solucion, en ningun modulo.
+for (id in inc$id[inc$mod_minimizacion == "si"]) {
+  f <- exp_todas[exp_todas$id_estudio == id, ]
+  stopifnot(!any(f$decidible == "no_tipo_solucion"))
+}
+
 # Y ninguno de los otros cinco puede traer fila de minimizacion.
 for (id in inc$id[inc$mod_minimizacion == "no_evaluable"]) {
   stopifnot(!"minimizacion" %in% res$modulo[res$id_estudio == id])
