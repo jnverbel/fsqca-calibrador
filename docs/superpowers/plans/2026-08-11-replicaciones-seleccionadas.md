@@ -952,6 +952,12 @@ se completa con las 7 medias y 7 desviaciones de la Tabla 8, las 12 consistencia
 coberturas de la Tabla 9 y las cifras de las Tablas 10 y 11). **No hay ninguna fila
 `modulo = minimizacion`**: la selección la congeló como `no_evaluable`.
 
+**Aviso para quien monte el corpus**: este bloque y el `comparaciones` del manifiesto **no
+casan entre sí y no deben casar**. El manifiesto declara `calibracion: 29`, `necesidad: 24` y
+`robustez: 8` —contados sobre las tablas publicadas— y aquí se muestran 5, 2 y 2 filas, porque
+esto es un extracto. El censo se **deriva de la tabla publicada**, nunca se copia del extracto:
+copiarlo lo bajaría de 29 a 5 en silencio.
+
 ```csv
 id_estudio,modulo,comparacion,esperado,precision,decidible,fuente
 E025,calibracion,media_fs_FUN,0.69,decimales,si,Tabla 8
@@ -2189,6 +2195,16 @@ hay <- function(x) any(grepl(paste0("\\Q", x, "\\E([^0-9]|$)"), lineas,
 exige <- function(x) if (!hay(x)) {
   stop("Falta en el informe, y sale del CSV: ", x, call. = FALSE)
 }
+# La familia del censo lleva un NUMERO al final, y ahi `([^0-9]|$)` es el ancla
+# correcta: distingue «2» de «24». La familia de `fuentes` lleva TEXTO, y contra
+# texto esa ancla es inerte —a «Tabla 9» le sigue una coma, que ya es [^0-9]—,
+# asi que degrada a comprobacion de PREFIJO y el documento puede publicar un
+# dominio mas ancho que el del manifiesto. Esa familia va con final de linea.
+hay_exacto <- function(x) any(grepl(paste0("\\Q", x, "\\E$"), lineas,
+                                   perl = TRUE))
+exige_exacto <- function(x) if (!hay_exacto(x)) {
+  stop("Falta literal en el informe, y sale del CSV: ", x, call. = FALSE)
+}
 prohibe <- function(x) if (hay(x)) {
   stop("El informe afirma lo contrario que el CSV: ", x, call. = FALSE)
 }
@@ -2205,8 +2221,8 @@ for (i in seq_len(nrow(inc))) {
     # —mudar una fila a la tabla hermana y declararla— era mas barato que bajar
     # el censo Y ademas invisible en el documento publico.
     fu <- paste(unlist(man$fuentes[[k]]), collapse = ", ")
-    exige(sprintf("%s/%s/fuentes: %s", inc$id[i], k,
-                  if (nzchar(fu)) fu else "(ninguna)"))
+    exige_exacto(sprintf("%s/%s/fuentes: %s", inc$id[i], k,
+                         if (nzchar(fu)) fu else "(ninguna)"))
   }
 }
 # La ambiguedad de `no_pasa` es una promesa del plan: el informe la declara.
@@ -2234,10 +2250,26 @@ Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió 
 manifiestos**, y `test-informe-validacion.R` lo comprueba exigiendo que aparezcan **literales**
 cuatro familias de cadenas construidas desde esos archivos: `<ID>: <veredicto>` por estudio,
 `D-APP registrados: <n>`, `<ID>/<módulo>: <n>` para todo el censo y
-`<ID>/<módulo>/fuentes: <lista>` para el dominio de `fuente` de cada módulo. Sin eso, el informe era la
-única sanción que quedaba tras sacar el `D-APP` del CI y **nada lo ataba al CSV**: podía decir
-«E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde. Y convierte en
-real la mitigación del censo: bajar un conteo obliga a cambiar el documento público.
+`<ID>/<módulo>/fuentes: <lista>` para el dominio de `fuente` de cada módulo. Sin eso, el
+informe era la única sanción que quedaba tras sacar el `D-APP` del CI y **nada lo ataba al
+CSV**: podía decir «E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde.
+Y hace que bajar un conteo, o ampliar el dominio de un módulo, obligue a cambiar el documento
+público.
+
+**El formato de esas cadenas es parte del contrato, no un detalle del generador.** Las tres
+primeras familias terminan en un número y se comprueban con un ancla que distingue `2` de `24`;
+la de `fuentes` termina en texto y se comprueba **contra el final de la línea**, porque contra
+texto esa ancla numérica degrada a comprobación de prefijo y el documento podría publicar un
+dominio más ancho que el del manifiesto. De ahí que la línea de `fuentes` tenga que salir
+exactamente así:
+
+- las tablas separadas por **coma y espacio** (`, `);
+- **en el orden en que están en el manifiesto**, no alfabético;
+- y `(ninguna)` cuando la lista está vacía —los módulos cuyo censo es `0`—;
+- y **nada detrás**: la línea termina en la última tabla.
+
+Si la primera ejecución falla por una coma, lo que se corrige es el generador, nunca la
+comprobación.
 
 Además, junto a la tabla de compuertas, el informe **declara la ambigüedad de `no_pasa` con
 esta frase literal**, que `test-informe-validacion.R` exige igual que exige la declaración de
@@ -2567,6 +2599,8 @@ añade otra condición: le quita el mecanismo.
   precondición comprobable contra un artefacto que ya existe: `no_tipo_solucion` se valida
   contra `mod_minimizacion` en `estudios.csv`, y `no_insumo_ausente` contra una fila
   completa de `validation/ausencias.csv`. La palabra escrita en `fuente` ya no decide nada.
+  **(Superado: `no_insumo_ausente` y `validation/ausencias.csv` no existen desde la quinta
+  pasada. Este párrafo describe el diseño de la cuarta, no el vigente.)**
 - **Tres módulos no admiten absolución de ninguna clase.** `calibracion`, `necesidad` y
   `tabla_verdad` se calculan desde el artefacto verificado: si el artefacto está, el insumo
   está.
@@ -2846,8 +2880,8 @@ Dónde puede mudarse ahora:
 3. **`fuentes` es un dato del manifiesto**, así que ampliar la lista de un módulo —declarar la
    `Tabla 8` para `necesidad` y mudar la fila allí— es un cambio de una línea en la ficha de
    procedencia. Ningún artefacto del repositorio puede decir qué tablas publica un artículo,
-   así que ese límite no se puede cerrar por código; lo que sí se hizo, en la novena pasada, es
-   **publicar `fuentes` en el informe** con la misma exigencia literal que el censo, para que
-   ampliar la lista obligue a cambiar el documento público. Medido antes de hacerlo: sin esa
-   línea la ampliación costaba tres archivos y siete celdas, era **más barata que bajar el
-   censo** y encima invisible, porque `test-informe-validacion.R` no la veía.
+   así que ese límite no se puede cerrar por código. La novena pasada **publicó `fuentes` en el
+   informe** para que ampliar la lista obligara a cambiar el documento público; **la décima
+   descubrió que esa exigencia no mordía**, porque comprobaba un valor de texto con el ancla
+   numérica del censo y degradaba a prefijo: bastaba publicar el dominio ancho antes de
+   ampliarlo. Con la comprobación contra el final de línea sí muerde, y así queda medido.
