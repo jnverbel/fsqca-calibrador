@@ -219,16 +219,18 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   aserción que no podía fallar: afirmaba una propiedad de `leer_csv()`, que fuerza
   `colClasses = "character"`.
 
-  **Y la clave del grupo no puede ser texto libre**, o la comprobación se esquiva
-  fabricándose un grupo propio: bastaba retocar `fuente` en la misma fila —«Tabla 9» →
-  «Tabla 9 (cobertura)»— para quedarse solo en el grupo, con el censo cuadrado y la biyección
-  intacta. `fuente` es ahora un **dominio cerrado declarado en el manifiesto del estudio**
-  (`"fuentes": [...]`), y el guardián exige además que la `fuente` del resultado sea la de su
-  expectativa. **Lo que queda abierto** y hay que decirlo: los grupos que ya son de una sola
-  fila —hoy siete de veinticinco, entre ellos las dos únicas comparaciones de `necesidad` con
-  `decidible = si` de E008 y E014— no restringen nada, aunque ya no se pueden fabricar; y una
-  tabla en la que *todos* los valores terminan en cero pierde los ceros de forma uniforme y
-  pasa.
+  **Y la clave del grupo es `(id_estudio, modulo)`, no `(id_estudio, fuente)`.** `fuente` es
+  texto, y con ella como clave la comprobación se esquivaba sin inventar nada: bastaba **mudar
+  la fila a la tabla hermana** del mismo estudio, impresa con menos decimales y en la misma
+  escala —E025 publica la Tabla 8 a dos decimales, la Tabla 9 a tres y la Tabla 11 a cuatro—,
+  y cada grupo quedaba internamente uniforme. Cerrar el dominio de `fuente` no arreglaba eso,
+  porque la tabla hermana es legítima. `modulo` es un dominio cerrado de seis nombres que
+  nadie puede inventar, y agrupar por él es además **más estricto**: los grupos son la unión
+  de los que había, así que hay menos singletons. El guardián exige aparte que la `fuente` del
+  resultado sea la de su expectativa, pero `fuente` ya no decide nada: es el localizador que
+  lee un humano. **Lo que queda abierto**: un módulo cuyo estudio publique dos tablas con
+  precisiones distintas haría fallar la comprobación con datos legítimos, y una tabla en la
+  que *todos* los valores terminan en cero pierde los ceros de forma uniforme y pasa.
 - **`ajuste` decidible** en los cuatro estudios cuya solución sí es reproducible:
   E001 (la produce su script oficial), E008 (la nota de su Tabla 7 declara **todas** las
   condiciones mostradas como centrales, de modo que los términos exhibidos coinciden con los
@@ -842,16 +844,9 @@ una fila: el conteo no se ajusta al resultado.
     "tabla_verdad": 0,
     "ajuste": 2,
     "robustez": 8
-  },
-  "fuentes": ["Tabla 8", "Tabla 9", "Tabla 10", "Tabla 11"]
+  }
 }
 ```
-
-`fuentes` es el **dominio cerrado** de la columna `fuente` de las expectativas: son las tablas
-publicadas de las que sale cada valor, y ninguna fila puede citar una que no esté aquí. Sin
-eso, `fuente` era texto libre —y es la clave con la que se agrupa la uniformidad de
-decimales—, así que bastaba retocarla en una fila para quedarse solo en el grupo y dejar la
-comprobación inerte.
 
 Las claves de `comparaciones` son exactamente los módulos que `estudios.csv` declara `si` para
 E025;
@@ -1779,7 +1774,6 @@ artículo para simular la replicación.
     "calibracion": 0, "tabla_verdad": 0, "minimizacion": 0,
     "ajuste": 0, "robustez": 0
   },
-  "fuentes": [],
   "no_ejecutable": {
     "motivo": "deposito inaccesible",
     "evidencia": "HTTP 202 con x-amzn-waf-action challenge en seis rutas de dataverse.harvard.edu",
@@ -1907,11 +1901,14 @@ stopifnot(all(nzchar(trimws(exp_todas$esperado))))
 # (id_estudio, fuente) el numero de decimales es constante. Una fila que baja
 # de 3 a 2 decimales es el exploit; un archivo al que un round-trip de hoja de
 # calculo le quito los ceros finales es el accidente, y multiplica por diez las
-# tolerancias sin que nada chille.
+# tolerancias sin que nada chille. La clave del grupo es (id_estudio, modulo),
+# no (id_estudio, fuente): `fuente` es texto y bastaba mudar la fila a la tabla
+# hermana del mismo estudio, impresa con menos decimales, para quedar en un
+# grupo internamente uniforme. `modulo` es un dominio cerrado y no se inventa.
 con_dec <- exp_todas[exp_todas$precision == "decimales", , drop = FALSE]
 stopifnot(nrow(con_dec) > 0L)
 for (g in split(vapply(con_dec$esperado, decimales_de, integer(1)),
-                paste(con_dec$id_estudio, con_dec$fuente))) {
+                paste(con_dec$id_estudio, con_dec$modulo))) {
   stopifnot(length(g) > 0L, length(unique(g)) == 1L)
 }
 stopifnot(all(exp_todas$decidible %in% DECIDIBLE),
@@ -1964,9 +1961,6 @@ for (i in seq_len(nrow(inc))) {
                                    nchar(a$sha256) == 64L, logical(1))))
   stopifnot(all(e$id_estudio == id), all(e$modulo %in% declarados),
             all(r$modulo %in% declarados))
-  # `fuente` agrupa la uniformidad de decimales, asi que no puede ser texto
-  # libre: retocarla dejaba a la fila sola en su grupo. Va en el manifiesto.
-  stopifnot(length(m$fuentes) > 0L, all(e$fuente %in% unlist(m$fuentes)))
 
   # Cuenta congelada, modulo a modulo, en las dos direcciones. Cero solo donde
   # la lista cerrada lo admite; al menos una en todo lo demas.
@@ -2148,16 +2142,28 @@ stopifnot(cuenta("varias replicaciones completas") == 0L)
 # sancion que quedaba tras sacar el D-APP del CI.
 res <- leer_csv("docs/validacion/replicaciones.csv")
 inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
-exige <- function(x) if (!grepl(x, doc, fixed = TRUE)) {
+# Linea a linea y con el patron ANCLADO: `grepl` sobre el documento entero y
+# sin ancla daba por bueno «E025/necesidad: 24» cuando el censo habia bajado a
+# 2, porque «2» es prefijo de «24». Eso anulaba la mitigacion del censo.
+lineas <- readLines("docs/validacion-integral.md", warn = FALSE)
+hay <- function(x) any(grepl(paste0(x, "([^0-9]|$)"), lineas))
+exige <- function(x) if (!hay(x)) {
   stop("Falta en el informe, y sale del CSV: ", x, call. = FALSE)
+}
+prohibe <- function(x) if (hay(x)) {
+  stop("El informe afirma lo contrario que el CSV: ", x, call. = FALSE)
 }
 exige(paste("D-APP registrados:", sum(res$codigo == "D-APP")))
 for (i in seq_len(nrow(inc))) {
-  exige(paste0(inc$id[i], ": ", veredicto(res, inc$id[i])))
+  v <- veredicto(res, inc$id[i])
+  exige(paste0(inc$id[i], ": ", v))
+  for (otro in setdiff(VEREDICTOS, v)) prohibe(paste0(inc$id[i], ": ", otro))
   m <- jsonlite::fromJSON(sprintf("validation/manifiestos/%s.json", inc$id[i]),
                           simplifyVector = FALSE)$comparaciones
   for (k in names(m)) exige(sprintf("%s/%s: %s", inc$id[i], k, m[[k]]))
 }
+# La ambiguedad de `no_pasa` es una promesa del plan: el informe la declara.
+stopifnot(hay("no distingue si falla la hipótesis de agregación o el motor"))
 
 for (r in c("README.md", "README.es.md")) {
   txt <- paste(readLines(r, warn = FALSE), collapse = "\n")
@@ -2185,9 +2191,11 @@ tres familias de cadenas construidas desde esos archivos: `<ID>: <veredicto>` po
 «E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde. Y convierte en
 real la mitigación del censo: bajar un conteo obliga a cambiar el documento público.
 
-Además, junto a la tabla de compuertas, el informe **declara la ambigüedad de `no_pasa`**: que
-la media de ítems no reproduzca la tabla publicada puede venir de la hipótesis de agregación
-de este plan o de `promediar_constructos()`, y el plan no puede distinguirlas.
+Además, junto a la tabla de compuertas, el informe **declara la ambigüedad de `no_pasa` con
+esta frase literal**, que `test-informe-validacion.R` exige igual que exige la declaración de
+alcance: «un `no_pasa` es ambiguo por construcción, es decir que **no distingue si falla la
+hipótesis de agregación o el motor**». Sin esa aserción la ambigüedad era una promesa escrita
+en seis sitios del plan y en ninguno del documento público.
 
 - [ ] **Step 3: Corregir README y CITATION**
 
@@ -2702,3 +2710,47 @@ Dónde puede mudarse ahora:
    E008 y E014. Ya no se pueden fabricar, pero los que había siguen ahí.
 3. **`no_pasa` es ambiguo y así se publica.** El plan ya no puede decir si una compuerta caída
    acusa a su propia hipótesis o al motor.
+
+### Octava pasada, 2026-08-12 (la décima mudanza, y quitar la clave de texto)
+
+Tres cosas, y la primera vuelve a ser la misma de siempre.
+
+1. **La décima mudanza: no hacía falta inventar una fuente, bastaba citar la tabla hermana.**
+   La séptima pasada cerró el dominio de `fuente` para que nadie pudiera escribir
+   «Tabla 9 (cobertura)», pero **nada ataba `fuente` a `modulo`**, así que una fila de
+   `necesidad` de E025 podía mudarse a su Tabla 8 —dos decimales en vez de tres, misma escala,
+   fuente perfectamente legítima— y quedar en un grupo internamente uniforme, con la tolerancia
+   multiplicada por diez, el manifiesto sin tocar y cuatro líneas de diff.
+   **El cierre quita en vez de añadir**: la clave del grupo pasa a ser `(id_estudio, modulo)`,
+   que es un dominio cerrado de seis nombres, y con eso `"fuentes": [...]` **sobra y se
+   elimina** del manifiesto. Agrupar por módulo es además más estricto —los grupos son la unión
+   de los que había, luego hay menos singletons— y disuelve de paso dos problemas de la ronda
+   anterior: la contradicción entre las filas de `ajuste` de E025 (`"Tabla 10 (solucion
+   intermedia)"`) y el `fuentes[]` de su propio manifiesto, y el campo sin documentar que
+   habría hecho abortar la Task 11 con los siete manifiestos restantes. `fuente` vuelve a ser
+   lo que debía ser: el localizador que lee un humano, sin poder sobre nada.
+2. **`exige()` casaba subcadenas y solo comprobaba presencia.** «2» es prefijo de «24», así que
+   bajar el censo de 24 a 2 dejaba el documento público intacto y en verde —justo la mitigación
+   que la pasada anterior había convertido «de decorativa en real»—, y un veredicto falso podía
+   convivir con el verdadero. Ahora el patrón va **anclado** (al número le sigue un no-dígito o
+   el fin de línea) y se compara **línea a línea**; y para cada estudio se **prohíbe** que
+   aparezca cualquier veredicto distinto del que dan los datos.
+3. **La ambigüedad de `no_pasa` era una promesa sin guardián**: escrita en seis sitios del plan
+   y en ninguno del documento público. Un `stopifnot` de distancia, ya puesto.
+
+Efecto colateral que no busqué: **M-L2 pasa de verde a roja.** El límite que esta rama
+arrastraba desde la cuarta pasada —borrar resultado, expectativa y conteo a la vez— lo muerde
+ahora la atadura del informe, porque el documento público sigue declarando el censo y el
+recuento de `D-APP` viejos.
+
+Dónde puede mudarse ahora:
+
+1. **El censo sigue siendo editable si además se reescribe el informe**, que es lo que M-L2 ya
+   no consigue con el documento intacto. Ningún artefacto del repositorio puede recontar la
+   tabla de un artículo: ahí termina lo que el código sostiene.
+2. **La uniformidad por módulo puede ser demasiado estricta con datos reales.** Si un estudio
+   publica dos tablas del mismo módulo con precisiones distintas, la comprobación fallará con
+   datos legítimos y habrá que decidir entre relajarla o partir el módulo. No lo he visto en
+   los nueve estudios tal como el plan los describe, pero solo se sabrá al ejecutar.
+3. **Una tabla cuyos valores publicados terminen todos en cero** los pierde de forma uniforme y
+   pasa. Sin cambios.
