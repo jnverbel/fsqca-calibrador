@@ -231,8 +231,8 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   tolerancia por diez.
 
   Las dos particiones **se cruzan**: `E008 Tabla 7` → `{minimizacion, ajuste}`,
-  `E012 Tabla 3` → `{tabla_verdad, minimizacion, ajuste}`, `E015 Tabla 5` →
-  `{minimizacion, ajuste}`. Por eso ninguna sustituye a la otra:
+  `E012 Tabla 3` → `{minimizacion, ajuste}` y `E015 Tabla 5` → `{minimizacion, ajuste}`, los
+  tres sostenidos por la prosa de sus tareas. Por eso ninguna sustituye a la otra:
 
   - **uniformidad por `(id_estudio, fuente)`**: una tabla publicada imprime todas sus celdas
     con la misma precisión, la cite el módulo que la cite;
@@ -961,8 +961,8 @@ E025,calibracion,max_fs_PIs,0.95,decimales,si,Tabla 8
 E025,calibracion,n_casos,225,exacta,si,Tabla 8
 E025,necesidad,consistencia_fs_ATTs,0.952,decimales,si,Tabla 9
 E025,necesidad,cobertura_fs_ATTs,0.860,decimales,si,Tabla 9
-E025,ajuste,consistencia_solucion,0.915,decimales,no_tipo_solucion,Tabla 10 (solucion intermedia)
-E025,ajuste,cobertura_solucion,0.881,decimales,no_tipo_solucion,Tabla 10 (solucion intermedia)
+E025,ajuste,consistencia_solucion,0.915,decimales,no_tipo_solucion,Tabla 10
+E025,ajuste,cobertura_solucion,0.881,decimales,no_tipo_solucion,Tabla 10
 E025,robustez,consistencia_M1_submuestra,0.9306,decimales,no_tipo_solucion,Tabla 11
 E025,robustez,cobertura_bruta_M1_submuestra,0.8035,decimales,no_tipo_solucion,Tabla 11
 ```
@@ -2184,7 +2184,8 @@ inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
 # sin ancla daba por bueno «E025/necesidad: 24» cuando el censo habia bajado a
 # 2, porque «2» es prefijo de «24». Eso anulaba la mitigacion del censo.
 lineas <- readLines("docs/validacion-integral.md", warn = FALSE)
-hay <- function(x) any(grepl(paste0(x, "([^0-9]|$)"), lineas))
+hay <- function(x) any(grepl(paste0("\\Q", x, "\\E([^0-9]|$)"), lineas,
+                            perl = TRUE))
 exige <- function(x) if (!hay(x)) {
   stop("Falta en el informe, y sale del CSV: ", x, call. = FALSE)
 }
@@ -2196,9 +2197,17 @@ for (i in seq_len(nrow(inc))) {
   v <- veredicto(res, inc$id[i])
   exige(paste0(inc$id[i], ": ", v))
   for (otro in setdiff(VEREDICTOS, v)) prohibe(paste0(inc$id[i], ": ", otro))
-  m <- jsonlite::fromJSON(sprintf("validation/manifiestos/%s.json", inc$id[i]),
-                          simplifyVector = FALSE)$comparaciones
-  for (k in names(m)) exige(sprintf("%s/%s: %s", inc$id[i], k, m[[k]]))
+  man <- jsonlite::fromJSON(sprintf("validation/manifiestos/%s.json", inc$id[i]),
+                            simplifyVector = FALSE)
+  for (k in names(man$comparaciones)) {
+    exige(sprintf("%s/%s: %s", inc$id[i], k, man$comparaciones[[k]]))
+    # `fuentes` tambien se publica: sin esto, ampliar la lista de un modulo
+    # —mudar una fila a la tabla hermana y declararla— era mas barato que bajar
+    # el censo Y ademas invisible en el documento publico.
+    fu <- paste(unlist(man$fuentes[[k]]), collapse = ", ")
+    exige(sprintf("%s/%s/fuentes: %s", inc$id[i], k,
+                  if (nzchar(fu)) fu else "(ninguna)"))
+  }
 }
 # La ambiguedad de `no_pasa` es una promesa del plan: el informe la declara.
 stopifnot(hay("no distingue si falla la hipótesis de agregación o el motor"))
@@ -2223,8 +2232,9 @@ Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió 
 
 **El informe no se redacta: se genera desde `docs/validacion/replicaciones.csv` y los
 manifiestos**, y `test-informe-validacion.R` lo comprueba exigiendo que aparezcan **literales**
-tres familias de cadenas construidas desde esos archivos: `<ID>: <veredicto>` por estudio,
-`D-APP registrados: <n>` y `<ID>/<módulo>: <n>` para todo el censo. Sin eso, el informe era la
+cuatro familias de cadenas construidas desde esos archivos: `<ID>: <veredicto>` por estudio,
+`D-APP registrados: <n>`, `<ID>/<módulo>: <n>` para todo el censo y
+`<ID>/<módulo>/fuentes: <lista>` para el dominio de `fuente` de cada módulo. Sin eso, el informe era la
 única sanción que quedaba tras sacar el `D-APP` del CI y **nada lo ataba al CSV**: podía decir
 «E025: reproducido» con un `D-APP` registrado y las cuatro pruebas en verde. Y convierte en
 real la mitigación del censo: bajar un conteo obliga a cambiar el documento público.
@@ -2817,13 +2827,15 @@ en vez de **añadir** la restricción que faltaba. Eso rompió una cosa y abrió
 **Y una afirmación mía que era falsa, corregida por lo que se mide.** Escribí dos veces que los
 grupos por módulo «son la unión de los que había, luego hay menos singletons». Eso exigiría que
 `fuente` refine a `modulo`, y **las dos particiones se cruzan**: `E008 Tabla 7` →
-`{minimizacion, ajuste}`, `E012 Tabla 3` → `{tabla_verdad, minimizacion, ajuste}`,
-`E015 Tabla 5` → `{minimizacion, ajuste}`. Era la premisa que hacía parecer innecesaria la
-restricción que quité, y la escribí sin medirla: exactamente el defecto que esta rama persigue.
+`{minimizacion, ajuste}`, `E012 Tabla 3` → `{minimizacion, ajuste}` y `E015 Tabla 5` →
+`{minimizacion, ajuste}`. Era la premisa que hacía parecer innecesaria la restricción que
+quité, y la escribí sin medirla: exactamente el defecto que esta rama persigue.
 
-Menor: `hay()` interpolaba su argumento dentro de un patrón de expresión regular. Hoy ninguna
-cadena lleva metacaracteres, pero el día que un nombre lleve un paréntesis el guardián dejaría
-de comprobar lo que cree. Va con `\Q…\E` y `perl = TRUE`.
+Menor: `hay()` interpolaba su argumento dentro de un patrón de expresión regular. **Esta
+retrospectiva afirmó en su día que el arreglo estaba puesto, y no lo estaba**: el guion que lo
+aplicaba abortó antes de llegar a esa línea y no volví a comprobarlo contra el árbol. Se aplicó
+de verdad en la novena pasada, con `\Q…\E` y `perl = TRUE`, y con los tres casos ausentes
+midiendo `FALSE` donde antes daban `TRUE` o un error de compilación del patrón.
 
 Dónde puede mudarse ahora:
 
@@ -2831,6 +2843,11 @@ Dónde puede mudarse ahora:
    no se pueden fabricar, pero los que existen de nacimiento siguen ahí.
 2. **Una tabla cuyos valores publicados terminen todos en cero** los pierde de forma uniforme y
    pasa. Sin cambios desde la sexta pasada.
-3. **`fuentes` es un dato del manifiesto**, así que ampliar la lista de un módulo es un cambio
-   de una línea en la ficha de procedencia. Visible en el diff, como el censo, y con el mismo
-   límite: ningún artefacto del repositorio puede decir qué tablas publica un artículo.
+3. **`fuentes` es un dato del manifiesto**, así que ampliar la lista de un módulo —declarar la
+   `Tabla 8` para `necesidad` y mudar la fila allí— es un cambio de una línea en la ficha de
+   procedencia. Ningún artefacto del repositorio puede decir qué tablas publica un artículo,
+   así que ese límite no se puede cerrar por código; lo que sí se hizo, en la novena pasada, es
+   **publicar `fuentes` en el informe** con la misma exigencia literal que el censo, para que
+   ampliar la lista obligue a cambiar el documento público. Medido antes de hacerlo: sin esa
+   línea la ampliación costaba tres archivos y siete celdas, era **más barata que bajar el
+   censo** y encima invisible, porque `test-informe-validacion.R` no la veía.
