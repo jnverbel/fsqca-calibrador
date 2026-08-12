@@ -151,16 +151,35 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
 - **Una diferencia atribuible al tipo de solución nunca se clasifica `D-APP`.** Si los
   términos de la aplicación difieren de los publicados solo por condiciones adicionales
   compatibles con la relación parsimoniosa ⊆ intermedia ⊆ compleja, el código es `D-AMB`.
-- **Esa excusa la lleva la FILA, no el estudio, y solo vale en tres módulos.** La columna
-  `decidible` de `validation/expectativas/<ID>.csv` admite `si`, `no_tipo_solucion` y
-  `no_sin_fuente`, y `no_tipo_solucion` **solo puede aparecer en `minimizacion`, `ajuste` y
-  `robustez`**, que son los únicos que dependen de qué solución se eligió. `calibracion`,
-  `necesidad` y `tabla_verdad` se calculan antes de minimizar: marcarlas así es un error de
-  categoría y `codigo_de_la_fila()` aborta. Sin esa regla, un absorbedor por estudio
-  absolvería también las 459 × 6 membresías calibradas de E026 —la comparación más fuerte de
-  la muestra— y un fallo real de `calibrar()` saldría en verde.
-- **`no_sin_fuente` exige que la columna `fuente` declare la ausencia** («ausente», «no
-  publica»…). Es lo que impide absolver una comparación cuyo valor sí está publicado.
+- **Esa excusa la lleva la FILA, no el estudio, y su precondición es estructural, no una
+  palabra escrita en un texto libre.** La columna `decidible` de
+  `validation/expectativas/<ID>.csv` admite exactamente tres valores:
+  - `si`: se compara de verdad y puede salir `D-APP`.
+  - `no_tipo_solucion`: solo en `minimizacion`, `ajuste` y `robustez`, **y solo si
+    `estudios.csv` declara `mod_minimizacion == "no_evaluable"`** para ese estudio. La
+    condición se comprueba contra la selección congelada, no contra una lista escrita a mano.
+  - `no_insumo_ausente`: el estudio publica el valor pero no el insumo con el que se
+    obtuvo —el caso de la partición aleatoria de E025—. Exige una fila completa en
+    `validation/ausencias.csv` con el insumo que falta, qué se buscó, URL y fecha.
+- **`calibracion`, `necesidad` y `tabla_verdad` no admiten absolución de ninguna clase.** Se
+  calculan antes de minimizar y desde el artefacto que el manifiesto ya verificó: si el
+  artefacto está, el insumo está. `codigo_de_la_fila()` aborta con cualquier `decidible`
+  distinto de `si` en esos tres módulos, tenga o no valor guardado. Es lo que impide que un
+  fallo real de `calibrar()` sobre las 459 × 6 membresías de E026 quede absuelto.
+- **Si el estudio no publica nada que comparar, la fila NO existe.** No hay una marca que
+  convierta una comparación en silencio: la ausencia se anota en `validation/ausencias.csv`,
+  con localizador, y el módulo se informa como «no decidible». Una marca de texto libre —la
+  que este plan tuvo hasta la tercera revisión— es un ritual de palabra clave, no una
+  propiedad: se satisface escribiendo «ausente» junto a un valor que sí está publicado.
+- **El código escrito en `replicaciones.csv` no se cree: se recalcula.** `test-consolidacion.R`
+  recomputa cada código desde `esperado` y `obtenido`, y si no coincide exige una fila en
+  `validation/discrepancias-prerregistradas.csv` con motivo y fecha. Degradar a mano un
+  `D-APP` a `D-AMB` —la presión que aparece en cuanto un guardián exige `D-AMB`— se ve ahí.
+- **La tolerancia no puede inflarse desde el dato.** `decimales` tiene que ser el número de
+  decimales que el valor guardado realmente tiene: `92` con `decimales = 0` es un porcentaje
+  entero y vale; `0.92` con `decimales = 0` daría media unidad de tolerancia sobre una
+  proporción y aprobaría cualquier cosa. `decimales_coherentes()` lo comprueba en todas las
+  filas.
 - **`ajuste` decidible** en los cuatro estudios cuya solución sí es reproducible:
   E001 (la produce su script oficial), E008 (la nota de su Tabla 7 declara **todas** las
   condiciones mostradas como centrales, de modo que los términos exhibidos coinciden con los
@@ -198,6 +217,8 @@ encabezado `id_estudio,compuerta,fuente,estado,detalle`, donde `estado` admite `
 - `validation/R/comun-replicacion.R`: descarga verificada, tolerancias, comparador y códigos `D-*`.
 - `docs/validacion/compuertas.csv`: estado de las compuertas previas de agregación.
 - `docs/validacion/no-ejecutables.csv`: estudios que no se pudieron ejecutar, con evidencia.
+- `validation/ausencias.csv`: qué no publica cada estudio, con localizador, URL y fecha.
+- `validation/discrepancias-prerregistradas.csv`: los códigos que se apartan del dato, con motivo y fecha.
 - `validation/manifiestos/<ID>.json`: procedencia, archivo servido, bytes, SHA-256, licencia y fecha.
 - `validation/prerregistros/<ID>.md`: decisiones, ausencias con localizador y límites.
 - `validation/expectativas/<ID>.csv`: expectativas legibles por máquina.
@@ -217,15 +238,34 @@ encabezado `id_estudio,compuerta,fuente,estado,detalle`, donde `estado` admite `
 - Create: `validation/R/comun-replicacion.R`
 - Create: `validation/tests/test-contratos-replicacion.R`
 - Create: `docs/validacion/diccionario-replicaciones.md`
+- Create: `validation/ausencias.csv` (solo el encabezado)
+- Create: `validation/discrepancias-prerregistradas.csv` (solo el encabezado)
+- Create: `docs/validacion/no-ejecutables.csv` (solo el encabezado)
 
 **Interfaces:**
 - Consumes: las tolerancias congeladas y los códigos `D-*` de la especificación §6 y §8.
-- Produces: `obtener_artefacto()`, `tolerancia_de()`, `comparar()` y los esquemas de manifiesto, expectativas y resultados.
+- Produces: `obtener_artefacto()`, `tolerancia_de()`, `comparar()`, `codigo_de_la_fila()`, `veredicto()` y los esquemas de manifiesto, expectativas, resultados, ausencias y discrepancias prerregistradas.
+
+Los tres CSV nacen aquí **con su encabezado y sin filas**, para que los guardianes los lean
+sin condicionales: un `if (file.exists(...))` alrededor de una comprobación es una omisión
+con otro nombre.
+
+```csv
+id_estudio,modulo,comparacion,insumo_ausente,que_se_busco,url,fecha
+```
+
+```csv
+id_estudio,modulo,comparacion,codigo,motivo,fecha
+```
+
+```csv
+id_estudio,motivo,evidencia,fecha
+```
 
 - [ ] **Step 1: Escribir la prueba de los contratos antes que el código**
 
-Crear `validation/tests/test-contratos-replicacion.R`. Este es el contenido exacto,
-ejecutado y sometido a mutación antes de escribirlo aquí:
+Crear `validation/tests/test-contratos-replicacion.R`. Contenido exacto, ejecutado y
+sometido a mutación antes de escribirlo aquí:
 
 ```r
 source("validation/R/comun-replicacion.R")
@@ -262,61 +302,80 @@ stopifnot(identical(MODULOS, c("calibracion", "necesidad", "tabla_verdad",
                                "minimizacion", "ajuste", "robustez")))
 stopifnot(!"agregacion" %in% MODULOS)
 
+est <- utils::read.csv("docs/validacion/estudios.csv", stringsAsFactors = FALSE)
+inc <- subset(est, decision == "incluir")
+aus <- utils::read.csv("validation/ausencias.csv", stringsAsFactors = FALSE)
+
 fila <- function(id, modulo, esperado, decidible, fuente = "Tabla X",
-                 precision = "decimales", decimales = 3) {
-  data.frame(id_estudio = id, modulo = modulo, comparacion = "c",
+                 comparacion = "c", precision = "decimales", decimales = 3) {
+  data.frame(id_estudio = id, modulo = modulo, comparacion = comparacion,
              esperado = esperado, precision = precision, decimales = decimales,
              decidible = decidible, fuente = fuente, stringsAsFactors = FALSE)
 }
+codigo <- function(f, obtenido) codigo_de_la_fila(f, obtenido, aus, inc)
 
-# 1. El ajuste de un estudio sin `include` publicado no culpa al motor.
+# 1. El ajuste de un estudio cuya minimizacion la seleccion congelo como
+#    no_evaluable no culpa al motor.
 amb <- fila("E025", "ajuste", 0.915, "no_tipo_solucion")
-stopifnot(codigo_de_la_fila(amb, 0.915) == "D-AMB")
-stopifnot(codigo_de_la_fila(amb, 0.100) == "D-AMB")
+stopifnot(codigo(amb, 0.915) == "D-AMB")
+stopifnot(codigo(amb, 0.100) == "D-AMB")
 
-# 2. Pero la CALIBRACION del mismo estudio si muerde: no depende de la
-#    solucion, y absolverla dejaria pasar un fallo real de calibrar().
+# 2. Pero la CALIBRACION, la NECESIDAD y la TABLA DE VERDAD del mismo estudio
+#    muerden: se calculan desde el artefacto verificado y no admiten
+#    absolucion de ninguna clase.
 cal <- fila("E026", "calibracion", 0.79, "si",
             fuente = "columna fhuman de dataset.csv", decimales = 2)
-stopifnot(codigo_de_la_fila(cal, 0.79) == "D-OK")
-stopifnot(codigo_de_la_fila(cal, 0.11) == "D-APP")
-nec <- fila("E025", "necesidad", 0.952, "si", fuente = "Tabla 9")
-stopifnot(codigo_de_la_fila(nec, 0.952) == "D-OK")
-stopifnot(codigo_de_la_fila(nec, 0.500) == "D-APP")
+stopifnot(codigo(cal, 0.79) == "D-OK")
+stopifnot(codigo(cal, 0.11) == "D-APP")
+for (m in MODULOS_SIEMPRE_DECIDIBLES) {
+  for (d in setdiff(DECIDIBLE, "si")) {
+    f <- fila("E026", m, 5, d, comparacion = "filas_sobre_incl_cut",
+              precision = "exacta", decimales = NA)
+    stopifnot(inherits(try(codigo(f, 19), silent = TRUE), "try-error"))
+  }
+}
 
-# 3. Y no se puede absolver por la puerta de atras: marcar `no_tipo_solucion`
-#    en un modulo que no depende de la solucion es un error de categoria.
-cal_absuelta <- cal
-cal_absuelta$decidible <- "no_tipo_solucion"
-stopifnot(inherits(try(codigo_de_la_fila(cal_absuelta, 0.11), silent = TRUE),
-                   "try-error"))
-nec_absuelta <- nec
-nec_absuelta$decidible <- "no_tipo_solucion"
-stopifnot(inherits(try(codigo_de_la_fila(nec_absuelta, 0.5), silent = TRUE),
-                   "try-error"))
-
-# 4. `no_sin_fuente` exige que la ausencia este declarada en `fuente`.
-sin_fuente_ok <- fila("E008", "robustez", NA_real_, "no_sin_fuente",
-                      fuente = "El estudio no publica escenario alternativo: ausente")
-stopifnot(codigo_de_la_fila(sin_fuente_ok, 0.5) == "D-AMB")
-sin_fuente_mal <- fila("E008", "robustez", NA_real_, "no_sin_fuente",
-                       fuente = "Tabla 6")
-stopifnot(inherits(try(codigo_de_la_fila(sin_fuente_mal, 0.5), silent = TRUE),
-                   "try-error"))
-
-# 5. Los cuatro estudios cuya minimizacion SI es comparable estan anclados
-#    contra estudios.csv, no contra una lista escrita a mano.
-est <- utils::read.csv("docs/validacion/estudios.csv", stringsAsFactors = FALSE)
-inc <- subset(est, decision == "incluir")
+# 3. `no_tipo_solucion` no vale donde la seleccion congelada dice que la
+#    solucion SI es reproducible: sale de estudios.csv, no de una lista.
 stopifnot(identical(sort(inc$id[inc$mod_minimizacion == "si"]),
                     c("E001", "E008", "E012", "E015")))
 for (id in c("E008", "E012", "E015")) {
-  f <- fila(id, "minimizacion", 3, "si", precision = "exacta", decimales = NA)
-  stopifnot(codigo_de_la_fila(f, 3) == "D-OK")
-  stopifnot(codigo_de_la_fila(f, 2) == "D-APP")
+  f <- fila(id, "ajuste", 0.808, "no_tipo_solucion")
+  stopifnot(inherits(try(codigo(f, 0.1), silent = TRUE), "try-error"))
+  g <- fila(id, "minimizacion", 3, "si", precision = "exacta", decimales = NA)
+  stopifnot(codigo(g, 3) == "D-OK", codigo(g, 2) == "D-APP")
 }
 
-# 6. Veredicto por estudio: pareja de casos opuestos sobre datos sinteticos.
+# 4. `no_insumo_ausente` exige un registro completo en ausencias.csv: no hay
+#    palabra clave en texto libre que lo sustituya.
+ok <- fila("E025", "robustez", 0.9306, "no_insumo_ausente",
+           comparacion = "consistencia_M1_submuestra", decimales = 4)
+stopifnot(codigo(ok, 0.5) == "D-AMB")
+mal <- fila("E026", "robustez", 0.286, "no_insumo_ausente",
+            comparacion = "cobertura_solucion_esc1", fuente = "ausente")
+stopifnot(inherits(try(codigo(mal, 0.1), silent = TRUE), "try-error"))
+
+# 5. La precision declarada tiene que corresponder al valor guardado: guardar
+#    0,92 con 0 decimales daria una tolerancia de 0,5 sobre una proporcion.
+stopifnot(decimales_coherentes(92, "decimales", 0))
+stopifnot(decimales_coherentes(0.92, "decimales", 2))
+stopifnot(!decimales_coherentes(0.92, "decimales", 0))
+stopifnot(!decimales_coherentes(0.915, "decimales", 1))
+inflada <- fila("E026", "calibracion", 0.92, "si", decimales = 0)
+stopifnot(inherits(try(codigo(inflada, 0.50), silent = TRUE), "try-error"))
+porcentaje <- fila("E015", "necesidad", 92, "si", decimales = 0)
+stopifnot(codigo(porcentaje, 92.4) == "D-OK", codigo(porcentaje, 80) == "D-APP")
+
+# 6. La trampa del vector vacio: `stopifnot(logical(0))` aprueba. La
+#    comprobacion real muere con NULL, con NA y con longitud distinta de 1.
+stopifnot(length(NULL == "si") == 0L)
+stopifnot(inherits(try(exigir_declarado(NULL, "x"), silent = TRUE), "try-error"))
+stopifnot(inherits(try(exigir_declarado(NA, "x"), silent = TRUE), "try-error"))
+stopifnot(inherits(try(exigir_declarado(character(0), "x"), silent = TRUE), "try-error"))
+stopifnot(inherits(try(exigir_declarado("no_evaluable", "x"), silent = TRUE), "try-error"))
+exigir_declarado("si", "x")
+
+# 7. Veredicto por estudio: pareja de casos opuestos sobre datos sinteticos.
 sint <- data.frame(
   id_estudio = c("X", "X", "Y", "Z", "W"),
   codigo     = c("D-OK", "D-AMB", "D-OK", "D-APP", "D-EST"),
@@ -361,7 +420,21 @@ COLUMNAS_COMPUERTAS <- c("id_estudio", "compuerta", "fuente", "estado",
 # con el tipo de solucion.
 MODULOS_DEPENDIENTES_DE_SOLUCION <- c("minimizacion", "ajuste", "robustez")
 
-DECIDIBLE <- c("si", "no_tipo_solucion", "no_sin_fuente")
+# Un motivo para NO comparar solo vale si se puede comprobar sin creerle a
+# nadie. Por eso son dos, y los dos tienen precondicion estructural:
+#   no_tipo_solucion  el modulo depende de la solucion Y el estudio tiene
+#                     mod_minimizacion == "no_evaluable" en estudios.csv;
+#   no_insumo_ausente el estudio publica el valor pero no el insumo para
+#                     recalcularlo, y esa ausencia esta en validation/ausencias.csv
+#                     con URL y fecha.
+# No existe una marca que se satisfaga escribiendo una palabra en un texto
+# libre: esa fue la puerta por la que el absorbedor se mudo tres veces.
+DECIDIBLE <- c("si", "no_tipo_solucion", "no_insumo_ausente")
+
+# Calibracion, necesidad y tabla de verdad se calculan ANTES de minimizar y
+# desde el artefacto que el manifiesto ya verifico. Si el artefacto esta, el
+# insumo esta: no admiten ningun motivo de absolucion.
+MODULOS_SIEMPRE_DECIDIBLES <- c("calibracion", "necesidad", "tabla_verdad")
 
 tolerancia_de <- function(precision, decimales) {
   switch(precision,
@@ -384,26 +457,78 @@ comparar <- function(obtenido, esperado, tolerancia) {
 # absolveria tambien su calibracion y su necesidad, que no dependen de la
 # solucion. Marcar `no_tipo_solucion` fuera de los tres modulos que si
 # dependen de ella es un error de categoria y aborta.
-codigo_de_la_fila <- function(fila, obtenido) {
+codigo_de_la_fila <- function(fila, obtenido, ausencias = NULL,
+                              estudios = NULL) {
   if (!fila$decidible %in% DECIDIBLE) {
     stop("Valor de `decidible` no admitido: ", fila$decidible, call. = FALSE)
   }
-  if (identical(fila$decidible, "no_tipo_solucion") &&
-      !fila$modulo %in% MODULOS_DEPENDIENTES_DE_SOLUCION) {
-    stop("El modulo ", fila$modulo, " no depende del tipo de solucion: ",
-         "no puede marcarse `no_tipo_solucion` (", fila$id_estudio, ", ",
-         fila$comparacion, ").", call. = FALSE)
+  if (!identical(fila$decidible, "si") &&
+      fila$modulo %in% MODULOS_SIEMPRE_DECIDIBLES) {
+    stop("El modulo ", fila$modulo, " se calcula desde el artefacto verificado ",
+         "y no admite absolucion (", fila$id_estudio, ", ", fila$comparacion,
+         "). Si el estudio no publica nada que comparar, la fila no existe: ",
+         "la ausencia se anota en validation/ausencias.csv.", call. = FALSE)
   }
-  if (identical(fila$decidible, "no_sin_fuente") &&
-      !grepl("ausente|no publica|no publicad", fila$fuente, ignore.case = TRUE)) {
-    stop("`no_sin_fuente` exige que la columna `fuente` declare la ausencia: ",
-         fila$id_estudio, ", ", fila$comparacion, ".", call. = FALSE)
+  if (identical(fila$decidible, "no_tipo_solucion")) {
+    if (is.null(estudios)) {
+      stop("`no_tipo_solucion` exige comprobar estudios.csv.", call. = FALSE)
+    }
+    e <- estudios[estudios$id == fila$id_estudio, , drop = FALSE]
+    if (nrow(e) != 1L || !identical(e$mod_minimizacion, "no_evaluable")) {
+      stop("`no_tipo_solucion` en ", fila$id_estudio, " (", fila$comparacion,
+           "): la seleccion congelada declara su minimizacion comparable, ",
+           "asi que su solucion SI es reproducible.", call. = FALSE)
+    }
+  }
+  if (identical(fila$decidible, "no_insumo_ausente")) {
+    if (is.null(ausencias)) {
+      stop("`no_insumo_ausente` exige validation/ausencias.csv.", call. = FALSE)
+    }
+    a <- ausencias[ausencias$id_estudio == fila$id_estudio &
+                   ausencias$modulo == fila$modulo &
+                   ausencias$comparacion == fila$comparacion, , drop = FALSE]
+    if (nrow(a) != 1L || !nzchar(a$url[1L]) || !nzchar(a$fecha[1L]) ||
+        !nzchar(a$insumo_ausente[1L])) {
+      stop("`no_insumo_ausente` en ", fila$id_estudio, " (", fila$comparacion,
+           ") sin registro completo en validation/ausencias.csv.", call. = FALSE)
+    }
+  }
+  if (!decimales_coherentes(fila$esperado, fila$precision, fila$decimales)) {
+    stop("La precision declarada no corresponde al valor guardado: ",
+         fila$id_estudio, ", ", fila$comparacion, ", esperado = ",
+         fila$esperado, ", decimales = ", fila$decimales,
+         ". Guardar 0,92 con decimales = 0 da una tolerancia de 0,5.",
+         call. = FALSE)
   }
   if (identical(fila$decidible, "si")) {
     return(comparar(obtenido, fila$esperado,
                     tolerancia_de(fila$precision, fila$decimales))$codigo)
   }
   "D-AMB"
+}
+
+# La tolerancia sale de `decimales`, asi que `decimales` tiene que ser el
+# numero de decimales que el valor guardado REALMENTE tiene. 92 con 0
+# decimales es un porcentaje entero y vale; 0,92 con 0 decimales infla la
+# tolerancia a media unidad sobre una proporcion y absuelve cualquier cosa.
+decimales_coherentes <- function(esperado, precision, decimales) {
+  if (!identical(precision, "decimales")) return(TRUE)
+  v <- suppressWarnings(as.numeric(esperado))
+  if (is.na(v)) return(TRUE)
+  d <- suppressWarnings(as.integer(decimales))
+  if (is.na(d) || d < 0L) return(FALSE)
+  abs(v * 10^d - round(v * 10^d)) < 1e-9
+}
+
+# `stopifnot(logical(0))` aprueba: NULL == "si" no es FALSE, es un vector
+# vacio. Toda comprobacion sobre una celda que podria no existir pasa por
+# aqui, que exige longitud 1 antes de mirar el valor.
+exigir_declarado <- function(x, contexto) {
+  if (length(x) != 1L || is.na(x) || !identical(as.character(x), "si")) {
+    stop("Modulo no declarado por la seleccion congelada: ", contexto,
+         call. = FALSE)
+  }
+  invisible(TRUE)
 }
 
 # Funcion pura sobre la tabla de resultados: se puede probar con casos
@@ -459,8 +584,8 @@ En `docs/validacion/diccionario-replicaciones.md`, definir cada columna de
 `docs/validacion/compuertas.csv` y de `docs/validacion/no-ejecutables.csv`; el dominio
 cerrado de `modulo` (los seis nombres canónicos), el de `precision`
 (`completa`, `decimales`, `exacta`), el de `decidible` (`si`, `no_tipo_solucion`,
-`no_sin_fuente`, con `no_tipo_solucion` restringido a `minimizacion`, `ajuste` y
-`robustez`) y el de `codigo`:
+`no_insumo_ausente`, ambos motivos restringidos a `minimizacion`, `ajuste` y `robustez` y
+con precondición comprobable) y el de `codigo`:
 
 - `D-OK`: equivalencia dentro de la tolerancia prerregistrada.
 - `D-FMT`: diferencia solo de presentación, sin efecto numérico.
@@ -589,23 +714,37 @@ E025,calibracion,max_fs_PIs,0.95,decimales,2,si,Tabla 8
 E025,calibracion,n_casos,225,exacta,,si,Tabla 8
 E025,necesidad,consistencia_fs_ATTs,0.952,decimales,3,si,Tabla 9
 E025,necesidad,cobertura_fs_ATTs,0.860,decimales,3,si,Tabla 9
-E025,tabla_verdad,filas_observadas,,exacta,,no_sin_fuente,El articulo no publica tabla de verdad: ausente
 E025,ajuste,consistencia_solucion,0.915,decimales,3,no_tipo_solucion,Tabla 10 (solucion intermedia)
 E025,ajuste,cobertura_solucion,0.881,decimales,3,no_tipo_solucion,Tabla 10 (solucion intermedia)
-E025,robustez,consistencia_M1_submuestra,0.9306,decimales,4,no_sin_fuente,Tabla 11 (particion aleatoria no publicada: ausente)
-E025,robustez,cobertura_bruta_M1_submuestra,0.8035,decimales,4,no_sin_fuente,Tabla 11 (particion aleatoria no publicada: ausente)
+E025,robustez,consistencia_M1_submuestra,0.9306,decimales,4,no_insumo_ausente,Tabla 11
+E025,robustez,cobertura_bruta_M1_submuestra,0.8035,decimales,4,no_insumo_ausente,Tabla 11
 ```
 
-Las cinco primeras filas y las dos de necesidad llevan `decidible = si`: **pueden dar
-`D-APP`** y son las que ejercitan el motor. Las de ajuste llevan `no_tipo_solucion` —solo
-admisible en los tres módulos que dependen de la solución— y las de robustez y tabla de
-verdad, `no_sin_fuente`, cuya columna `fuente` tiene que declarar la ausencia.
+Las cinco de calibración y las dos de necesidad llevan `decidible = si`: **pueden dar
+`D-APP`** y son las que ejercitan el motor. Las de ajuste llevan `no_tipo_solucion`, que
+solo pasa porque `estudios.csv` declara `mod_minimizacion = no_evaluable` para E025. Las de
+robustez llevan `no_insumo_ausente`, que solo pasa porque estas dos filas están en
+`validation/ausencias.csv`:
+
+```csv
+id_estudio,modulo,comparacion,insumo_ausente,que_se_busco,url,fecha
+E025,robustez,consistencia_M1_submuestra,particion aleatoria en submuestra y muestra de reserva,seccion Predictive validity y Tabla 11,https://doi.org/10.1371/journal.pone.0291870,2026-08-11
+E025,robustez,cobertura_bruta_M1_submuestra,particion aleatoria en submuestra y muestra de reserva,seccion Predictive validity y Tabla 11,https://doi.org/10.1371/journal.pone.0291870,2026-08-11
+E025,tabla_verdad,,tabla de verdad publicada,Tablas 1-11 y seccion Sufficient conditions analysis,https://doi.org/10.1371/journal.pone.0291870,2026-08-11
+E008,robustez,,escenario alternativo de umbrales o anclas,busqueda de robust y sensitivity en el texto completo,https://doi.org/10.1371/journal.pone.0326226,2026-08-11
+```
+
+**La tabla de verdad de E025 no tiene fila de expectativa**, y la robustez de E008 tampoco:
+el estudio no publica nada que comparar, así que la ausencia se registra arriba y el módulo
+se informa como no decidible. Antes había una fila absuelta con una marca de texto libre;
+esa marca era la puerta por la que el absorbedor se mudaba.
 
 **`tabla_verdad`**: `mod_tabla_verdad = si` porque el estudio declara los tres umbrales, no
 porque publique la tabla. No hay tabla de verdad impresa en el artículo ni en su suplemento;
 se buscó en las Tablas 1–11 y en la sección «Sufficient conditions analysis» el 2026-08-11.
-La fila entra con `esperado` vacío y código `D-AMB`, y el `obtenido` guarda el número de
-filas, sus frecuencias y sus consistencias para que queden publicadas. No se inventa una
+No hay fila de expectativa: la ausencia se registra en `validation/ausencias.csv` y el
+informe publica igualmente el número de filas, sus frecuencias y sus consistencias como
+descripción, sin fingir una comparación. No se inventa una
 cuenta de filas a partir de las seis configuraciones de la Tabla 10: ese número no es el
 mismo objeto.
 
@@ -920,8 +1059,9 @@ Los tres suplementos con sus hashes de la tabla de artefactos. Entrada de datos:
   de umbrales ni de anclas**. Se buscaron «robust» y «sensitivity» en el texto completo el
   2026-08-11: las coincidencias son prosa de la discusión sobre la combinación de métodos
   —regresión, NCA, fsQCA y prueba de Mann-Whitney—, no una repetición del análisis con otros
-  cortes. La comparación entra **prerregistrada `D-AMB`** con esa cita como `fuente`, y el
-  barrido de anclas y umbrales del motor se informa como descripción.
+  cortes. **No hay fila de expectativa**: la ausencia se registra en
+  `validation/ausencias.csv` con su localizador, y el barrido de anclas y umbrales del motor
+  se informa como descripción.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -1173,7 +1313,14 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
   `comparacion = calibracion_no_ejercitada` y el informe la cuenta en una categoría propia:
   **módulo no ejercitado por la aplicación**, nunca como módulo de calibración reproducido.
   `test-consolidacion.R` comprueba que ninguna fila de E014 con módulo `calibracion` entre
-  en el recuento de módulos reproducidos.
+  en el recuento de módulos reproducidos. La fila guarda `esperado = 100` celdas coincidentes
+  y `obtenido = 89`; su código `D-EST` no se puede escribir a mano, porque el guardián
+  recalcula y exige esta fila en `validation/discrepancias-prerregistradas.csv`:
+
+  ```csv
+  id_estudio,modulo,comparacion,codigo,motivo,fecha
+  E014,calibracion,calibracion_no_ejercitada,D-EST,11 de 100 celdas de S1 discrepan de la Tabla 2 del propio articulo; prerregistradas antes de ejecutar,2026-08-11
+  ```
 - **Correspondencia de columnas**, establecida el 2026-08-11 emparejando los valores de las
   diez áreas con la Tabla 2: `STR→C1` (estructura industrial), `WAT→C2` (dotación de agua),
   `TEC→C3` (nivel tecnológico), `TO→C4` (diseño del objeto imponible), `TR→C5` (diseño de
@@ -1407,6 +1554,7 @@ git commit -m "docs: registrar E001 como no ejecutable por bloqueo del deposito"
 **Files:**
 - Create: `validation/R/ejecutar-replicaciones.R`
 - Create: `docs/validacion/replicaciones.csv`
+- Create: `docs/validacion/compuertas.csv`
 - Create: `validation/tests/test-consolidacion.R`
 
 **Interfaces:**
@@ -1415,8 +1563,8 @@ git commit -m "docs: registrar E001 como no ejecutable por bloqueo del deposito"
 
 - [ ] **Step 1: Escribir la prueba de consolidación**
 
-En `validation/tests/test-consolidacion.R`. Contenido exacto, ejecutado contra un
-juego de datos de prueba y sometido a siete mutaciones antes de escribirlo aquí:
+En `validation/tests/test-consolidacion.R`. Contenido exacto, ejecutado contra un juego
+de datos de prueba y sometido a quince mutaciones antes de escribirlo aquí:
 
 ```r
 source("validation/R/comun-replicacion.R")
@@ -1427,6 +1575,8 @@ res  <- leer("docs/validacion/replicaciones.csv")
 est  <- leer("docs/validacion/estudios.csv")
 comp <- leer("docs/validacion/compuertas.csv")
 noej <- leer("docs/validacion/no-ejecutables.csv")
+aus  <- leer("validation/ausencias.csv")
+pre  <- leer("validation/discrepancias-prerregistradas.csv")
 inc  <- subset(est, decision == "incluir")
 
 exp_todas <- do.call(rbind, lapply(
@@ -1436,10 +1586,15 @@ stopifnot(identical(names(exp_todas), COLUMNAS_EXPECTATIVAS))
 stopifnot(identical(names(res), COLUMNAS_RESULTADOS))
 
 # Nunca se compara un modulo que el estudio no declara.
+# `stopifnot(logical(0))` APRUEBA: si el modulo fuera inventado,
+# fila[["mod_agregacion"]] seria NULL y la comparacion daria logical(0). Por
+# eso se comprueba primero el dominio y despues la longitud del resultado.
+stopifnot(all(res$modulo %in% MODULOS))
 for (i in seq_len(nrow(res))) {
   fila <- inc[inc$id == res$id_estudio[i], , drop = FALSE]
   stopifnot(nrow(fila) == 1L)
-  stopifnot(fila[[paste0("mod_", res$modulo[i])]] == "si")
+  exigir_declarado(fila[[paste0("mod_", res$modulo[i])]],
+                   paste(res$id_estudio[i], res$modulo[i]))
 }
 
 # Los denominadores no se mezclan.
@@ -1447,7 +1602,6 @@ stopifnot(all(res$nivel == "B"))
 stopifnot(sum(inc$nivel == "A") == 0L)
 
 # El dominio de modulos es cerrado: `agregacion` no cabe.
-stopifnot(all(res$modulo %in% MODULOS))
 stopifnot(all(exp_todas$modulo %in% MODULOS))
 stopifnot(all(res$codigo %in% CODIGOS_DISCREPANCIA))
 stopifnot(all(exp_todas$decidible %in% DECIDIBLE))
@@ -1459,17 +1613,43 @@ for (id in comp$id_estudio[comp$estado == "no_pasa"]) {
   stopifnot(all(res$codigo[res$id_estudio == id] == "D-AMB"))
 }
 
-# El tipo de solucion solo excusa a los modulos que dependen de el. Marcar
-# `no_tipo_solucion` en calibracion, necesidad o tabla de verdad absolveria a
-# la aplicacion de un fallo suyo.
-stopifnot(all(exp_todas$modulo[exp_todas$decidible == "no_tipo_solucion"] %in%
+# Ningun motivo de absolucion cabe en los modulos que se calculan desde el
+# artefacto verificado, tengan o no valor guardado. Esta es la regla que
+# sustituye a la que dependia de que `esperado` estuviera vacio: `nzchar(NA)`
+# es TRUE y `nzchar("")` es FALSE, asi que aquella se caia sola en cuanto la
+# columna se leia como texto.
+siempre <- exp_todas[exp_todas$modulo %in% MODULOS_SIEMPRE_DECIDIBLES, ]
+stopifnot(nrow(siempre) > 0L, all(siempre$decidible == "si"))
+stopifnot(all(exp_todas$modulo[exp_todas$decidible != "si"] %in%
               MODULOS_DEPENDIENTES_DE_SOLUCION))
 
-# Toda calibracion y toda necesidad con valor publicado tienen que poder dar
-# D-OK: son las comparaciones que si ejercitan el motor.
-cal_nec <- exp_todas[exp_todas$modulo %in% c("calibracion", "necesidad") &
-                     nzchar(as.character(exp_todas$esperado)), ]
-stopifnot(nrow(cal_nec) > 0L, all(cal_nec$decidible == "si"))
+# Cada absolucion tiene precondicion comprobable, y se comprueba ejecutandola.
+for (i in seq_len(nrow(exp_todas))) {
+  f <- exp_todas[i, , drop = FALSE]
+  invisible(codigo_de_la_fila(f, suppressWarnings(as.numeric(f$esperado)),
+                              aus, inc))
+}
+
+# La precision declarada corresponde al valor guardado en TODAS las filas.
+for (i in seq_len(nrow(exp_todas))) {
+  stopifnot(decimales_coherentes(exp_todas$esperado[i],
+                                 exp_todas$precision[i],
+                                 exp_todas$decimales[i]))
+}
+
+# Los dos registros que pueden apartarse del dato no admiten huecos.
+stopifnot(identical(names(pre), c("id_estudio", "modulo", "comparacion",
+                                 "codigo", "motivo", "fecha")))
+stopifnot(all(pre$codigo %in% CODIGOS_DISCREPANCIA),
+          all(pre$modulo %in% MODULOS), all(nzchar(pre$motivo)),
+          all(nzchar(pre$fecha)))
+
+# El registro de ausencias no admite huecos.
+stopifnot(identical(names(aus), c("id_estudio", "modulo", "comparacion",
+                                  "insumo_ausente", "que_se_busco", "url",
+                                  "fecha")))
+stopifnot(all(nzchar(aus$insumo_ausente)), all(nzchar(aus$url)),
+          all(nzchar(aus$fecha)), all(aus$modulo %in% MODULOS))
 
 # La robustez de E009 mide el barrido del motor, no el tipo de solucion:
 # tiene que poder salir D-APP si el barrido voltea un veredicto.
@@ -1492,13 +1672,37 @@ for (id in inc$id[inc$mod_minimizacion == "si"]) {
 # filas puede excusarse con el tipo de solucion, en ningun modulo.
 for (id in inc$id[inc$mod_minimizacion == "si"]) {
   f <- exp_todas[exp_todas$id_estudio == id, ]
-  stopifnot(!any(f$decidible == "no_tipo_solucion"))
+  stopifnot(all(f$decidible == "si"))
 }
 
 # Y ninguno de los otros cinco puede traer fila de minimizacion.
 for (id in inc$id[inc$mod_minimizacion == "no_evaluable"]) {
   stopifnot(!"minimizacion" %in% res$modulo[res$id_estudio == id])
   stopifnot(!"minimizacion" %in% exp_todas$modulo[exp_todas$id_estudio == id])
+}
+
+# El codigo escrito en replicaciones.csv no se cree: se recalcula desde
+# `esperado` y `obtenido`. Degradar a mano un D-APP a D-AMB, que es la presion
+# que aparece cuando un guardian exige D-AMB, se ve aqui.
+for (i in seq_len(nrow(res))) {
+  f <- exp_todas[exp_todas$id_estudio == res$id_estudio[i] &
+                 exp_todas$modulo == res$modulo[i] &
+                 exp_todas$comparacion == res$comparacion[i], , drop = FALSE]
+  if (nrow(f) != 1L) next
+  recalculado <- codigo_de_la_fila(f, suppressWarnings(as.numeric(res$obtenido[i])),
+                                   aus, inc)
+  if (!identical(res$codigo[i], recalculado)) {
+    p <- pre[pre$id_estudio == res$id_estudio[i] &
+             pre$modulo == res$modulo[i] &
+             pre$comparacion == res$comparacion[i] &
+             pre$codigo == res$codigo[i], , drop = FALSE]
+    if (nrow(p) != 1L || !nzchar(p$motivo[1L]) || !nzchar(p$fecha[1L])) {
+      stop("El codigo de ", res$id_estudio[i], "/", res$comparacion[i],
+           " esta escrito como ", res$codigo[i], ", los datos dan ",
+           recalculado, " y no hay discrepancia prerregistrada que lo",
+           " justifique.", call. = FALSE)
+    }
+  }
 }
 
 # E014 no ejercita la aplicacion en calibracion: no cuenta como reproducida.
@@ -1668,54 +1872,72 @@ git commit -m "docs: publicar la validacion modular de Nivel B"
 
 - [ ] **Step 1: Escribir el guardián de omisiones**
 
-`validation/tests/test-sin-omisiones.R` falla ante cualquier omisión y, además, ante la
-salida más tentadora de todas: que una prueba **redefina a mano** una constante del común en
-vez de cargarlo. Si eso ocurriera, el dominio cerrado dejaría de seguir a
-`comun-replicacion.R` y el guardián estaría mirando su propia copia. Contenido exacto,
+`validation/tests/test-sin-omisiones.R` recorre **todo `validation/`, no solo las pruebas**
+—un `skip` se esconde mejor en un adaptador o en el corredor que en un test— y además el
+flujo de CI, para que `continue-on-error` no pueda colarse en el YAML. Prohíbe redefinir una
+constante del común con `<-`, con `=`, con `<<-` y con `assign()`. Contenido exacto,
 ejecutado y mutado:
 
 ```r
-# Ninguna prueba puede omitirse, y ninguna puede redefinir por su cuenta una
-# constante del comun: si lo hiciera, el dominio cerrado dejaria de seguir a
-# comun-replicacion.R y el guardian se quedaria mirando su propia copia.
+# Ninguna omision en NINGUN archivo de validation/ -- no solo en las pruebas:
+# un `skip` se esconde mejor en un adaptador o en el corredor que en un test.
+# Y ninguna prueba puede redefinir por su cuenta una constante del comun, ni
+# con `<-`, ni con `=`, ni con `assign()`, ni con `<<-`: si lo hiciera, el
+# dominio cerrado dejaria de seguir a comun-replicacion.R.
 PROHIBIDOS <- c("testthat::skip", "skip_if", "skip_on", "continue-on-error",
                 "if (interactive())")
-CONSTANTES <- c("MODULOS", "MODULOS_DEPENDIENTES_DE_SOLUCION", "DECIDIBLE",
-                "VEREDICTOS", "CODIGOS_DISCREPANCIA", "COLUMNAS_EXPECTATIVAS",
+CONSTANTES <- c("MODULOS", "MODULOS_DEPENDIENTES_DE_SOLUCION",
+                "MODULOS_SIEMPRE_DECIDIBLES", "DECIDIBLE", "VEREDICTOS",
+                "CODIGOS_DISCREPANCIA", "COLUMNAS_EXPECTATIVAS",
                 "COLUMNAS_RESULTADOS", "COLUMNAS_COMPUERTAS")
 FUNCIONES <- c("codigo_de_la_fila", "veredicto", "tolerancia_de", "comparar",
-               "obtener_artefacto")
+               "obtener_artefacto", "decimales_coherentes")
 SOURCE <- 'source("validation/R/comun-replicacion.R")'
+YO <- "test-sin-omisiones.R"
 
-archivos <- list.files("validation/tests", pattern = "[.]R$",
-                       full.names = TRUE, recursive = TRUE)
-stopifnot(length(archivos) > 0L)
+archivos <- c(list.files("validation", full.names = TRUE, recursive = TRUE),
+              ".github/workflows/pruebas.yml")
+archivos <- archivos[file.exists(archivos)]
+stopifnot(length(archivos) > 1L)
+stopifnot(any(grepl("validation/R/", archivos, fixed = TRUE)) ||
+          !dir.exists("validation/R"))
 
 for (f in archivos) {
+  if (basename(f) == YO) next
   lineas <- readLines(f, warn = FALSE)
   texto <- paste(lineas, collapse = "\n")
-  if (basename(f) != "test-sin-omisiones.R") {
-    for (p in PROHIBIDOS) {
-      if (grepl(p, texto, fixed = TRUE)) stop("Omision en ", f, ": ", p)
+
+  for (p in PROHIBIDOS) {
+    if (grepl(p, texto, fixed = TRUE)) {
+      stop("Omision en ", f, ": ", p, call. = FALSE)
     }
   }
+
+  if (!grepl("[.]R$", f)) next
+
   usa <- any(vapply(c(CONSTANTES, FUNCIONES),
-                    function(x) grepl(paste0("\\b", x, "\\b"), texto), logical(1)))
-  if (usa && basename(f) != "test-sin-omisiones.R") {
-    if (!grepl(SOURCE, texto, fixed = TRUE)) {
-      stop("La prueba ", f, " usa el comun sin cargarlo: falta ", SOURCE,
-           ". Redefinir la constante a mano romperia el dominio cerrado.",
-           call. = FALSE)
-    }
+                    function(x) grepl(paste0("\\b", x, "\\b"), texto),
+                    logical(1)))
+  es_el_comun <- identical(basename(f), "comun-replicacion.R")
+  if (usa && !es_el_comun && !grepl(SOURCE, texto, fixed = TRUE)) {
+    stop("El archivo ", f, " usa el comun sin cargarlo: falta ", SOURCE, ".",
+         call. = FALSE)
   }
-  redefine <- grep(paste0("^\\s*(", paste(CONSTANTES, collapse = "|"), ")\\s*<-"),
-                   lineas, value = TRUE)
-  if (length(redefine) > 0 && basename(f) != "test-sin-omisiones.R") {
-    stop("La prueba ", f, " redefine una constante del comun: ",
-         paste(trimws(redefine), collapse = " | "), call. = FALSE)
+  if (es_el_comun) next
+
+  patron <- paste0("^\\s*(", paste(CONSTANTES, collapse = "|"),
+                   ")\\s*(<<-|<-|=)")
+  redefine <- grep(patron, lineas, value = TRUE)
+  asignadas <- grep(paste0("assign\\s*\\(\\s*[\"\']("
+                           , paste(CONSTANTES, collapse = "|"), ")"),
+                    lineas, value = TRUE)
+  if (length(redefine) + length(asignadas) > 0) {
+    stop("El archivo ", f, " redefine una constante del comun: ",
+         paste(trimws(c(redefine, asignadas)), collapse = " | "), call. = FALSE)
   }
 }
-cat("sin omisiones y sin constantes redefinidas:", length(archivos), "pruebas\n")
+cat("sin omisiones y sin constantes redefinidas:", length(archivos),
+    "archivos\n")
 ```
 
 Comprueba también que cada `validation/manifiestos/*.json` tenga su
@@ -1905,3 +2127,36 @@ un juego de datos de prueba y se sometió a una mutación que la puso roja:
    con `0.916` esperando `D-OK` a tres decimales: la diferencia en coma flotante es
    `0.0005000000000000004` y la aserción fallaba. Se movió el **parámetro**: la misma pareja
    de valores da `D-APP` con `decimales = 3` y `D-OK` con `decimales = 2`.
+
+### Cuarta pasada, 2026-08-11 (matar la mudanza, no el síntoma)
+
+El absorbedor murió por estudio y renació por fila: `no_sin_fuente` absolvía en cualquier
+módulo con solo escribir «ausente» en un texto libre. Es la cuarta vez en esta rama que el
+mismo defecto cambia de sitio, y las cuatro con las pruebas en verde. Esta pasada no le
+añade otra condición: le quita el mecanismo.
+
+- **Ninguna marca del dato absuelve por sí sola.** Quedan dos motivos y los dos tienen
+  precondición comprobable contra un artefacto que ya existe: `no_tipo_solucion` se valida
+  contra `mod_minimizacion` en `estudios.csv`, y `no_insumo_ausente` contra una fila
+  completa de `validation/ausencias.csv`. La palabra escrita en `fuente` ya no decide nada.
+- **Tres módulos no admiten absolución de ninguna clase.** `calibracion`, `necesidad` y
+  `tabla_verdad` se calculan desde el artefacto verificado: si el artefacto está, el insumo
+  está.
+- **Sin expectativa publicada no hay fila**, hay una ausencia registrada con localizador.
+  Una fila absuelta es una comparación que finge existir.
+- **El código no se escribe, se recalcula.** Y si difiere del dato, exige una discrepancia
+  prerregistrada con motivo y fecha. Esto cierra la presión que el propio plan creaba: un
+  guardián que exige `D-AMB` empuja a degradar un `D-APP` legítimo.
+- **La tolerancia no se infla desde el dato.** `decimales` tiene que corresponder al valor
+  guardado.
+- **`stopifnot(logical(0))` aprueba.** Toda comprobación sobre una celda que podría no
+  existir pasa por `exigir_declarado()`, que muere con `NULL`, con `NA` y con longitud
+  distinta de uno.
+- **El guardián de omisiones mira todo `validation/` y el YAML del CI**, y prohíbe redefinir
+  una constante del común con `<-`, `=`, `<<-` o `assign()`.
+
+Dónde puede mudarse ahora: quedan dos columnas que viajan con el dato y que ningún artefacto
+externo puede falsar, `obtenido` y `motivo`. La primera la escribe el corredor y el CI la
+regenera desde cero —`rm -f` antes de correr—, así que una edición a mano no sobrevive a una
+corrida; la segunda es texto para el lector y ya no decide ningún código. La siguiente
+revisión debería empezar por ahí.
