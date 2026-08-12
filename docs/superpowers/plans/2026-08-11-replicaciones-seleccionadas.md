@@ -219,18 +219,30 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   aserción que no podía fallar: afirmaba una propiedad de `leer_csv()`, que fuerza
   `colClasses = "character"`.
 
-  **Y la clave del grupo es `(id_estudio, modulo)`, no `(id_estudio, fuente)`.** `fuente` es
-  texto, y con ella como clave la comprobación se esquivaba sin inventar nada: bastaba **mudar
+  **La clave del grupo es `(id_estudio, fuente)`, y hacen falta DOS restricciones, no una.**
+  Con `fuente` como única clave la comprobación se esquivaba sin inventar nada: bastaba **mudar
   la fila a la tabla hermana** del mismo estudio, impresa con menos decimales y en la misma
-  escala —E025 publica la Tabla 8 a dos decimales, la Tabla 9 a tres y la Tabla 11 a cuatro—,
-  y cada grupo quedaba internamente uniforme. Cerrar el dominio de `fuente` no arreglaba eso,
-  porque la tabla hermana es legítima. `modulo` es un dominio cerrado de seis nombres que
-  nadie puede inventar, y agrupar por él es además **más estricto**: los grupos son la unión
-  de los que había, así que hay menos singletons. El guardián exige aparte que la `fuente` del
-  resultado sea la de su expectativa, pero `fuente` ya no decide nada: es el localizador que
-  lee un humano. **Lo que queda abierto**: un módulo cuyo estudio publique dos tablas con
-  precisiones distintas haría fallar la comprobación con datos legítimos, y una tabla en la
-  que *todos* los valores terminan en cero pierde los ceros de forma uniforme y pasa.
+  escala —E025 publica la Tabla 8 a dos decimales, la Tabla 9 a tres y la Tabla 11 a cuatro—.
+  Pero sustituir la clave por `modulo` **rompe con datos legítimos y abre otro agujero**, y las
+  dos cosas están medidas: la `calibracion` de E012 saca dos membresías del texto a tres
+  decimales y la transcripción de la S2 a dos, así que agrupar por módulo aborta el guardián; y
+  E008 publica su Tabla 7 a tres decimales para `minimizacion` **y** para `ajuste`, de modo que
+  quitarle un decimal solo a las filas de `ajuste` deja ese grupo uniforme y multiplica su
+  tolerancia por diez.
+
+  Las dos particiones **se cruzan**: `E008 Tabla 7` → `{minimizacion, ajuste}`,
+  `E012 Tabla 3` → `{tabla_verdad, minimizacion, ajuste}`, `E015 Tabla 5` →
+  `{minimizacion, ajuste}`. Por eso ninguna sustituye a la otra:
+
+  - **uniformidad por `(id_estudio, fuente)`**: una tabla publicada imprime todas sus celdas
+    con la misma precisión, la cite el módulo que la cite;
+  - **pertenencia por módulo**: `fuente` se declara en el manifiesto **indexada por módulo**,
+    así que una fila de `necesidad` no puede migrar a la `Tabla 8` porque esa tabla no está
+    declarada para `necesidad`.
+
+  Y el guardián exige aparte que la `fuente` del resultado sea la de su expectativa. **Lo que
+  queda abierto**: los grupos de una sola fila no restringen nada, y una tabla en la que
+  *todos* los valores terminan en cero pierde los ceros de forma uniforme y pasa.
 - **`ajuste` decidible** en los cuatro estudios cuya solución sí es reproducible:
   E001 (la produce su script oficial), E008 (la nota de su Tabla 7 declara **todas** las
   condiciones mostradas como centrales, de modo que los términos exhibidos coinciden con los
@@ -336,7 +348,7 @@ prueba de contratos—, no absuelve a ningún estudio y no existe `COMPUERTA_ABS
 
 - `validation/R/comun-replicacion.R`: descarga verificada, tolerancias, comparador y códigos `D-*`.
 - `docs/validacion/compuertas.csv`: estado de las compuertas previas de agregación.
-- `validation/manifiestos/<ID>.json`: procedencia (archivo servido, bytes, SHA-256, licencia y fecha), **censo de comparaciones por módulo** y, si el depósito no se pudo abrir, el bloque `no_ejecutable` con su evidencia.
+- `validation/manifiestos/<ID>.json`: procedencia (archivo servido, bytes, SHA-256, licencia y fecha), **censo de comparaciones por módulo**, **`fuentes` por módulo** —el dominio cerrado de la columna `fuente` de las expectativas— y, si el depósito no se pudo abrir, el bloque `no_ejecutable` con su evidencia.
 - `validation/prerregistros/<ID>.md`: decisiones, ausencias con localizador y límites.
 - `validation/expectativas/<ID>.csv`: expectativas legibles por máquina.
 - `validation/R/adaptador-<ID>.R`: preparación sin decisiones ocultas.
@@ -755,7 +767,9 @@ obtener_artefacto <- function(manifiesto, nombre) {
 
 - [ ] **Step 4: Documentar los dominios**
 
-En `docs/validacion/diccionario-replicaciones.md`, definir cada columna de
+En `docs/validacion/diccionario-replicaciones.md`, definir el manifiesto —`artefactos`,
+`comparaciones` (censo por módulo) y **`fuentes` (dominio cerrado de `fuente`, indexado por
+módulo, con las mismas claves que `comparaciones`)**—, cada columna de
 `validation/expectativas/<ID>.csv`, de `docs/validacion/replicaciones.csv` y de
 `docs/validacion/compuertas.csv`; el bloque `comparaciones` del manifiesto; el dominio
 cerrado de `modulo` (los seis nombres canónicos), el de `precision`
@@ -844,9 +858,19 @@ una fila: el conteo no se ajusta al resultado.
     "tabla_verdad": 0,
     "ajuste": 2,
     "robustez": 8
+  },
+  "fuentes": {
+    "calibracion": ["Tabla 8"], "necesidad": ["Tabla 9"],
+    "tabla_verdad": [], "ajuste": ["Tabla 10"], "robustez": ["Tabla 11"]
   }
 }
 ```
+
+`fuentes` es el dominio cerrado de la columna `fuente`, **indexado por módulo**: cada
+expectativa solo puede citar una tabla declarada **para su módulo**. Sus claves son las mismas
+que las de `comparaciones`. Una lista puede tener más de una tabla —E015 saca su
+`tabla_verdad` de las Tablas 3 y 4, E012 su `robustez` de las Tablas 6 y 7 y su `calibracion`
+del texto y de la S2— y puede estar vacía donde el censo es `0`.
 
 Las claves de `comparaciones` son exactamente los módulos que `estudios.csv` declara `si` para
 E025;
@@ -1774,6 +1798,10 @@ artículo para simular la replicación.
     "calibracion": 0, "tabla_verdad": 0, "minimizacion": 0,
     "ajuste": 0, "robustez": 0
   },
+  "fuentes": {
+    "calibracion": [], "tabla_verdad": [], "minimizacion": [],
+    "ajuste": [], "robustez": []
+  },
   "no_ejecutable": {
     "motivo": "deposito inaccesible",
     "evidencia": "HTTP 202 con x-amzn-waf-action challenge en seis rutas de dataverse.harvard.edu",
@@ -1901,14 +1929,16 @@ stopifnot(all(nzchar(trimws(exp_todas$esperado))))
 # (id_estudio, fuente) el numero de decimales es constante. Una fila que baja
 # de 3 a 2 decimales es el exploit; un archivo al que un round-trip de hoja de
 # calculo le quito los ceros finales es el accidente, y multiplica por diez las
-# tolerancias sin que nada chille. La clave del grupo es (id_estudio, modulo),
-# no (id_estudio, fuente): `fuente` es texto y bastaba mudar la fila a la tabla
-# hermana del mismo estudio, impresa con menos decimales, para quedar en un
-# grupo internamente uniforme. `modulo` es un dominio cerrado y no se inventa.
+# tolerancias sin que nada chille. La clave es (id_estudio, fuente), que es la
+# tabla impresa: un modulo puede sacar valores de dos tablas con precisiones
+# distintas —la calibracion de E012 sale del texto a 3 decimales y de la S2 a
+# 2— y agrupar por modulo aborta con datos legitimos. Que `fuente` no viaje de
+# un modulo a otro lo impide el manifiesto, unas lineas mas abajo: las dos
+# restricciones hacen falta porque las dos particiones se CRUZAN.
 con_dec <- exp_todas[exp_todas$precision == "decimales", , drop = FALSE]
 stopifnot(nrow(con_dec) > 0L)
 for (g in split(vapply(con_dec$esperado, decimales_de, integer(1)),
-                paste(con_dec$id_estudio, con_dec$modulo))) {
+                paste(con_dec$id_estudio, con_dec$fuente))) {
   stopifnot(length(g) > 0L, length(unique(g)) == 1L)
 }
 stopifnot(all(exp_todas$decidible %in% DECIDIBLE),
@@ -1961,6 +1991,14 @@ for (i in seq_len(nrow(inc))) {
                                    nchar(a$sha256) == 64L, logical(1))))
   stopifnot(all(e$id_estudio == id), all(e$modulo %in% declarados),
             all(r$modulo %in% declarados))
+  # `fuente` agrupa la uniformidad de decimales, asi que no puede ser texto
+  # libre ni viajar de un modulo a otro: una fila de `necesidad` mudada a la
+  # `Tabla 8` hermana, impresa con menos decimales, quedaba en un grupo
+  # uniforme. Se declara en el manifiesto POR MODULO.
+  stopifnot(setequal(names(m$fuentes), declarados))
+  for (mo in declarados) {
+    stopifnot(all(e$fuente[e$modulo == mo] %in% unlist(m$fuentes[[mo]])))
+  }
 
   # Cuenta congelada, modulo a modulo, en las dos direcciones. Cero solo donde
   # la lista cerrada lo admite; al menos una en todo lo demas.
@@ -2754,3 +2792,45 @@ Dónde puede mudarse ahora:
    los nueve estudios tal como el plan los describe, pero solo se sabrá al ejecutar.
 3. **Una tabla cuyos valores publicados terminen todos en cero** los pierde de forma uniforme y
    pasa. Sin cambios.
+
+### Novena pasada, 2026-08-12 (añadir la restricción que faltaba, no sustituir la que había)
+
+Una sola línea, y el error de fondo es mío: la octava pasada **sustituyó** la clave del grupo
+en vez de **añadir** la restricción que faltaba. Eso rompió una cosa y abrió otra.
+
+1. **La clave nueva abortaba con datos legítimos.** La `calibracion` de E012 saca dos
+   membresías del texto a tres decimales y la transcripción de la S2 a dos —está mandado en la
+   Task 7—, así que agrupar por `(id_estudio, modulo)` deja `test-consolidacion.R` en rojo y
+   las Tasks 11-13 no se pueden ejecutar. **La clave vuelve a `(id_estudio, fuente)`**, que es
+   la tabla impresa.
+2. **La undécima mudanza.** E008 publica su Tabla 7 a tres decimales y de ella salen
+   `minimizacion` y `ajuste`: quitarle un decimal **solo a las filas de `ajuste`** dejaba ese
+   grupo uniforme, multiplicaba su tolerancia por diez y subía el veredicto de E008 de «no
+   reproducido» a «reproducido». La clave por fuente sí lo caza, porque la Tabla 7 sigue
+   citada a tres decimales desde `minimizacion`.
+3. **Y la pieza que de verdad faltaba**: `fuentes` vuelve al manifiesto **indexado por
+   módulo**. Eso es lo que cierra el hallazgo original —una fila de `necesidad` no puede migrar
+   a la `Tabla 8` porque esa tabla no está declarada para `necesidad`— sin tocar la clave del
+   grupo. Y esta versión sí es cierta en los datos, a diferencia de «una sola fuente por
+   módulo».
+
+**Y una afirmación mía que era falsa, corregida por lo que se mide.** Escribí dos veces que los
+grupos por módulo «son la unión de los que había, luego hay menos singletons». Eso exigiría que
+`fuente` refine a `modulo`, y **las dos particiones se cruzan**: `E008 Tabla 7` →
+`{minimizacion, ajuste}`, `E012 Tabla 3` → `{tabla_verdad, minimizacion, ajuste}`,
+`E015 Tabla 5` → `{minimizacion, ajuste}`. Era la premisa que hacía parecer innecesaria la
+restricción que quité, y la escribí sin medirla: exactamente el defecto que esta rama persigue.
+
+Menor: `hay()` interpolaba su argumento dentro de un patrón de expresión regular. Hoy ninguna
+cadena lleva metacaracteres, pero el día que un nombre lleve un paréntesis el guardián dejaría
+de comprobar lo que cree. Va con `\Q…\E` y `perl = TRUE`.
+
+Dónde puede mudarse ahora:
+
+1. **Los grupos de una sola fila siguen sin restringir nada.** Con la pertenencia por módulo ya
+   no se pueden fabricar, pero los que existen de nacimiento siguen ahí.
+2. **Una tabla cuyos valores publicados terminen todos en cero** los pierde de forma uniforme y
+   pasa. Sin cambios desde la sexta pasada.
+3. **`fuentes` es un dato del manifiesto**, así que ampliar la lista de un módulo es un cambio
+   de una línea en la ficha de procedencia. Visible en el diff, como el censo, y con el mismo
+   límite: ningún artefacto del repositorio puede decir qué tablas publica un artículo.
