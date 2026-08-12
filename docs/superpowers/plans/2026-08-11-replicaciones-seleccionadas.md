@@ -542,9 +542,6 @@ veredicto <- function(res, id) {
   "reproducido"
 }
 
-CACHE_ARTEFACTOS <- Sys.getenv("FSQCA_CACHE_ARTEFACTOS",
-                               file.path(tempdir(), "artefactos-replicacion"))
-
 # Descarga fuera del repositorio y verifica el hash. Sin red o con hash
 # distinto no hay resultado: hay error.
 CACHE_ARTEFACTOS <- Sys.getenv("FSQCA_CACHE_ARTEFACTOS",
