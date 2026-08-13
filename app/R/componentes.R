@@ -12,6 +12,25 @@ ETIQUETA_ESTADO <- c(abierta = "sin atender",
                      reconocida = "reconocida por escrito",
                      resuelta = "resuelta")
 
+# Valor del desplegable de identificador cuando el archivo no trae ninguno.
+# Un desplegable no puede ofrecer NULL, asi que la ausencia viaja como este
+# centinela y se traduce en la frontera, en columna_id_elegida().
+#
+# NO puede ser la cadena vacia, y se comprobo en el navegador: selectize
+# convierte la opcion de valor vacio en el placeholder del control y la
+# saca de la lista, de modo que quien eligiera una columna no podria volver
+# a decir "ninguna". Los parentesis y los espacios lo alejan ademas de
+# cualquier nombre de columna que salga de un cuestionario.
+SIN_COLUMNA_ID <- "(sin columna identificadora)"
+ETIQUETA_SIN_COLUMNA_ID <- "Sin columna identificadora — usar el numero de fila"
+
+#' Traduce lo que eligio el desplegable al valor que espera el motor.
+columna_id_elegida <- function(valor) {
+  if (is.null(valor) || !nzchar(valor) || identical(valor, SIN_COLUMNA_ID)) {
+    NULL
+  } else valor
+}
+
 #' Regla de pasos. Los numeros encodan la secuencia real: no se puede
 #' calibrar antes de agregar.
 ui_regla_pasos <- function(actual, estados) {

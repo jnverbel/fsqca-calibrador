@@ -67,17 +67,17 @@ bit <- registrar_alertas(bit, e$agregacion$alertas, 3)
 just <- paste("El umbral de 4 corresponde al punto en que la literatura",
               "sectorial situa la capacidad plena del constructo, y coincide",
               "con el corte normativo del programa de fomento.")
-condiciones <- setdiff(names(e$agregacion$casos), e$mapeo$columna_id)
+condiciones <- setdiff(names(e$agregacion$casos), nombre_columna_id(e$mapeo))
 e$anclas <- stats::setNames(
   lapply(condiciones, function(x) definir_anclas(4, 3, 2, "teoria", just)),
   condiciones)
 cal <- diagnosticar_calibracion(e$agregacion$casos, e$anclas,
-                                e$mapeo$columna_id)
+                                nombre_columna_id(e$mapeo))
 e$membresias <- cal$membresias
 e$obliga_robustez <- cal$obliga_robustez
 bit <- registrar_alertas(bit, cal$alertas, 4)
 
-e$semaforo <- diagnosticar_semaforo(e$membresias, e$mapeo$columna_id)
+e$semaforo <- diagnosticar_semaforo(e$membresias, nombre_columna_id(e$mapeo))
 bit <- registrar_alertas(bit, e$semaforo$alertas, 5)
 
 nec <- diagnosticar_necesidad(e$membresias, resultado, condiciones_analisis)
@@ -120,7 +120,12 @@ e$roles <- stats::setNames(
 
 panel <- switch(as.character(paso),
                 "1" = panel_ingesta(e), "2" = panel_medida(e),
-                "3" = panel_agregacion(e), "4" = panel_calibracion(e),
+                "3" = panel_agregacion(e),
+                # Sin servidor no hay quien rellene un uiOutput: la tira de
+                # membresia se dibuja aqui mismo o la captura sale con un
+                # hueco donde deberia estar el grafico.
+                "4" = panel_calibracion(e, e$borrador %||% list(),
+                                        en_vivo = FALSE),
                 "5" = panel_semaforo(e), "6" = panel_analisis(e),
                 "7" = panel_robustez(e), "8" = panel_exportacion(e),
                 panel_en_construccion(paso))

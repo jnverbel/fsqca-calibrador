@@ -220,6 +220,14 @@ guarda en el proyecto**.
   descarta lo que no use. Convierte el paso de teclear un desplegable por columna a
   corregir una tabla. La columna identificadora también se propone: la primera de texto
   sin valores repetidos.
+- **El archivo puede no traer identificador**, y es el caso más común: un cuestionario de
+  ítems Likert exportado tal cual no tiene ninguna columna de texto. Entonces el caso **es
+  su número de fila** — `columna_id` vale `null` en el archivo de proyecto y las tablas
+  derivadas llevan una columna `caso` numerada 1, 2, 3… El desplegable ofrece esa opción
+  de forma explícita y la trae seleccionada. Proponer en su lugar la primera columna del
+  archivo, que es lo que se hacía, gastaba un ítem como identificador: con 35 ítems en
+  siete constructos de cinco, uno se quedaba con cuatro y saltaban `A-05` y `A-07` sin
+  motivo.
 - Declara el rango de la escala (por defecto 1–5) y los códigos de no respuesta.
 - Calcula y guarda la **huella SHA-256** del archivo, su número de filas y columnas, y los
   nombres de columna.
@@ -233,6 +241,9 @@ guarda en el proyecto**.
 | `A-03` | Constructo con un solo ítem | `n_items == 1` | bloqueante |
 | `A-04` | No respuesta abundante | > 10 % de NA en algún ítem | advertencia |
 | `A-05` | Casos duplicados | el identificador se repite y se declaró un encuestado por caso | advertencia |
+
+`A-05` **no se evalúa cuando el archivo no trae identificador**: dos respuestas idénticas
+son dos filas distintas, no un caso duplicado.
 
 `A-03` merece explicación, porque es la primera línea de defensa del método: **un ítem
 Likert de 5 puntos genera únicamente cinco valores posibles.** Calibrar sobre un ítem

@@ -94,13 +94,28 @@ server <- function(input, output, session) {
     robustez = NULL,
     obliga_robustez = FALSE,
     sugerencia = NULL,
-    borrador = list(),
+    condiciones = character(0),
     resultado = NULL,
     columna_id = NULL,
     encuestados = "uno",
     mismo_cuestionario = FALSE,
     roles = list()
   )
+
+  # El borrador del paso 4 vive FUERA de la reactividad, y no es un descuido.
+  #
+  # Cuando era un campo de `estado` y el panel lo leia para dibujarse, cada
+  # tecla escrita en una justificacion llegaba al borrador, el borrador
+  # invalidaba el renderUI del paso 4 y el panel se redibujaba entero: siete
+  # bloques de deslizadores, graficos y textareas. La pagina saltaba al
+  # principio con cada tecla y el texto a medio escribir se perdia -- medido
+  # con datos reales: siete justificaciones escritas seguidas, dos perdidas.
+  #
+  # Aqui nadie lo observa, asi que escribir no invalida nada. Sigue haciendo
+  # falta porque los inputs se recrean al redibujar el panel: sin el, ir al
+  # paso 5 y volver al 4 devolveria las anclas a 4/3/2 y borraria el texto.
+  borrador <- new.env(parent = emptyenv())
+  borrador$valores <- list()
 
   # --- Modo desarrollo: precarga para poder capturar cualquier paso -----
   observeEvent(TRUE, once = TRUE, {
@@ -131,19 +146,23 @@ server <- function(input, output, session) {
                     "sectorial situa la capacidad plena del constructo, y",
                     "coincide con el corte del programa de fomento.")
       condiciones <- setdiff(names(estado$agregacion$casos),
-                             estado$mapeo$columna_id)
+                             nombre_columna_id(estado$mapeo))
       estado$anclas <- setNames(
         lapply(condiciones, function(x)
           definir_anclas(4, 3, 2, "teoria", just)), condiciones)
+      borrador$valores <- setNames(lapply(condiciones, function(x)
+        list(plena = 4, cruce = 3, nula = 2, fuente = "teoria",
+             justificacion = just)), condiciones)
+      estado$condiciones <- condiciones
       cal <- diagnosticar_calibracion(estado$agregacion$casos, estado$anclas,
-                                      estado$mapeo$columna_id)
+                                      nombre_columna_id(estado$mapeo))
       estado$membresias <- cal$membresias
       estado$obliga_robustez <- cal$obliga_robustez
       estado$bitacora <- registrar_alertas(estado$bitacora, cal$alertas, 4)
     }
     if (DEV_PASO >= 5 && !is.null(estado$membresias)) {
       estado$semaforo <- diagnosticar_semaforo(estado$membresias,
-                                               estado$mapeo$columna_id,
+                                               nombre_columna_id(estado$mapeo),
                                                anclas = estado$anclas)
       estado$bitacora <- registrar_alertas(estado$bitacora,
                                            estado$semaforo$alertas, 5)
@@ -249,7 +268,10 @@ server <- function(input, output, session) {
       "1" = panel_ingesta(estado),
       "2" = panel_medida(estado),
       "3" = panel_agregacion(estado),
-      "4" = panel_calibracion(estado),
+      # El borrador se pasa como foto, no se lee del estado: ver el comentario
+      # de `borrador` mas arriba. Leerlo aqui redibujaba el paso 4 con cada
+      # tecla.
+      "4" = panel_calibracion(estado, borrador$valores),
       "5" = panel_semaforo(estado),
       "6" = panel_analisis(estado),
       "7" = panel_robustez(estado),
@@ -260,9 +282,14 @@ server <- function(input, output, session) {
 
   # --- Paso 4: borrador de anclas y confirmacion ------------------------
 
+  # Recoge lo tecleado en el borrador. Lee de los inputs -- de ahi sale la
+  # dependencia reactiva -- y escribe en un entorno normal, de modo que la
+  # escritura no invalida a nadie. La lista de condiciones si es reactiva,
+  # pero solo cambia al confirmar el mapeo del paso 1.
   observe({
-    req(estado$borrador, length(estado$borrador) > 0)
-    for (cond in names(estado$borrador)) {
+    condiciones <- estado$condiciones
+    req(length(condiciones) > 0)
+    for (cond in condiciones) {
       nuevos <- list(
         plena = input[[paste0("plena_", cond)]],
         cruce = input[[paste0("cruce_", cond)]],
@@ -271,19 +298,49 @@ server <- function(input, output, session) {
         justificacion = input[[paste0("just_", cond)]])
       for (campo in names(nuevos)) {
         v <- nuevos[[campo]]
-        if (!is.null(v) && !identical(v, estado$borrador[[cond]][[campo]])) {
-          estado$borrador[[cond]][[campo]] <- v
-        }
+        if (!is.null(v)) borrador$valores[[cond]][[campo]] <- v
       }
     }
   })
 
+  # Una tira de membresia por condicion, en su propio uiOutput. Es lo que
+  # permite conservar la reactividad valiosa del paso 4 -- mover un ancla y
+  # ver el efecto en el acto -- sin redibujar el panel entero.
+  observeEvent(estado$condiciones, {
+    condiciones <- estado$condiciones
+    req(length(condiciones) > 0)
+    for (cond in condiciones) local({
+      cc <- cond
+      output[[paste0("membresia_", cc)]] <- renderUI({
+        casos <- estado$agregacion$casos
+        req(!is.null(casos), !is.null(casos[[cc]]))
+        b <- list(plena = input[[paste0("plena_", cc)]],
+                  cruce = input[[paste0("cruce_", cc)]],
+                  nula = input[[paste0("nula_", cc)]])
+        # Antes de que el navegador devuelva los deslizadores recien
+        # dibujados, los valores de partida son los del borrador.
+        if (any(vapply(b, is.null, logical(1)))) b <- borrador$valores[[cc]]
+        req(!is.null(b$plena), !is.null(b$cruce), !is.null(b$nula))
+        ui_membresia_condicion(casos[[cc]], b)
+      })
+    })
+  })
+
   observeEvent(input$confirmar_calibracion, {
-    req(estado$agregacion, length(estado$borrador) > 0)
+    req(estado$agregacion, length(borrador$valores) > 0)
 
     anclas <- list()
-    for (cond in names(estado$borrador)) {
-      b <- estado$borrador[[cond]]
+    for (cond in names(borrador$valores)) {
+      # Los inputs mandan sobre el borrador: son el estado de la pantalla en
+      # el instante del clic, y asi no hay que confiar en que el observador
+      # de arriba haya corrido antes en este mismo ciclo reactivo.
+      b <- borrador$valores[[cond]]
+      for (campo in c("plena", "cruce", "nula", "fuente")) {
+        b[[campo]] <- input[[paste0(campo, "_", cond)]] %||% b[[campo]]
+      }
+      b$justificacion <- input[[paste0("just_", cond)]] %||% b$justificacion
+      borrador$valores[[cond]] <- b
+
       a <- try(definir_anclas(b$plena, b$cruce, b$nula, b$fuente,
                               b$justificacion %||% ""), silent = TRUE)
       if (inherits(a, "try-error")) {
@@ -296,14 +353,14 @@ server <- function(input, output, session) {
     }
 
     cal <- diagnosticar_calibracion(estado$agregacion$casos, anclas,
-                                    estado$mapeo$columna_id)
+                                    nombre_columna_id(estado$mapeo))
     estado$anclas <- anclas
     estado$membresias <- cal$membresias
     estado$obliga_robustez <- cal$obliga_robustez
     estado$bitacora <- registrar_alertas(estado$bitacora, cal$alertas, 4)
 
     estado$semaforo <- diagnosticar_semaforo(
-      cal$membresias, estado$mapeo$columna_id,
+      cal$membresias, nombre_columna_id(estado$mapeo),
       isTRUE(estado$mapeo$resultado_mismo_cuestionario),
       anclas = estado$anclas)
     estado$bitacora <- registrar_alertas(estado$bitacora,
@@ -321,7 +378,7 @@ server <- function(input, output, session) {
     if (!is.null(estado$analisis)) return()
 
     condiciones <- setdiff(names(estado$membresias),
-                           c(estado$mapeo$columna_id, estado$resultado))
+                           c(nombre_columna_id(estado$mapeo), estado$resultado))
     if (length(condiciones) == 0) return()
 
     nec <- diagnosticar_necesidad(estado$membresias, estado$resultado,
@@ -358,7 +415,7 @@ server <- function(input, output, session) {
     rob <- try(barrido_robustez(
       crudo = estado$agregacion$casos,
       anclas_por_condicion = estado$anclas,
-      columna_id = estado$mapeo$columna_id,
+      columna_id = nombre_columna_id(estado$mapeo),
       resultado = estado$resultado,
       consistencia = u$consistencia, frecuencia = u$frecuencia), silent = TRUE)
 
@@ -491,13 +548,19 @@ server <- function(input, output, session) {
   })
 
   # Cambiar la columna de identificador rehace la propuesta: esa columna
-  # deja de ser un item y puede aparecer otro grupo.
+  # deja de ser un item y puede aparecer otro grupo. Y al reves: elegir
+  # "sin columna identificadora" devuelve al analisis el item que se estaba
+  # gastando como identificador.
+  #
+  # `req(input$columna_id)` NO sirve como guarda: la ausencia de
+  # identificador viaja como cadena vacia, y req() la trata como falsa.
   observeEvent(input$columna_id, {
-    req(estado$datos, input$columna_id)
-    if (identical(input$columna_id, estado$columna_id)) return()
-    estado$columna_id <- input$columna_id
-    estado$sugerencia <- sugerir_mapeo(estado$datos, input$columna_id)
-  })
+    req(estado$datos, !is.null(input$columna_id))
+    elegida <- columna_id_elegida(input$columna_id)
+    if (identical(elegida, estado$columna_id)) return()
+    estado$columna_id <- elegida
+    estado$sugerencia <- sugerir_mapeo(estado$datos, elegida)
+  }, ignoreNULL = FALSE)
 
   observeEvent(input$otro_archivo, {
     estado$datos <- NULL
@@ -539,7 +602,8 @@ server <- function(input, output, session) {
            items = estado$sugerencia$constructos[[n]]))
 
     m <- try(definir_mapeo(
-      columna_id = input$columna_id %||% estado$columna_id,
+      columna_id = if (is.null(input$columna_id)) estado$columna_id
+                   else columna_id_elegida(input$columna_id),
       encuestados_por_caso = input$encuestados %||% "uno",
       constructos = constructos,
       resultado_mismo_cuestionario = isTRUE(input$mismo_cuestionario)),
@@ -568,10 +632,12 @@ server <- function(input, output, session) {
     # justificar: el paso 4 es donde se justifican, y definir_anclas() no
     # deja construir un ancla sin texto. Por eso el borrador es una lista
     # simple y solo se convierte en anclas al confirmar.
-    condiciones <- setdiff(names(estado$agregacion$casos), m$columna_id)
-    estado$borrador <- setNames(lapply(condiciones, function(x)
+    condiciones <- setdiff(names(estado$agregacion$casos),
+                           nombre_columna_id(m))
+    borrador$valores <- setNames(lapply(condiciones, function(x)
       list(plena = 4, cruce = 3, nula = 2, fuente = "teoria",
            justificacion = "")), condiciones)
+    estado$condiciones <- condiciones
     estado$anclas <- list()
     estado$membresias <- NULL
     estado$semaforo <- NULL

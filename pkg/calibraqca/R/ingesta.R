@@ -3,6 +3,22 @@
 # Proporcion de no respuesta a partir de la cual un item se marca.
 UMBRAL_NA_ITEM <- 0.10
 
+# Nombre de la columna de identidad cuando el archivo no trae identificador.
+# El caso ES la fila: 1, 2, 3... Un export de items Likert -- el archivo mas
+# comun de esta herramienta -- no tiene ninguna columna de texto, y antes se
+# gastaba el primer item como identificador.
+COLUMNA_ID_FILA <- "caso"
+
+#' Nombre de la columna que identifica el caso en las tablas derivadas.
+#'
+#' Con identificador declarado es el suyo; sin el, la columna de numero de
+#' fila que crea el paso 3. Todo lo que va del paso 3 en adelante trabaja
+#' sobre tablas que SIEMPRE tienen columna de identidad, asi que solo el
+#' mapeo distingue entre las dos situaciones.
+nombre_columna_id <- function(mapeo) {
+  if (is.null(mapeo$columna_id)) COLUMNA_ID_FILA else mapeo$columna_id
+}
+
 #' Lee el archivo de respuestas y calcula su huella.
 #'
 #' La huella se calcula sobre el archivo en disco, no sobre el data.frame
@@ -32,10 +48,21 @@ leer_datos <- function(ruta) {
 }
 
 #' Declara el mapeo de items a constructos.
+#'
+#' `columna_id = NULL` significa que el archivo no trae identificador y que
+#' el caso es su numero de fila.
 definir_mapeo <- function(columna_id, encuestados_por_caso, constructos,
                           escala = c(1, 5), codigos_na = numeric(0),
                           resultado_mismo_cuestionario = FALSE) {
   encuestados_por_caso <- match.arg(encuestados_por_caso, c("uno", "varios"))
+
+  if (!is.null(columna_id) &&
+      !(is.character(columna_id) && length(columna_id) == 1 &&
+        nzchar(columna_id))) {
+    stop("columna_id tiene que ser el nombre de una columna, o NULL si el ",
+         "archivo no trae identificador y el caso es su numero de fila.",
+         call. = FALSE)
+  }
 
   for (con in constructos) {
     if (!all(c("nombre", "rol", "items") %in% names(con))) {
@@ -51,6 +78,14 @@ definir_mapeo <- function(columna_id, encuestados_por_caso, constructos,
     stop("Hay constructos con el mismo nombre: ",
          paste(unique(nombres[duplicated(nombres)]), collapse = ", "),
          call. = FALSE)
+  }
+  # Sin identificador, la columna de numero de fila se llama COLUMNA_ID_FILA.
+  # Un constructo con ese nombre dejaria la tabla de casos con dos columnas
+  # iguales y el analisis saldria mal en silencio.
+  if (is.null(columna_id) && COLUMNA_ID_FILA %in% nombres) {
+    stop("Sin columna identificadora, el caso se numera en una columna ",
+         "llamada '", COLUMNA_ID_FILA, "', y hay un constructo con ese ",
+         "nombre. Renombre el constructo.", call. = FALSE)
   }
 
   list(columna_id = columna_id,
@@ -124,7 +159,13 @@ diagnosticar_ingesta <- function(datos, mapeo) {
   }
 
   # A-05: identificadores repetidos con un encuestado por caso.
-  if (mapeo$encuestados_por_caso == "uno" &&
+  #
+  # Sin columna identificadora no hay nada que repetir: dos respuestas
+  # identicas son dos filas distintas, no un caso duplicado. Antes esta
+  # alerta saltaba siempre con un archivo de items Likert puro, porque el
+  # primer item se gastaba como identificador y un item Likert repite
+  # valores por construccion.
+  if (mapeo$encuestados_por_caso == "uno" && !is.null(mapeo$columna_id) &&
       any(duplicated(datos[[mapeo$columna_id]]))) {
     ids <- datos[[mapeo$columna_id]]
     repetidos <- unique(ids[duplicated(ids)])
@@ -146,9 +187,17 @@ diagnosticar_ingesta <- function(datos, mapeo) {
 #' La primera de texto sin valores repetidos; si ninguna sirve, la primera
 #' de texto. Es una propuesta, no una decision: el investigador la ve y la
 #' corrige.
+#'
+#' Sin ninguna columna de texto devuelve NULL: el archivo no trae
+#' identificador y el caso sera su numero de fila. Devolver la primera
+#' columna del archivo, que es lo que se hacia, se comia un item -- con el
+#' S1 de un estudio publicado (225 respuestas x 35 items en siete
+#' constructos de cinco) FUN1 pasaba a identificar el caso, FUN se quedaba
+#' con cuatro items y saltaban dos alertas falsas: A-05, porque un item
+#' Likert repite valores, y A-07, porque el constructo perdia un item.
 sugerir_columna_id <- function(datos) {
   texto <- names(datos)[!vapply(datos, is.numeric, logical(1))]
-  if (length(texto) == 0) return(names(datos)[1])
+  if (length(texto) == 0) return(NULL)
 
   unicas <- texto[vapply(texto, function(col) !any(duplicated(datos[[col]])),
                          logical(1))]

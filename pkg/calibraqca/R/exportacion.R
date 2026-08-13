@@ -48,6 +48,14 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
                             error = function(e) "desconocida")
   }
 
+  # Sin columna identificadora el caso es su numero de fila, y el guion
+  # tiene que numerarlas: escribir `datos$NULL` produciria un guion que no
+  # corre, que es la peor forma de fallar en un artefacto que existe para
+  # que un tercero lo ejecute.
+  id <- nombre_columna_id(mapeo)
+  fuente_id <- if (is.null(mapeo$columna_id)) "seq_len(nrow(datos))"
+               else paste0("datos$", mapeo$columna_id)
+
   bloques_items <- vapply(mapeo$constructos, function(con) {
     sprintf('datos$%s <- rowMeans(datos[, %s], na.rm = TRUE)',
             con$nombre, .lista_r(con$items))
@@ -88,12 +96,12 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "# --- Promedio por constructo -------------------------------------\n",
     paste(bloques_items, collapse = "\n"), "\n\n",
     "# --- Calibracion directa -----------------------------------------\n",
-    "calibrado <- data.frame(", mapeo$columna_id, " = datos$",
-    mapeo$columna_id, ", stringsAsFactors = FALSE)\n\n",
+    "calibrado <- data.frame(", id, " = ", fuente_id,
+    ", stringsAsFactors = FALSE)\n\n",
     paste(bloques_calibrado, collapse = "\n\n"), "\n\n",
     "# Correccion de los casos en 0,50 exacto: sin ella quedan excluidos\n",
     "# de necesidad y de suficiencia.\n",
-    "for (col in setdiff(names(calibrado), \"", mapeo$columna_id, "\")) {\n",
+    "for (col in setdiff(names(calibrado), \"", id, "\")) {\n",
     "  en_medio <- !is.na(calibrado[[col]]) & calibrado[[col]] == 0.5\n",
     "  calibrado[en_medio, col] <- calibrado[en_medio, col] + 0.001\n",
     "}\n\n",

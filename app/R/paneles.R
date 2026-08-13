@@ -37,11 +37,12 @@ panel_ingesta <- function(e) {
         "lee en este equipo y desaparece al cerrar la herramienta."))))
   }
 
-  columnas <- names(e$datos)
+  # La primera opcion es la ausencia de identificador, y no es un adorno: un
+  # export de items Likert no trae ninguna columna que identifique el caso, y
+  # sin esta opcion el investigador no tenia forma de decirlo.
+  columnas <- c(stats::setNames(SIN_COLUMNA_ID, ETIQUETA_SIN_COLUMNA_ID),
+                stats::setNames(names(e$datos), names(e$datos)))
   sugerencia <- e$sugerencia
-  numericas <- setdiff(names(e$datos)[vapply(e$datos, is.numeric, logical(1))],
-                       e$columna_id)
-  grupos <- c("(sin usar)", names(sugerencia$constructos))
 
   shiny::tagList(
     ui_encabezado(1, paste(
@@ -54,11 +55,18 @@ panel_ingesta <- function(e) {
       shiny::fluidRow(
         shiny::column(5, shiny::selectInput(
           "columna_id", "Columna que identifica el caso",
-          choices = columnas, selected = e$columna_id)),
+          choices = columnas,
+          selected = e$columna_id %||% SIN_COLUMNA_ID)),
         shiny::column(4, shiny::selectInput(
           "encuestados", "Encuestados por caso",
           choices = c("Uno" = "uno", "Varios" = "varios"),
           selected = e$encuestados))),
+      if (is.null(e$columna_id)) {
+        shiny::tags$p(class = "ayuda", paste(
+          "El archivo no trae ninguna columna que identifique el caso, asi",
+          "que cada fila es un caso y se numera 1, 2, 3... Ninguna columna",
+          "de respuestas se gasta como identificador."))
+      } else NULL,
       shiny::checkboxInput(
         "mismo_cuestionario",
         "El resultado se preguntó en el mismo cuestionario que las condiciones",
@@ -163,7 +171,7 @@ panel_medida <- function(e) {
 
 panel_agregacion <- function(e) {
   if (is.null(e$agregacion)) return(panel_en_construccion(3))
-  condiciones <- setdiff(names(e$agregacion$casos), e$mapeo$columna_id)
+  condiciones <- setdiff(names(e$agregacion$casos), nombre_columna_id(e$mapeo))
 
   shiny::tagList(
     ui_encabezado(3, paste(
@@ -198,13 +206,48 @@ panel_agregacion <- function(e) {
 
 # --- Paso 4, el corazon ------------------------------------------------
 
-panel_calibracion <- function(e) {
+#' Tira de membresia de una condicion, o el aviso si las anclas no ordenan.
+#'
+#' Vive suelta porque la dibujan dos sitios: el uiOutput por condicion que
+#' el servidor refresca en vivo al mover un deslizador, y app/capturar.R,
+#' que rinde el paso 4 sin servidor.
+ui_membresia_condicion <- function(crudo, anclas) {
+  # Se calcula con el borrador, sin exigir justificacion: ver el efecto de
+  # mover un ancla no puede depender de haber escrito el texto todavia.
+  membresia <- try(calibrar(crudo, anclas), silent = TRUE)
+  if (inherits(membresia, "try-error")) {
+    return(shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                         paste("Las anclas tienen que ir en orden:",
+                               "no pertenencia < cruce < pertenencia plena.")))
+  }
+  ui_tira_membresia(membresia, "Membresia calibrada")
+}
+
+#' Paso 4.
+#'
+#' El borrador llega como ARGUMENTO y no se lee del estado a proposito. Es
+#' el arreglo del defecto que hacia inusable este paso: cuando el panel
+#' leia `e$borrador` -- un reactiveValues que recogia cada tecla escrita en
+#' una justificacion --, escribir invalidaba el renderUI y el paso 4 se
+#' redibujaba entero. La pagina saltaba al principio con cada tecla, y el
+#' textarea, que es HTML crudo con `b$justificacion` dentro, se recreaba
+#' vacio: escribiendo siete justificaciones seguidas se perdian dos.
+#'
+#' Aqui el borrador es una FOTO: los valores de partida con los que se
+#' dibujan los controles. Lo que el investigador escribe despues vive en
+#' los inputs y solo vuelve al panel si este se redibuja por otra razon --
+#' por ejemplo, al volver del paso 5.
+#'
+#' `en_vivo = FALSE` dibuja la tira de membresia dentro del panel en vez de
+#' dejar un uiOutput que solo un servidor puede rellenar. Lo usa
+#' app/capturar.R, que rinde el marcado sin levantar la aplicacion.
+panel_calibracion <- function(e, borrador = list(), en_vivo = TRUE) {
   if (is.null(e$agregacion)) {
     return(shiny::tagList(
       ui_encabezado(4, "Antes hay que cargar un archivo y confirmar el mapeo."),
       shiny::tags$p(class = "ayuda", "Vuelva al paso 1.")))
   }
-  condiciones <- setdiff(names(e$agregacion$casos), e$mapeo$columna_id)
+  condiciones <- setdiff(names(e$agregacion$casos), nombre_columna_id(e$mapeo))
 
   shiny::tagList(
     ui_encabezado(4, paste(
@@ -213,13 +256,9 @@ panel_calibracion <- function(e) {
       "en el informe tal como la escriba.")),
 
     lapply(condiciones, function(cond) {
-      b <- e$borrador[[cond]]
+      b <- borrador[[cond]]
       if (is.null(b)) b <- list(plena = 4, cruce = 3, nula = 2,
                                 fuente = "teoria", justificacion = "")
-      # La membresia se calcula con el borrador, sin exigir justificacion:
-      # ver el efecto de mover un ancla no puede depender de haber escrito
-      # el texto todavia.
-      membresia <- try(calibrar(e$agregacion$casos[[cond]], b), silent = TRUE)
 
       shiny::tags$div(
         class = "condicion",
@@ -235,13 +274,11 @@ panel_calibracion <- function(e) {
             paste0("nula_", cond), "No pertenencia", 1, 5, b$nula,
             step = 0.1))),
 
-        if (inherits(membresia, "try-error")) {
-          shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
-                        paste("Las anclas tienen que ir en orden:",
-                              "no pertenencia < cruce < pertenencia plena."))
-        } else {
-          ui_tira_membresia(membresia, "Membresia calibrada")
-        },
+        # La tira va en su propio uiOutput: asi mover un deslizador la
+        # refresca en vivo sin tocar el resto del bloque -- ni las
+        # justificaciones ya escritas de las demas condiciones.
+        if (en_vivo) shiny::uiOutput(paste0("membresia_", cond))
+        else ui_membresia_condicion(e$agregacion$casos[[cond]], b),
 
         shiny::tags$div(
           class = "justificacion", style = "margin-top:18px",
@@ -274,7 +311,7 @@ panel_calibracion <- function(e) {
 
 panel_semaforo <- function(e) {
   if (is.null(e$semaforo)) return(panel_en_construccion(5))
-  condiciones <- setdiff(names(e$membresias), e$mapeo$columna_id)
+  condiciones <- setdiff(names(e$membresias), nombre_columna_id(e$mapeo))
 
   shiny::tagList(
     ui_encabezado(5, paste(

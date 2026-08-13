@@ -177,3 +177,246 @@ test_that("tras subir el archivo, el paso 1 ofrece mapear los items", {
   expect_match(panel, "Columna que identifica el caso")
   expect_match(panel, "id_empresa")
 })
+
+# --- Un CSV de items Likert puro, que es el archivo mas comun ---------
+#
+# Un cuestionario exportado tal cual no trae ninguna columna de texto. La
+# aplicacion se comia el primer item como identificador: medido con el S1
+# de un estudio publicado -- 225 respuestas x 35 items en siete constructos
+# de cinco --, FUN1 pasaba a identificar el caso, FUN se quedaba con cuatro
+# items y saltaban dos alertas que no debian existir.
+#
+# El fichero se genera aqui y no se guarda en el repositorio: lo que la
+# prueba necesita es la FORMA -- ni una sola columna de texto --, no unos
+# datos concretos, y generarla deja ver que la forma es lo que importa.
+
+encuesta_likert_pura <- function(ruta, n = 60,
+                                 constructos = c("FUN", "AES", "PI")) {
+  set.seed(20260813)
+  columnas <- list()
+  for (con in constructos) {
+    latente <- stats::rnorm(n)
+    for (i in 1:5) {
+      v <- latente + stats::rnorm(n, sd = 0.55)
+      columnas[[paste0(con, i)]] <- as.integer(cut(
+        v, stats::quantile(v, seq(0, 1, length.out = 6)),
+        include.lowest = TRUE))
+    }
+  }
+  utils::write.csv(as.data.frame(columnas), ruta, row.names = FALSE)
+  ruta
+}
+
+test_that("un CSV de items Likert puro no gasta ningun item como identificador", {
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  ruta <- encuesta_likert_pura(tempfile(fileext = ".csv"))
+  on.exit(unlink(ruta), add = TRUE)
+
+  app$upload_file(archivo = ruta)
+  app$wait_for_idle(timeout = 30 * 1000)
+
+  # Lo que el investigador LEE en el desplegable, no lo que vale por dentro.
+  expect_match(
+    app$get_js("window.jQuery('#columna_id').parent().find('.item').text()"),
+    "Sin columna identificadora")
+
+  # Y la opcion sigue estando en la lista: con la cadena vacia como valor,
+  # selectize la convertia en placeholder y quien eligiera una columna no
+  # podia volver a decir "ninguna".
+  opciones <- app$get_js(
+    "JSON.stringify(Object.keys(window.jQuery('#columna_id')[0].selectize.options))")
+  expect_match(opciones, "sin columna identificadora", fixed = TRUE)
+
+  # Los tres constructos con sus cinco items: ninguno perdio el primero.
+  tamanos <- app$get_js(
+    "JSON.stringify(Array.from(
+       document.querySelectorAll('#panel_paso table.datos tbody tr'))
+       .map(function(tr){var td=tr.querySelectorAll('td');
+         return td[0].querySelector('input').value + ':' + td[2].textContent.trim();}))")
+  expect_identical(jsonlite::fromJSON(tamanos),
+                   c("FUN:5", "AES:5", "PI:5"))
+
+  app$click("confirmar_mapeo")
+  app$wait_for_idle(timeout = 60 * 1000)
+
+  # A-05 son casos duplicados. Sin identificador no hay nada que duplicar:
+  # dos respuestas iguales son dos filas distintas.
+  expect_false(grepl("A-05", texto_de(app$get_html("#panel_bitacora")),
+                     fixed = TRUE))
+})
+
+# --- Paso 4: escribir no puede redibujar el panel ---------------------
+
+#' Deja la aplicacion en el paso 4, con el archivo Likert puro ya mapeado.
+preparar_paso4 <- function(app) {
+  ruta <- encuesta_likert_pura(tempfile(fileext = ".csv"))
+  on.exit(unlink(ruta), add = TRUE)
+  app$upload_file(archivo = ruta)
+  app$wait_for_idle(timeout = 30 * 1000)
+  app$click("confirmar_mapeo")
+  app$wait_for_idle(timeout = 60 * 1000)
+  for (i in 1:2) {
+    app$click("siguiente")
+    app$wait_for_idle(timeout = 60 * 1000)
+  }
+  paso_actual <- app$get_js(
+    "document.querySelector('[aria-current=step] .n').textContent")
+  if (!identical(paso_actual, "4")) {
+    stop("No se llego al paso 4; la aplicacion se quedo en el ", paso_actual)
+  }
+  invisible(app)
+}
+
+#' Teclea un texto caracter a caracter, como lo haria una persona.
+#'
+#' `set_inputs()` no sirve para esta prueba: manda el valor de una vez, y el
+#' defecto que se vigila aparece justamente con el goteo de eventos que
+#' produce escribir.
+teclear <- function(app, id, texto) {
+  app$run_js(sprintf(
+    "(function(){var el=document.getElementById('%s');var t=%s;el.value='';
+      for (var i=0;i<t.length;i++){el.value+=t[i];
+        el.dispatchEvent(new Event('input',{bubbles:true}));}
+      el.dispatchEvent(new Event('change',{bubbles:true}));})()",
+    id, jsonlite::toJSON(texto, auto_unbox = TRUE)))
+  app$wait_for_idle(timeout = 30 * 1000)
+}
+
+marca_viva <- function(app) {
+  app$get_js("String(document.querySelector('#panel_paso .condicion') &&
+              document.querySelector('#panel_paso .condicion')
+                .getAttribute('data-marca'))")
+}
+
+#' Reconoce por escrito toda alerta abierta que la bitacora este ofreciendo.
+#'
+#' No es lo que hace el investigador -- el lee cada una y decide --, pero
+#' aqui la bitacora no es lo que se prueba: es el peaje que hay que pagar
+#' para llegar al paso 8 y ver que se imprimio.
+reconocer_pendientes <- function(app) {
+  nota <- paste("Se acepta este hallazgo: no compromete la calibracion ni la",
+                "lectura de los resultados, y queda declarado en el informe.")
+  ids <- jsonlite::fromJSON(app$get_js(
+    "JSON.stringify(Array.from(document.querySelectorAll('#panel_bitacora textarea'))
+       .map(function(t){return t.id}))"))
+  for (id in ids) {
+    app$run_js(sprintf(
+      "(function(){var el=document.getElementById('%s');el.value=%s;
+        el.dispatchEvent(new Event('change',{bubbles:true}));})()",
+      id, jsonlite::toJSON(nota, auto_unbox = TRUE)))
+    app$wait_for_idle(timeout = 30 * 1000)
+  }
+  invisible(length(ids))
+}
+
+justificaciones_con_texto <- function(app) {
+  app$get_js("Array.from(document.querySelectorAll('#panel_paso textarea'))
+              .filter(function(t){return t.value.length > 30}).length")
+}
+
+test_that("escribir una justificacion no redibuja el paso 4 ni mueve la pagina", {
+  # El defecto: el panel leia el borrador de anclas, el borrador recogia
+  # cada tecla y el renderUI se invalidaba solo. La pagina saltaba al
+  # principio con cada tecla y el textarea -- HTML crudo cuyo contenido
+  # inicial es la justificacion del borrador -- se recreaba vacio.
+  #
+  # La marca en el DOM es la prueba de que NO hubo re-render: un atributo
+  # puesto a mano no sobrevive a que Shiny reemplace el nodo.
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  preparar_paso4(app)
+
+  app$run_js("document.querySelector('#panel_paso .condicion')
+                .setAttribute('data-marca','SOBREVIVE');
+              window.scrollTo(0, document.body.scrollHeight);")
+  app$wait_for_idle(timeout = 15 * 1000)
+  scroll_antes <- app$get_js("String(Math.round(window.scrollY))")
+  expect_gt(as.numeric(scroll_antes), 0)
+
+  ids <- jsonlite::fromJSON(app$get_js(
+    "JSON.stringify(Array.from(document.querySelectorAll('#panel_paso textarea'))
+       .map(function(t){return t.id}))"))
+  expect_length(ids, 3L)
+
+  for (id in ids) {
+    teclear(app, id, paste0(
+      "El umbral de 4 en ", sub("^just_", "", id), " corresponde al punto en ",
+      "que la literatura sectorial situa la presencia plena del constructo."))
+  }
+
+  expect_identical(marca_viva(app), "SOBREVIVE")
+  expect_identical(app$get_js("String(Math.round(window.scrollY))"), scroll_antes)
+  expect_identical(justificaciones_con_texto(app), 3L)
+})
+
+test_that("mover un ancla actualiza su membresia sin borrar las justificaciones", {
+  # La otra mitad del acuerdo: la reactividad valiosa del paso 4 no se
+  # podia perder al quitar la que sobraba.
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  preparar_paso4(app)
+
+  for (cond in c("FUN", "AES", "PI")) {
+    teclear(app, paste0("just_", cond), paste0(
+      "El umbral de 4 en ", cond, " corresponde al punto en que la literatura ",
+      "sectorial situa la presencia plena del constructo."))
+  }
+  app$run_js("document.querySelector('#panel_paso .condicion')
+                .setAttribute('data-marca','SOBREVIVE');")
+
+  lectura <- function() app$get_js(
+    "document.querySelector('#membresia_FUN .tira').getAttribute('aria-label')")
+  antes <- lectura()
+  expect_match(antes, "por ciento por encima de 0,50")
+
+  app$set_inputs(cruce_FUN = 4.6)
+  app$wait_for_idle(timeout = 30 * 1000)
+
+  expect_false(identical(antes, lectura()))
+  expect_identical(marca_viva(app), "SOBREVIVE")
+  expect_identical(justificaciones_con_texto(app), 3L)
+})
+
+test_that("al confirmar llegan todas las justificaciones, enteras", {
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  preparar_paso4(app)
+
+  esperadas <- stats::setNames(vapply(c("FUN", "AES", "PI"), function(cond)
+    paste0("El umbral de 4 en ", cond, " corresponde al punto en que la ",
+           "literatura sectorial situa la presencia plena del constructo."),
+    character(1)), c("FUN", "AES", "PI"))
+
+  for (cond in names(esperadas)) {
+    teclear(app, paste0("just_", cond), esperadas[[cond]])
+  }
+
+  app$click("confirmar_calibracion")
+  app$wait_for_idle(timeout = 60 * 1000)
+
+  # Las justificaciones se leen del paso 8, que es donde salen impresas tal
+  # como se escribieron. Comprobarlas en el textarea no probaria nada: lo
+  # que se defiende ante el jurado es lo que llego al artefacto.
+  for (i in 1:8) {
+    paso <- app$get_js(
+      "document.querySelector('[aria-current=step] .n').textContent")
+    if (identical(paso, "8")) break
+    reconocer_pendientes(app)
+    app$click("siguiente")
+    app$wait_for_idle(timeout = 120 * 1000)
+  }
+  expect_identical(app$get_js(
+    "document.querySelector('[aria-current=step] .n').textContent"), "8")
+
+  bruto <- jsonlite::fromJSON(app$get_js(
+    "JSON.stringify(Array.from(
+       document.querySelector('#panel_paso table.datos').querySelectorAll('tbody tr'))
+       .map(function(tr){var td=tr.querySelectorAll('td');
+         return td[0].textContent.trim() + '||' + td[5].textContent.trim();}))"))
+  partes <- strsplit(bruto, "||", fixed = TRUE)
+  impresas <- stats::setNames(vapply(partes, `[`, character(1), 2L),
+                              vapply(partes, `[`, character(1), 1L))
+
+  expect_identical(impresas[names(esperadas)], esperadas)
+})

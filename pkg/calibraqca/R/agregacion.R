@@ -11,9 +11,14 @@ ICC1_MINIMO <- 0.05
 ICC2_MINIMO <- 0.70
 
 #' Promedio de los items de cada constructo, respuesta por respuesta.
+#'
+#' Aqui nace la columna de identidad de todo lo que viene despues. Si el
+#' archivo no trae identificador, el caso es su numero de fila.
 promediar_constructos <- function(datos, mapeo) {
-  salida <- data.frame(datos[[mapeo$columna_id]], stringsAsFactors = FALSE)
-  names(salida) <- mapeo$columna_id
+  ids <- if (is.null(mapeo$columna_id)) as.character(seq_len(nrow(datos)))
+         else datos[[mapeo$columna_id]]
+  salida <- data.frame(ids, stringsAsFactors = FALSE)
+  names(salida) <- nombre_columna_id(mapeo)
 
   for (con in mapeo$constructos) {
     x <- as.matrix(datos[, con$items, drop = FALSE])
@@ -32,13 +37,13 @@ agregar_a_caso <- function(promedios, mapeo) {
   if (mapeo$encuestados_por_caso == "uno") return(promedios)
 
   partido <- split(promedios[, nombres, drop = FALSE],
-                   promedios[[mapeo$columna_id]])
+                   promedios[[nombre_columna_id(mapeo)]])
   medias <- t(vapply(partido,
                      function(g) colMeans(g, na.rm = TRUE),
                      numeric(length(nombres))))
 
   salida <- data.frame(names(partido), stringsAsFactors = FALSE)
-  names(salida) <- mapeo$columna_id
+  names(salida) <- nombre_columna_id(mapeo)
   salida <- cbind(salida, as.data.frame(medias))
   rownames(salida) <- NULL
   salida
@@ -47,7 +52,7 @@ agregar_a_caso <- function(promedios, mapeo) {
 #' ICC(1) e ICC(2) por constructo. El calculo lo hace multilevel.
 icc_agregacion <- function(promedios, mapeo) {
   nombres <- vapply(mapeo$constructos, function(x) x$nombre, character(1))
-  grupo <- as.factor(promedios[[mapeo$columna_id]])
+  grupo <- as.factor(promedios[[nombre_columna_id(mapeo)]])
   encuestados <- as.integer(table(grupo))
 
   icc1 <- stats::setNames(rep(NA_real_, length(nombres)), nombres)
@@ -94,7 +99,7 @@ alertas_agregacion <- function(promedios, mapeo) {
   }
 
   if (icc$encuestados[["min"]] < 2) {
-    solos <- sum(table(promedios[[mapeo$columna_id]]) == 1)
+    solos <- sum(table(promedios[[nombre_columna_id(mapeo)]]) == 1)
     encontradas[[length(encontradas) + 1]] <- alerta(
       "A-12",
       detalle = sprintf("%d caso(s) con un solo encuestado en un diseno multinivel.",

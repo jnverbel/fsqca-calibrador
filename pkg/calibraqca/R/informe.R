@@ -21,9 +21,9 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
   validacion <- diagnosticar_validacion(datos, mapeo)
   agregacion <- diagnosticar_agregacion(datos, mapeo)
   calibracion <- diagnosticar_calibracion(agregacion$casos, anclas,
-                                          mapeo$columna_id, idm = idm)
+                                          nombre_columna_id(mapeo), idm = idm)
   membresias <- calibracion$membresias
-  semaforo <- diagnosticar_semaforo(membresias, mapeo$columna_id,
+  semaforo <- diagnosticar_semaforo(membresias, nombre_columna_id(mapeo),
                                     isTRUE(mapeo$resultado_mismo_cuestionario),
                                     anclas = anclas)
   necesidad <- analizar_necesidad(membresias, resultado, condiciones)

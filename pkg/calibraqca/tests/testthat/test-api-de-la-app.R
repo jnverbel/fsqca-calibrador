@@ -42,6 +42,7 @@ test_that("las funciones que la aplicacion necesita estan exportadas", {
   necesarias <- c(
     "leer_datos", "definir_mapeo", "diagnosticar_ingesta",
     "sugerir_mapeo", "sugerir_columna_id", "items_mapeados",
+    "nombre_columna_id",
     "diagnosticar_validacion", "diagnosticar_agregacion",
     "definir_anclas", "calibrar", "FUENTES_ANCLA",
     "diagnosticar_calibracion", "diagnosticar_semaforo",
