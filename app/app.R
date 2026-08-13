@@ -96,6 +96,8 @@ server <- function(input, output, session) {
     sugerencia = NULL,
     condiciones = character(0),
     resultado = NULL,
+    expectativas = NULL,
+    umbrales = list(consistencia = 0.80, pri = 0.70, frecuencia = 2),
     columna_id = NULL,
     encuestados = "uno",
     mismo_cuestionario = FALSE,
@@ -116,6 +118,12 @@ server <- function(input, output, session) {
   # paso 5 y volver al 4 devolveria las anclas a 4/3/2 y borraria el texto.
   borrador <- new.env(parent = emptyenv())
   borrador$valores <- list()
+  # El mismo trato para las expectativas direccionales del paso 6: son
+  # otra decision metodologica con justificacion escrita, y el paso se
+  # redibuja entero cuando llega un analisis nuevo. Si el panel leyera un
+  # reactiveValues que recoge cada tecla, el defecto del paso 4 volveria
+  # tal cual en el paso 6.
+  borrador$expectativas <- list()
 
   # --- Modo desarrollo: precarga para poder capturar cualquier paso -----
   observeEvent(TRUE, once = TRUE, {
@@ -273,7 +281,7 @@ server <- function(input, output, session) {
       # tecla.
       "4" = panel_calibracion(estado, borrador$valores),
       "5" = panel_semaforo(estado),
-      "6" = panel_analisis(estado),
+      "6" = panel_analisis(estado, borrador$expectativas),
       "7" = panel_robustez(estado),
       "8" = panel_exportacion(estado),
       panel_en_construccion(estado$paso)
@@ -341,8 +349,17 @@ server <- function(input, output, session) {
       b$justificacion <- input[[paste0("just_", cond)]] %||% b$justificacion
       borrador$valores[[cond]] <- b
 
-      a <- try(definir_anclas(b$plena, b$cruce, b$nula, b$fuente,
-                              b$justificacion %||% ""), silent = TRUE)
+      # Una condicion binaria no tiene anclas que confirmar: su columna ya
+      # es la pertenencia. Lo que si se le sigue exigiendo es la
+      # justificacion, porque dicotomizar es una decision y de las mas
+      # discutidas.
+      a <- if (identical(b$tipo, "crisp")) {
+        try(definir_anclas_crisp(b$fuente, b$justificacion %||% ""),
+            silent = TRUE)
+      } else {
+        try(definir_anclas(b$plena, b$cruce, b$nula, b$fuente,
+                           b$justificacion %||% ""), silent = TRUE)
+      }
       if (inherits(a, "try-error")) {
         showNotification(
           paste0(cond, ": ", conditionMessage(attr(a, "condition"))),
@@ -370,30 +387,125 @@ server <- function(input, output, session) {
                      type = "message", duration = 5)
   })
 
-  # --- Paso 6: el analisis se calcula al llegar -------------------------
+  # --- Paso 6: expectativas direccionales, umbrales y minimizacion ------
 
-  observeEvent(estado$paso, {
-    if (estado$paso != 6) return()
-    req(estado$membresias, estado$resultado)
-    if (!is.null(estado$analisis)) return()
+  # Recoge el formulario del paso 6 en el borrador, igual que el del paso
+  # 4: se lee de los inputs -- de ahi la dependencia reactiva -- y se
+  # escribe en un entorno normal, de modo que teclear no invalida nada ni
+  # redibuja el panel.
+  observe({
+    # Se recorre estado$condiciones y no names(borrador$expectativas): el
+    # borrador es un entorno normal y nadie lo observa, asi que un
+    # observador que solo lo leyera a el no tendria ninguna dependencia
+    # reactiva y no volveria a correr nunca.
+    condiciones <- estado$condiciones
+    req(length(condiciones) > 0)
+    for (cond in condiciones) {
+      nuevos <- list(direccion = input[[paste0("exp_", cond)]],
+                     justificacion = input[[paste0("just_exp_", cond)]])
+      for (campo in names(nuevos)) {
+        v <- nuevos[[campo]]
+        if (!is.null(v)) borrador$expectativas[[cond]][[campo]] <- v
+      }
+    }
+  })
 
+  #' Ejecuta el paso 6 entero con las expectativas y los umbrales dados.
+  correr_analisis <- function(expectativas, umbrales) {
     condiciones <- setdiff(names(estado$membresias),
                            c(nombre_columna_id(estado$mapeo), estado$resultado))
-    if (length(condiciones) == 0) return()
+    if (length(condiciones) == 0) return(invisible(NULL))
 
     nec <- diagnosticar_necesidad(estado$membresias, estado$resultado,
                                   condiciones)
     tt <- construir_tabla_verdad(estado$membresias, estado$resultado,
-                                 condiciones)
+                                 condiciones,
+                                 consistencia = umbrales$consistencia,
+                                 pri = umbrales$pri,
+                                 frecuencia = umbrales$frecuencia)
     tabla <- leer_tabla_verdad(tt)
-    suf <- diagnosticar_suficiencia(tt)
+    suf <- diagnosticar_suficiencia(tt, expectativas_sop(expectativas))
     estado$analisis <- list(necesidad = nec, tabla_verdad = tabla,
                             suficiencia = suf)
+    estado$expectativas <- expectativas
+    estado$umbrales <- umbrales
     estado$bitacora <- registrar_alertas(
       estado$bitacora,
       rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas,
             alertas_solucion_degenerada(suf$soluciones, estado$semaforo),
             alerta_asimetria_causal(estado$mapeo$resultado)), 6)
+    invisible(NULL)
+  }
+
+  # Al llegar se calcula con lo declarado hasta ahora, que por defecto es
+  # "no importa" en todas las condiciones: sin expectativas no hay
+  # intermedia, y el panel lo dice en vez de inventarla.
+  observeEvent(estado$paso, {
+    if (estado$paso != 6) return()
+    req(estado$membresias, estado$resultado)
+    if (!is.null(estado$analisis)) return()
+    correr_analisis(estado$expectativas, estado$umbrales)
+  })
+
+  observeEvent(input$correr_analisis, {
+    req(estado$membresias, estado$resultado)
+
+    expectativas <- list()
+    # El resultado queda fuera: una expectativa direccional dice que espera
+    # la teoria de una CONDICION, y listarlo dejaria el anexo declarando
+    # una expectativa sobre el fenomeno que se explica.
+    for (cond in setdiff(names(borrador$expectativas), estado$resultado)) {
+      b <- borrador$expectativas[[cond]]
+      # Los inputs mandan sobre el borrador: son el estado de la pantalla
+      # en el instante del clic.
+      b$direccion <- input[[paste0("exp_", cond)]] %||% b$direccion
+      b$justificacion <- input[[paste0("just_exp_", cond)]] %||% b$justificacion
+      borrador$expectativas[[cond]] <- b
+
+      e <- try(definir_expectativa(b$direccion %||% "indiferente",
+                                   b$justificacion %||% ""), silent = TRUE)
+      if (inherits(e, "try-error")) {
+        showNotification(
+          paste0(cond, ": ", conditionMessage(attr(e, "condition"))),
+          type = "warning", duration = 10)
+        return()
+      }
+      expectativas[[cond]] <- e
+    }
+
+    umbrales <- list(
+      consistencia = input$umbral_consistencia %||% estado$umbrales$consistencia,
+      pri = input$umbral_pri %||% estado$umbrales$pri,
+      frecuencia = input$umbral_frecuencia %||% estado$umbrales$frecuencia)
+    if (any(vapply(umbrales, function(x) !is.numeric(x) || is.na(x),
+                   logical(1)))) {
+      showNotification(
+        "Los tres umbrales tienen que ser numeros. Revise el formulario.",
+        type = "warning", duration = 8)
+      return()
+    }
+
+    aviso <- showNotification("Minimizando...", duration = NULL,
+                              type = "message")
+    on.exit(removeNotification(aviso), add = TRUE)
+    intento <- try(correr_analisis(expectativas, umbrales), silent = TRUE)
+    if (inherits(intento, "try-error")) {
+      showNotification(
+        paste("El analisis no pudo ejecutarse:",
+              conditionMessage(attr(intento, "condition"))),
+        type = "error", duration = 15)
+      return()
+    }
+    showNotification(
+      if (is.null(expectativas_sop(expectativas))) {
+        paste("Analisis rehecho. Sin ninguna direccion declarada no hay",
+              "solucion intermedia: declare al menos una presencia o una",
+              "ausencia.")
+      } else {
+        sprintf("Analisis rehecho con las expectativas %s.",
+                expectativas_sop(expectativas))
+      },
+      type = "message", duration = 8)
   })
 
   # --- Paso 7: el barrido se ejecuta a peticion -------------------------
@@ -448,13 +560,15 @@ server <- function(input, output, session) {
   # Se compone en R, sin Quarto: el equipo del investigador no lo tiene.
   informe_actual <- reactive({
     req(estado$membresias, length(estado$anclas) > 0, estado$resultado)
+    # Los umbrales salen de umbrales_actuales() y no de una lista escrita
+    # aqui: el paso 6 los deja declarar, y una copia literal habria hecho
+    # que el anexo imprimiera unos umbrales y el analisis usara otros.
     reunir_informe(
       datos = estado$datos, mapeo = estado$mapeo, anclas = estado$anclas,
       bitacora = estado$bitacora,
-      umbrales = list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
-                      consistencia = 0.80, pri = 0.70),
+      umbrales = umbrales_actuales(),
       resultado = estado$resultado, leido = estado$leido,
-      robustez = estado$robustez)
+      robustez = estado$robustez, expectativas = estado$expectativas)
   })
 
   output$vista_informe <- renderUI({
@@ -471,10 +585,16 @@ server <- function(input, output, session) {
   # Los cuatro botones tienen manejador. Antes solo lo tenia el informe:
   # los otros tres estaban dibujados y no descargaban nada.
 
+  # Los umbrales son los que declaro el paso 6, con los de fabrica como
+  # punto de partida. Antes eran literales repetidos en tres sitios; con
+  # el formulario del paso 6 eso habria dejado el informe declarando unos
+  # umbrales distintos de los que produjeron la solucion.
   umbrales_actuales <- reactive({
     req(estado$agregacion)
-    list(frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)),
-         consistencia = 0.80, pri = 0.70)
+    list(frecuencia = estado$umbrales$frecuencia %||%
+           umbral_frecuencia(nrow(estado$agregacion$casos)),
+         consistencia = estado$umbrales$consistencia %||% CONSISTENCIA_MINIMA,
+         pri = estado$umbrales$pri %||% PRI_MINIMO)
   })
 
   proyecto_actual <- reactive({
@@ -483,7 +603,8 @@ server <- function(input, output, session) {
     construir_proyecto(
       leido = estado$leido, mapeo = estado$mapeo, anclas = estado$anclas,
       bitacora = estado$bitacora, umbrales = umbrales_actuales(),
-      resultado = estado$resultado, robustez = estado$robustez)
+      resultado = estado$resultado, robustez = estado$robustez,
+      expectativas = estado$expectativas)
   })
 
   nombre_base <- reactive({
@@ -510,7 +631,8 @@ server <- function(input, output, session) {
       writeLines(guion_reproducible(
         ruta_datos = estado$leido$nombre_archivo, mapeo = estado$mapeo,
         anclas = estado$anclas, idm = 0.95, umbrales = umbrales_actuales(),
-        resultado = estado$resultado, robustez = estado$robustez), archivo)
+        resultado = estado$resultado, robustez = estado$robustez,
+        expectativas = expectativas_sop(estado$expectativas)), archivo)
     })
 
   output$bajar_informe <- downloadHandler(
@@ -539,11 +661,11 @@ server <- function(input, output, session) {
     estado$columna_id <- sugerir_columna_id(leido$datos)
     estado$sugerencia <- sugerir_mapeo(leido$datos, estado$columna_id)
     # El ultimo grupo suele ser el resultado en los cuestionarios, pero es
-    # una propuesta: el investigador la ve y la corrige.
-    nombres <- names(estado$sugerencia$constructos)
-    estado$roles <- setNames(
-      as.list(c(rep("condicion", max(0, length(nombres) - 1)), "resultado")[
-        seq_along(nombres)]), nombres)
+    # una propuesta: el investigador la ve y la corrige. Lo mismo con las
+    # columnas de ceros y unos: se PROPONEN como condicion binaria y el
+    # investigador confirma, porque una 0/1 puede ser una condicion crisp
+    # legitima o un item mal exportado.
+    estado$roles <- proponer_roles(estado$sugerencia)
     estado$mapeo <- NULL
     estado$bitacora <- nueva_bitacora()
   })
@@ -561,6 +683,10 @@ server <- function(input, output, session) {
     if (identical(elegida, estado$columna_id)) return()
     estado$columna_id <- elegida
     estado$sugerencia <- sugerir_mapeo(estado$datos, elegida)
+    # Los papeles se vuelven a proponer con la agrupacion nueva: un grupo
+    # que aparece o desaparece cambia cual es el ultimo, y la columna que
+    # deja de ser identificador puede ser justamente una 0/1.
+    estado$roles <- proponer_roles(estado$sugerencia)
   }, ignoreNULL = FALSE)
 
   observeEvent(input$otro_archivo, {
@@ -633,16 +759,39 @@ server <- function(input, output, session) {
     # justificar: el paso 4 es donde se justifican, y definir_anclas() no
     # deja construir un ancla sin texto. Por eso el borrador es una lista
     # simple y solo se convierte en anclas al confirmar.
+    #
+    # Los valores de partida los propone el motor: 4 / 3 / 2 sobre una
+    # escala Likert, y los percentiles 95 / 50 / 5 cuando el dato la
+    # desborda -- ahi 4 / 3 / 2 dejaria las tres anclas por debajo del
+    # minimo observado y toda la muestra saldria con pertenencia 1.
+    binarias <- condiciones_binarias(m)
     condiciones <- setdiff(names(estado$agregacion$casos),
                            nombre_columna_id(m))
-    borrador$valores <- setNames(lapply(condiciones, function(x)
-      list(plena = 4, cruce = 3, nula = 2, fuente = "teoria",
-           justificacion = "")), condiciones)
+    borrador$valores <- setNames(lapply(condiciones, function(cond) {
+      if (cond %in% binarias) {
+        # Una condicion crisp no tiene anclas que fijar. Las tres que
+        # lleva son las del caso nitido, y viajan para que la tira de
+        # membresia, el semaforo y el anexo la lean sin excepciones.
+        return(list(plena = 1, cruce = 0.5, nula = 0, tipo = "crisp",
+                    fuente = "conocimiento sustantivo", justificacion = ""))
+      }
+      s <- anclas_sugeridas(estado$agregacion$casos[[cond]],
+                            escala = m$escala)
+      list(plena = s$plena, cruce = s$cruce, nula = s$nula, tipo = "difusa",
+           fuente = s$fuente, justificacion = "")
+    }), condiciones)
     estado$condiciones <- condiciones
     estado$anclas <- list()
     estado$membresias <- NULL
     estado$semaforo <- NULL
     estado$analisis <- NULL
+    estado$expectativas <- NULL
+    borrador$expectativas <- setNames(
+      lapply(condiciones, function(x)
+        list(direccion = "indiferente", justificacion = "")), condiciones)
+    estado$umbrales <- list(
+      consistencia = CONSISTENCIA_MINIMA, pri = PRI_MINIMO,
+      frecuencia = umbral_frecuencia(nrow(estado$agregacion$casos)))
 
     if (puede_avanzar(bit, 1)) estado$paso <- 2
   })

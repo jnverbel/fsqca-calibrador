@@ -21,6 +21,12 @@ tabla_calibracion <- function(anclas_por_condicion, idm) {
     justificacion = vapply(anclas_por_condicion,
                            function(a) a$justificacion, character(1),
                            USE.NAMES = FALSE),
+    # Una condicion crisp lleva anclas 0 / 0,50 / 1 porque asi la leen el
+    # semaforo y el archivo de proyecto, pero NO se calibro: su columna ya
+    # era la pertenencia. Sin esta columna, el anexo presenta tres numeros
+    # que parecen una decision de calibracion y no lo son.
+    tipo = vapply(anclas_por_condicion, function(a) a$tipo %||% "difusa",
+                  character(1), USE.NAMES = FALSE),
     idm = idm,
     stringsAsFactors = FALSE
   )
@@ -41,7 +47,7 @@ exportar_base_calibrada <- function(membresias, ruta) {
 guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
                                resultado, version_qca = NULL,
                                version_r = R.version.string,
-                               robustez = NULL) {
+                               robustez = NULL, expectativas = NULL) {
   condiciones <- setdiff(names(anclas), resultado)
   if (is.null(version_qca)) {
     version_qca <- tryCatch(as.character(utils::packageVersion("QCA")),
@@ -63,9 +69,21 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
 
   bloques_calibrado <- vapply(names(anclas), function(nom) {
     a <- anclas[[nom]]
+    cabecera <- paste0("# ", nom, " -- fuente: ", a$fuente, "\n",
+                       "# ", a$justificacion, "\n")
+    # Una condicion crisp NO pasa por calibrate(). Con anclas 0 / 0,5 / 1
+    # los ceros saldrian 0,05 y los unos 0,95: el guion correria sin error
+    # y produciria numeros distintos de los del informe, que es la peor
+    # forma de fallar en un artefacto hecho para que un tercero lo ejecute.
+    if (isTRUE(es_crisp(a))) {
+      return(paste0(
+        cabecera,
+        "# Condicion crisp: la columna ya es la pertenencia, 0 fuera del\n",
+        "# conjunto y 1 dentro. No se calibra.\n",
+        sprintf("calibrado$%s <- datos$%s", nom, nom)))
+    }
     paste0(
-      "# ", nom, " -- fuente: ", a$fuente, "\n",
-      "# ", a$justificacion, "\n",
+      cabecera,
       sprintf(paste0('calibrado$%s <- QCA::calibrate(datos$%s, type = "fuzzy",\n',
                      '                               thresholds = c(e = %s, c = %s, i = %s),\n',
                      '                               idm = %s)'),
@@ -119,8 +137,34 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "print(tt)\n\n",
     "print(QCA::minimize(tt, details = TRUE))                 # conservadora\n",
     "print(QCA::minimize(tt, include = \"?\", details = TRUE))   # parsimoniosa\n",
+    .bloque_intermedia(expectativas),
     .bloque_robustez(robustez, anclas, condiciones, resultado, umbrales)
   )
+}
+
+#' La minimizacion intermedia del guion, solo si hay expectativas.
+#'
+#' Sin expectativas direccionales no existe solucion intermedia, y
+#' escribir la llamada igual dejaria un guion que aborta. Con ellas, el
+#' guion tiene que leer el bloque i.sol: sol$solution de primer nivel es la
+#' PARSIMONIOSA, y quien ejecute el guion creyendo lo contrario reproduciria
+#' una solucion distinta de la del informe.
+.bloque_intermedia <- function(expectativas) {
+  if (is.null(expectativas) || !nzchar(trimws(paste(expectativas,
+                                                    collapse = "")))) {
+    return(paste0(
+      "\n# No se declararon expectativas direccionales, asi que no hay\n",
+      "# solucion intermedia que reproducir.\n"))
+  }
+  sprintf(paste0(
+    "\n# --- Solucion intermedia -------------------------------------------\n",
+    "# Las expectativas direccionales son la decision teorica del paso 6.\n",
+    "# Con dir.exp, QCA deja la intermedia en $i.sol$C1P1: el primer nivel\n",
+    "# del objeto sigue siendo la PARSIMONIOSA.\n",
+    'intermedia <- QCA::minimize(tt, include = "?", dir.exp = "%s",\n',
+    "                            details = TRUE)\n",
+    "print(intermedia$i.sol$C1P1)\n"),
+    paste(expectativas, collapse = " + "))
 }
 
 #' Bloque de robustez del guion, solo si el barrido se ejecuto.
@@ -132,7 +176,13 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
   if (!isTRUE(robustez$ejecutado)) return("")
 
   columnas <- .lista_r(c(condiciones, resultado))
-  llamadas <- vapply(condiciones, function(cond) {
+  # Una condicion crisp no tiene anclas que desplazar, y el barrido del
+  # paso 7 tampoco la mide. Escribir su rob.calibrange dejaria al guion
+  # calculando algo que el informe no declara. Se filtra solo el BUCLE:
+  # `conditions =` sigue llevando todas, porque el modelo las incluye.
+  con_anclas <- Filter(function(cond) !isTRUE(es_crisp(anclas[[cond]])),
+                       condiciones)
+  llamadas <- vapply(con_anclas, function(cond) {
     a <- anclas[[cond]]
     sprintf(paste0(
       'SetMethods::rob.calibrange(\n',

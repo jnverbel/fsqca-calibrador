@@ -113,10 +113,10 @@ e$columna_id <- sugerir_columna_id(e$datos)
 e$sugerencia <- sugerir_mapeo(e$datos, e$columna_id)
 e$encuestados <- "uno"
 e$mismo_cuestionario <- FALSE
-nombres_sug <- names(e$sugerencia$constructos)
-e$roles <- stats::setNames(
-  as.list(c(rep("condicion", max(0, length(nombres_sug) - 1)),
-            "resultado")[seq_along(nombres_sug)]), nombres_sug)
+# Los mismos papeles que propone la aplicacion, incluida la condicion
+# binaria: si la captura propusiera otra cosa, dejaria de retratar la
+# pantalla que ve el investigador.
+e$roles <- proponer_roles(e$sugerencia)
 
 panel <- switch(as.character(paso),
                 "1" = panel_ingesta(e), "2" = panel_medida(e),

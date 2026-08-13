@@ -250,6 +250,7 @@ comparar_huella <- function(proyecto, huella_actual) {
 construir_proyecto <- function(leido, mapeo, anclas, bitacora, umbrales,
                                resultado, idm = IDM_POR_DEFECTO,
                                correccion = NULL, robustez = NULL,
+                               expectativas = NULL,
                                fecha = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ",
                                               tz = "UTC")) {
   p <- nuevo_proyecto(fecha = fecha)
@@ -284,7 +285,18 @@ construir_proyecto <- function(leido, mapeo, anclas, bitacora, umbrales,
          tipo = a$tipo %||% "difusa",
          fuente = a$fuente, justificacion = a$justificacion))
 
-  p$analisis <- list(resultado = resultado, umbrales = umbrales)
+  # Las expectativas viajan en dos campos y no en uno: la direccion es lo
+  # que reproduce el analisis, y la justificacion es lo que lo defiende.
+  # Guardar solo la primera dejaria un proyecto que se vuelve a ejecutar
+  # pero no se puede explicar.
+  tabla_exp <- tabla_expectativas(expectativas)
+  p$analisis <- list(
+    resultado = resultado,
+    umbrales = umbrales,
+    expectativas_direccionales = as.list(stats::setNames(tabla_exp$direccion,
+                                                         tabla_exp$condicion)),
+    justificacion_expectativas = as.list(
+      stats::setNames(tabla_exp$justificacion, tabla_exp$condicion)))
   p$robustez <- if (is.null(robustez)) {
     list(ejecutado = FALSE, escenarios = list())
   } else robustez

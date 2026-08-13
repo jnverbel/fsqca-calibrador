@@ -214,15 +214,22 @@ informe_html <- function(inf) {
 
   # --- Calibracion: la pieza central ----------------------------------
   tc <- inf$calibracion$tabla
+  # El tipo no es decorativo: una condición binaria NO se calibró, y sus
+  # tres anclas son las del caso nítido (0 / 0,50 / 1), no una decisión de
+  # calibración. Imprimirlas sin decirlo presentaría como umbral fijado lo
+  # que es la pertenencia publicada.
+  crisp <- (tc$tipo %||% rep("difusa", nrow(tc))) == "crisp"
+  ancla <- function(i, x) if (crisp[i]) "—" else fmt(x, 2)
   calib <- tabla_informe(
-    c("Condición", "Plena", "Cruce", "Nula", "Fuente"),
+    c("Condición", "Plena", "Cruce", "Nula", "Fuente", "Tipo"),
     lapply(seq_len(nrow(tc)), function(i)
       shiny::tags$tr(
         shiny::tags$td(class = "num", tc$condicion[i]),
-        shiny::tags$td(class = "num", fmt(tc$plena[i], 2)),
-        shiny::tags$td(class = "num", fmt(tc$cruce[i], 2)),
-        shiny::tags$td(class = "num", fmt(tc$nula[i], 2)),
-        shiny::tags$td(tc$fuente[i]))))
+        shiny::tags$td(class = "num", ancla(i, tc$plena[i])),
+        shiny::tags$td(class = "num", ancla(i, tc$cruce[i])),
+        shiny::tags$td(class = "num", ancla(i, tc$nula[i])),
+        shiny::tags$td(tc$fuente[i]),
+        shiny::tags$td(if (crisp[i]) "binaria, sin calibrar" else "difusa"))))
 
   justificaciones <- lapply(seq_len(nrow(tc)), function(i)
     shiny::tags$div(
@@ -285,6 +292,37 @@ informe_html <- function(inf) {
                          "num mal" else "num",
                        fmt(tv$PRI[i])))))
 
+  # --- Expectativas direccionales --------------------------------------
+  # Es la decisión teórica que produce la intermedia, y la primera que un
+  # evaluador pide ver cuando lee una solución intermedia.
+  te <- inf$expectativas
+  expectativas <- if (is.null(te) || nrow(te) == 0) {
+    shiny::tags$p(class = "nota-informe", paste(
+      "No se declaró ninguna expectativa direccional, así que no se produjo",
+      "solución intermedia."))
+  } else {
+    declaradas <- te[te$direccion != "indiferente", , drop = FALSE]
+    shiny::tagList(
+      tabla_informe(
+        c("Condición", "Se espera", "Justificación"),
+        lapply(seq_len(nrow(te)), function(i)
+          shiny::tags$tr(
+            shiny::tags$td(class = "num", te$condicion[i]),
+            shiny::tags$td(switch(te$direccion[i],
+                                  presente = "presencia",
+                                  ausente = "ausencia",
+                                  "no importa")),
+            # Íntegra, sin recortar, igual que la de las anclas.
+            shiny::tags$td(style = "font-family:var(--serif);max-width:46ch",
+                           if (nzchar(te$justificacion[i]))
+                             te$justificacion[i] else "—")))),
+      shiny::tags$p(class = "nota-informe", sprintf(paste(
+        "La solución intermedia simplifica solo con los remanentes",
+        "coherentes con estas expectativas. Se declararon %d de %d",
+        "condiciones; «no importa» no es una afirmación teórica y no exige",
+        "justificación."), nrow(declaradas), nrow(te))))
+  }
+
   soluciones <- lapply(names(inf$soluciones), function(nombre) {
     s <- inf$soluciones[[nombre]]
     if (is.null(s)) {
@@ -293,8 +331,13 @@ informe_html <- function(inf) {
                            "y no se declararon."))
     }
     shiny::tags$div(
-      class = "solucion",
-      shiny::tags$p(shiny::tags$b(paste0("Solución ", nombre))),
+      class = if (identical(nombre, "intermedia")) "solucion destacada"
+              else "solucion",
+      shiny::tags$p(shiny::tags$b(paste0("Solución ", nombre)),
+                    if (identical(nombre, "intermedia"))
+                      shiny::tags$span(class = "sev",
+                                       " — es la que se reporta")
+                    else NULL),
       shiny::tags$p(class = "num terminos",
                     paste(s$terminos, collapse = "  +  ")),
       shiny::tags$p(class = "ajuste", sprintf(
@@ -394,6 +437,7 @@ informe_html <- function(inf) {
               inf$umbrales$frecuencia, format(inf$umbrales$consistencia),
               format(inf$umbrales$pri))),
             t_tv,
+            shiny::tags$h3("Expectativas direccionales"), expectativas,
             shiny::tags$h3("Suficiencia"), soluciones),
     seccion("Robustez",
             if (isTRUE(inf$robustez$ejecutado))

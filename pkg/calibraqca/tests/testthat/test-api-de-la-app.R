@@ -55,7 +55,12 @@ test_that("las funciones que la aplicacion necesita estan exportadas", {
     "nuevo_proyecto", "guardar_proyecto", "cargar_proyecto",
     "construir_proyecto", "comparar_huella",
     "reunir_informe", "tabla_calibracion", "exportar_base_calibrada",
-    "guion_reproducible")
+    "guion_reproducible",
+    # Paso 1 y paso 4: la condicion binaria, que no se calibra.
+    "definir_anclas_crisp", "condiciones_binarias", "es_condicion_binaria",
+    "anclas_sugeridas",
+    # Paso 6: las expectativas direccionales que producen la intermedia.
+    "definir_expectativa", "expectativas_sop", "DIRECCIONES_EXPECTATIVA")
 
   exportados <- getNamespaceExports(asNamespace("calibraqca"))
 

@@ -85,6 +85,73 @@ definir_anclas_crisp <- function(fuente, justificacion) {
 #' La condicion es crisp y su columna ya trae la pertenencia.
 es_crisp <- function(anclas) identical(anclas$tipo, "crisp")
 
+# Escala de fabrica: el cuestionario Likert de cinco puntos para el que se
+# escribio la herramienta.
+ESCALA_POR_DEFECTO <- c(1, 5)
+
+# Anclas de partida sobre esa escala, tal como las fija la especificacion.
+ANCLAS_LIKERT <- c(plena = 4, cruce = 3, nula = 2)
+
+# Percentiles de la salida de emergencia. Son los que usa la practica
+# publicada cuando el dato no viene de una escala conocida.
+PERCENTILES_ANCLA <- c(nula = 0.05, cruce = 0.50, plena = 0.95)
+
+# Pasos del deslizador que fija un ancla fuera de la escala declarada.
+PASOS_CONTROL_ANCLA <- 1000
+
+#' Valores de partida de las tres anclas, y el rango del control que las fija.
+#'
+#' Dentro de la escala declarada devuelve 4 / 3 / 2 con fuente "teoria",
+#' que es lo que dice la especificacion y lo que el investigador espera ver
+#' en un cuestionario Likert. No se toca.
+#'
+#' Fuera de ella no hay un 4 / 3 / 2 que signifique nada. Un estudio de
+#' fuente secundaria trae dias de retraso, densidad de poblacion o renta
+#' per capita: las tres anclas de fabrica caerian por debajo del minimo
+#' observado y toda la muestra saldria con pertenencia 1, sin error y sin
+#' aviso. Se proponen entonces los percentiles 95 / 50 / 5, que es lo que
+#' hace la practica publicada, y la fuente propuesta pasa a "distribucion
+#' muestral" -- lo unico que un numero sacado de la muestra puede declarar
+#' honestamente --, que dispara A-15 y obliga al analisis de robustez.
+#'
+#' Devuelve tambien el rango y el paso del control, y no es un detalle de
+#' dibujo: las anclas propuestas se redondean A ESE PASO para que el
+#' deslizador no las mueva al dibujarlas. Si no coincidieran, el
+#' investigador confirmaria unas anclas distintas de las que vio.
+anclas_sugeridas <- function(valores, escala = ESCALA_POR_DEFECTO) {
+  de_fabrica <- function() list(
+    plena = unname(ANCLAS_LIKERT[["plena"]]),
+    cruce = unname(ANCLAS_LIKERT[["cruce"]]),
+    nula = unname(ANCLAS_LIKERT[["nula"]]),
+    fuente = "teoria",
+    minimo = escala[1], maximo = escala[2], paso = 0.1)
+
+  v <- as.numeric(valores)
+  v <- v[is.finite(v)]
+  if (length(v) == 0) return(de_fabrica())
+  if (min(v) >= escala[1] && max(v) <= escala[2]) return(de_fabrica())
+
+  lo <- floor(min(v))
+  hi <- ceiling(max(v))
+  # Una columna constante deja el rango en cero y el deslizador sin ancho.
+  if (hi - lo <= 0) {
+    lo <- lo - 1
+    hi <- hi + 1
+  }
+  paso <- signif((hi - lo) / PASOS_CONTROL_ANCLA, 1)
+  en_rejilla <- function(x) lo + round((x - lo) / paso) * paso
+
+  # Por posicion y no por nombre: quantile() rotula sus resultados con el
+  # porcentaje ("5%"), no con el nombre que lleve el vector de
+  # probabilidades, y q[["nula"]] no existiria.
+  q <- unname(stats::quantile(v, unname(PERCENTILES_ANCLA), na.rm = TRUE))
+  list(plena = en_rejilla(q[3]),
+       cruce = en_rejilla(q[2]),
+       nula = en_rejilla(q[1]),
+       fuente = "distribucion muestral",
+       minimo = lo, maximo = hi, paso = paso)
+}
+
 #' Calibracion directa. El calculo lo hace QCA::calibrate.
 #'
 #' idm parametriza el grado de inclusion que define la pertenencia plena.

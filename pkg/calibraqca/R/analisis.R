@@ -465,6 +465,119 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
   do.call(QCA::minimize, c(list(tt), dots))
 }
 
+# --- Expectativas direccionales ---------------------------------------
+#
+# La solucion intermedia sale de simplificar SOLO con los remanentes que la
+# teoria admite, y cuales admite lo dice el investigador condicion por
+# condicion. Es una decision teorica, no de datos: por eso se declara con
+# el mismo trato que las anclas del paso 4 -- direccion y justificacion
+# escrita, que sale integra en el informe.
+#
+# El vocabulario es el del archivo de proyecto (seccion 4.1 de la
+# especificacion): "presente", "ausente" y, como tercera opcion, la
+# ausencia de afirmacion teorica.
+
+DIRECCIONES_EXPECTATIVA <- c("presente", "ausente", "indiferente")
+
+#' Declara la expectativa direccional de una condicion.
+#'
+#' `indiferente` es el valor conservador y NO exige justificacion, a
+#' diferencia de las otras dos: es la ausencia de una afirmacion teorica, y
+#' no hay nada que defender ante un jurado. Declarar presencia o ausencia
+#' si es una afirmacion, y decide que remanentes puede usar la
+#' minimizacion, asi que se justifica por escrito como las anclas.
+definir_expectativa <- function(direccion, justificacion = "") {
+  if (!is.character(direccion) || length(direccion) != 1 ||
+      !direccion %in% DIRECCIONES_EXPECTATIVA) {
+    stop("Direccion de expectativa no admitida: ",
+         paste(direccion, collapse = ", "), ". Se admite: ",
+         paste(DIRECCIONES_EXPECTATIVA, collapse = ", "), ".", call. = FALSE)
+  }
+  if (is.null(justificacion) || is.na(justificacion)) justificacion <- ""
+
+  if (!identical(direccion, "indiferente") &&
+      nchar(trimws(justificacion)) < MIN_CARACTERES_JUSTIFICACION) {
+    stop("Esperar una condicion presente o ausente exige una justificacion ",
+         "de al menos ", MIN_CARACTERES_JUSTIFICACION, " caracteres: es la ",
+         "afirmacion teorica que decide que remanentes puede usar la ",
+         "minimizacion, y sale impresa en el informe.", call. = FALSE)
+  }
+
+  list(direccion = direccion, justificacion = justificacion)
+}
+
+#' La direccion de una expectativa, venga como objeto o como texto.
+#'
+#' El archivo de proyecto guarda "presente" a secas, no el objeto entero.
+.direccion_de <- function(x) {
+  if (is.list(x)) x$direccion else as.character(x)
+}
+
+#' Notacion SOP de QCA a partir de las expectativas declaradas.
+#'
+#' QCA 3.25 quiere "DELAY + EXP + ~ELDERLY". Pedirle eso al investigador
+#' seria pedirle que aprenda la sintaxis del paquete que esta herramienta
+#' existe para envolver, y un `~` de menos cambia la solucion en silencio.
+#'
+#' Devuelve NULL -- y no la cadena vacia -- cuando ninguna condicion declara
+#' direccion: minimizar() ya entiende NULL como "no se produce la
+#' intermedia", mientras que "" hace abortar a QCA en ingles.
+expectativas_sop <- function(expectativas) {
+  if (is.null(expectativas) || length(expectativas) == 0) return(NULL)
+
+  nombres <- names(expectativas)
+  if (is.null(nombres) || any(!nzchar(nombres))) {
+    stop("Cada expectativa direccional necesita el nombre de la condicion a ",
+         "la que pertenece.", call. = FALSE)
+  }
+  if (any(duplicated(nombres))) {
+    stop("Hay condiciones con expectativa declarada dos veces: ",
+         paste(unique(nombres[duplicated(nombres)]), collapse = ", "),
+         call. = FALSE)
+  }
+
+  piezas <- character(0)
+  for (cond in nombres) {
+    direccion <- .direccion_de(expectativas[[cond]])
+    if (!direccion %in% DIRECCIONES_EXPECTATIVA) {
+      stop("Direccion de expectativa no admitida en ", cond, ": ", direccion,
+           ". Se admite: ", paste(DIRECCIONES_EXPECTATIVA, collapse = ", "),
+           ".", call. = FALSE)
+    }
+    if (identical(direccion, "presente")) piezas <- c(piezas, cond)
+    if (identical(direccion, "ausente")) piezas <- c(piezas, paste0("~", cond))
+  }
+
+  if (length(piezas) == 0) return(NULL)
+  paste(piezas, collapse = " + ")
+}
+
+#' Las expectativas en tabla, con su justificacion integra.
+#'
+#' Devuelve siempre las tres columnas, tambien cuando no hay ninguna: el
+#' informe las imprime igual, y una tabla sin columnas rompe a quien lo
+#' presente.
+tabla_expectativas <- function(expectativas) {
+  vacia <- data.frame(condicion = character(0), direccion = character(0),
+                      justificacion = character(0), stringsAsFactors = FALSE)
+  if (is.null(expectativas) || length(expectativas) == 0) return(vacia)
+
+  nombres <- names(expectativas)
+  if (is.null(nombres) || any(!nzchar(nombres))) {
+    stop("Cada expectativa direccional necesita el nombre de la condicion a ",
+         "la que pertenece.", call. = FALSE)
+  }
+
+  data.frame(
+    condicion = nombres,
+    direccion = vapply(expectativas, .direccion_de, character(1),
+                       USE.NAMES = FALSE),
+    justificacion = vapply(expectativas, function(x) {
+      if (is.list(x)) x$justificacion %||% "" else ""
+    }, character(1), USE.NAMES = FALSE),
+    stringsAsFactors = FALSE, row.names = NULL)
+}
+
 #' Las tres soluciones.
 #'
 #' Se producen siempre las tres -- conservadora, intermedia y parsimoniosa --

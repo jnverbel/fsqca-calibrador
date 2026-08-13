@@ -176,8 +176,16 @@ método.
 ```{r}
 #| label: calibracion
 tc <- inf$calibracion$tabla
-kb(data.frame(`Condición` = tc$condicion, Plena = f2(tc$plena),
-              Cruce = f2(tc$cruce), Nula = f2(tc$nula), Fuente = tc$fuente,
+# Una condicion binaria NO se calibro: sus tres anclas son las del caso
+# nitido (0 / 0,50 / 1), no una decision de calibracion. Imprimirlas sin
+# decirlo presentaria como umbral fijado lo que es la pertenencia
+# publicada.
+crisp <- (if (is.null(tc$tipo)) rep("difusa", nrow(tc)) else tc$tipo) == "crisp"
+ancla <- function(x) ifelse(crisp, "—", f2(x))
+kb(data.frame(`Condición` = tc$condicion, Plena = ancla(tc$plena),
+              Cruce = ancla(tc$cruce), Nula = ancla(tc$nula),
+              Fuente = tc$fuente,
+              Tipo = ifelse(crisp, "binaria, sin calibrar", "difusa"),
               check.names = FALSE))
 ```
 
@@ -268,6 +276,37 @@ emitir("**Diversidad limitada.** Con", k, "condiciones hay", posibles,
 
 El PRI se reporta siempre. Es el umbral que con más frecuencia se omite, y el que evita
 relaciones de subconjunto simultáneas.
+
+### Expectativas direccionales
+
+```{r}
+#| label: expectativas
+#| results: asis
+# La decision teorica que produce la intermedia. Sin ella, la solucion que
+# la practica recomienda reportar no se puede defender: un evaluador
+# preguntara por que se admitieron unos remanentes y no otros.
+te <- inf$expectativas
+if (is.null(te) || nrow(te) == 0) {
+  emitir("No se declaró ninguna expectativa direccional, así que no se",
+         "produjo solución intermedia.")
+} else {
+  leible <- c(presente = "presencia", ausente = "ausencia",
+              indiferente = "no importa")
+  print(kb(data.frame(`Condición` = te$condicion,
+                      `Se espera` = unname(leible[te$direccion]),
+                      check.names = FALSE)))
+  cat("\n\n")
+  for (i in seq_len(nrow(te))) {
+    if (!nzchar(te$justificacion[i])) next
+    # Integra, sin recortar, igual que la justificacion de las anclas.
+    cat("**", te$condicion[i], "** (", unname(leible[te$direccion[i]]), "). ",
+        te$justificacion[i], "\n\n", sep = "")
+  }
+  emitir("La solución intermedia simplifica solo con los remanentes",
+         "coherentes con estas expectativas. «No importa» no es una",
+         "afirmación teórica y no exige justificación.")
+}
+```
 
 ### Suficiencia
 

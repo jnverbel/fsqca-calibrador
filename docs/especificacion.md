@@ -872,6 +872,67 @@ sube el esquema de 1.0 a 1.1.
 - Todo lo que influye en un resultado está en el archivo. Si un número del informe no se
   puede rastrear hasta un campo de este JSON, es un defecto.
 
+### Las dos pantallas que faltaban (agosto de 2026)
+
+Tras arreglar el motor, la solución intermedia y la condición *crisp* funcionaban **y el
+investigador no podía llegar a ninguna de las dos**: la interfaz no tenía dónde declararlas.
+Ambas se declaran ahora con el mismo trato que las anclas del paso 4 — decisión metodológica,
+justificación escrita, texto íntegro en el informe.
+
+**Paso 6 · expectativas direccionales.** Por condición, tres opciones —presencia, ausencia,
+**no importa** (por defecto, que es lo conservador)— y una justificación de 30 caracteres
+mínimo. La justificación **solo se exige a las condiciones donde se declara presencia o
+ausencia**: «no importa» es la ausencia de una afirmación teórica y no hay nada que defender.
+La app construye la notación SOP que quiere QCA (`"DELAY + EXP + ~ELDERLY"`) con
+`expectativas_sop()`; pedírsela al investigador sería pedirle que aprenda la sintaxis del
+paquete que la herramienta existe para envolver, y un `~` de menos cambia la solución en
+silencio. Sin ninguna dirección declarada la notación es `NULL` —no la cadena vacía, que hace
+abortar a QCA— y el paso dice que no hay intermedia en vez de inventarla. **Las tres
+soluciones se muestran siempre, con la intermedia primero y destacada**, que es la que la
+práctica recomienda reportar.
+
+**Paso 6 · umbrales declarables.** Los tres (consistencia, frecuencia mínima, PRI) se fijan
+en la misma pantalla, con los valores de fábrica de la tabla de arriba como punto de partida.
+Antes eran literales repetidos en tres sitios del servidor, y con un formulario que los deja
+cambiar eso habría dejado el anexo declarando unos umbrales distintos de los que produjeron
+la solución. Sin esto no se puede reproducir ningún estudio publicado: E012 usa frecuencia 1
+y PRI 0.
+
+**Paso 1 · condición binaria.** El paso propone como `condicion_binaria` toda columna cuyos
+valores sean solo 0 y 1, y el investigador **confirma o corrige** en el desplegable «Papel en
+el análisis». No se asume en silencio: una columna 0/1 puede ser una condición *crisp*
+legítima o un ítem mal exportado, y esa diferencia solo la sabe quien recogió los datos. Solo
+se propone un constructo de **un** ítem: el promedio de varios ítems 0/1 ya no es 0/1.
+Declararla apaga `A-03` para esa condición —la alerta existe porque calibrar un solo ítem
+Likert produce empates masivos, y una condición *crisp* no se calibra—, y en el paso 4
+aparece **sin deslizadores**, con la línea que lo explica y su justificación, porque
+dicotomizar es una decisión y de las más discutidas. En la tabla de calibración del anexo sus
+tres anclas salen como «—» y una columna nueva la marca `binaria, sin calibrar`: imprimir
+1 / 0,50 / 0 sin decirlo presentaría como umbral fijado lo que es la pertenencia publicada.
+
+**Paso 4 · anclas fuera de la escala declarada.** La herramienta se escribió para Likert de
+cinco puntos y ahí no cambia nada: 4 / 3 / 2, deslizadores de 1 a 5 con paso 0,1, fuente
+`teoría`. Pero el paso 4 también recibe condiciones que no salen de una escala de cinco
+puntos —días de retraso, densidad, renta per cápita—, y ahí 4 / 3 / 2 deja **las tres anclas
+por debajo del mínimo observado**: toda la muestra saldría con pertenencia 1, sin error y sin
+aviso. Cuando el dato desborda la escala declarada, `anclas_sugeridas()` propone los
+percentiles 95 / 50 / 5 —lo que hace la práctica publicada— con fuente `distribución
+muestral`, que es lo único que un número sacado de la muestra puede declarar honestamente:
+dispara `A-15` y **obliga al paso 7**. El control cubre el rango observado, y las anclas
+propuestas se redondean al paso del deslizador para que este no las mueva al dibujarlas; si
+no coincidieran, el investigador confirmaría unas anclas distintas de las que vio.
+
+**Lo que NO se hizo: la notación central / periférica.** Cruzar la intermedia con la
+parsimoniosa —un término de la intermedia que aparece también en la parsimoniosa es
+central (Fiss, 2011)— es como publican sus tablas los estudios replicados, pero **con
+ambigüedad de modelo el cruce no está determinado**. Medido en E012: el bloque intermedio
+`C1P1` contiene `DELAY*EXP*INCOME`, que no está contenido en ningún término del modelo
+parsimonioso `P1` que su etiqueta nombra —sí en `P3`—, y hay cuatro modelos parsimoniosos por
+dos conservadores. La regla laxa (un literal es central si aparece en cualquier parte de la
+parsimoniosa) marca **todos** los literales de E012 como centrales, que es decir nada. Marcar
+una centralidad que no se puede sostener sería peor que no marcarla, así que queda fuera y se
+declara aquí.
+
 ---
 
 ## 5. El informe

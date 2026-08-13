@@ -36,6 +36,22 @@ panel_en_construccion <- function(paso) {
 
 # --- Paso 1 -----------------------------------------------------------
 
+#' Papel propuesto para cada constructo. Propuesta, no decision.
+#'
+#' El ultimo grupo suele ser el resultado en los cuestionarios, y una
+#' columna de ceros y unos suele ser una condicion dicotomica. Las dos
+#' cosas son suposiciones sobre el cuestionario de otro: el paso 1 las
+#' dibuja en el desplegable y el investigador las corrige.
+proponer_roles <- function(sugerencia) {
+  nombres <- names(sugerencia$constructos)
+  if (length(nombres) == 0) return(list())
+  roles <- c(rep("condicion", max(0, length(nombres) - 1)),
+             "resultado")[seq_along(nombres)]
+  binarias <- sugerencia$binarias %||% character(0)
+  roles[nombres %in% binarias & roles != "resultado"] <- "condicion_binaria"
+  stats::setNames(as.list(roles), nombres)
+}
+
 panel_ingesta <- function(e) {
   if (is.null(e$datos)) {
     return(shiny::tagList(
@@ -95,13 +111,30 @@ panel_ingesta <- function(e) {
       "Corrijala si no coincide con su cuestionario, y marque cual es el",
       "resultado.")),
 
+    # La propuesta de condicion binaria se ANUNCIA, no se aplica en
+    # silencio: una columna de ceros y unos puede ser una condicion crisp
+    # legitima o un item mal exportado, y esa diferencia solo la sabe quien
+    # recogio los datos.
+    if (length(sugerencia$binarias %||% character(0)) > 0) {
+      shiny::tags$p(class = "ayuda", paste0(
+        "Estas columnas solo tienen ceros y unos, asi que se proponen como ",
+        "condicion binaria: ", paste(sugerencia$binarias, collapse = ", "),
+        ". Una condicion binaria ya es un conjunto nitido -- 0 fuera, 1 ",
+        "dentro -- y no se calibra en el paso 4. Confirmelo o corrijalo: ",
+        "tambien podria ser un item mal exportado."))
+    } else NULL,
+
     shiny::tags$table(
       class = "datos",
       shiny::tags$thead(shiny::tags$tr(lapply(
         c("Constructo", "Items", "N", "Papel en el analisis"), shiny::tags$th))),
       shiny::tags$tbody(lapply(names(sugerencia$constructos), function(nom) {
         items <- sugerencia$constructos[[nom]]
-        pocos <- length(items) < 2
+        # Un item solo es un problema porque calibrar un unico item Likert
+        # produce empates masivos. Una condicion binaria no se calibra, asi
+        # que ahi el "1" no es un aviso.
+        pocos <- length(items) < 2 &&
+          !identical(e$roles[[nom]] %||% "condicion", "condicion_binaria")
         shiny::tags$tr(
           shiny::tags$td(shiny::textInput(paste0("nombre_", nom), NULL,
                                           value = nom, width = "130px")),
@@ -109,17 +142,28 @@ panel_ingesta <- function(e) {
           shiny::tags$td(class = if (pocos) "num mal" else "num", length(items)),
           shiny::tags$td(shiny::selectInput(
             paste0("rol_", nom), NULL,
-            choices = c("Condición" = "condicion", "Resultado" = "resultado",
+            choices = c("Condición" = "condicion",
+                        "Condición binaria (0/1)" = "condicion_binaria",
+                        "Resultado" = "resultado",
                         "No usar" = "fuera"),
-            selected = e$roles[[nom]] %||% "condicion", width = "150px")))
+            selected = e$roles[[nom]] %||% "condicion", width = "170px")))
       }))),
 
-    if (any(vapply(sugerencia$constructos, length, integer(1)) < 2)) {
-      shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
-                    paste("Hay constructos con un solo item. Marquelos como",
-                          "'No usar', o vuelva a cargar el archivo con los",
-                          "items agrupados."))
-    } else NULL,
+    {
+      de_un_item <- names(sugerencia$constructos)[
+        vapply(sugerencia$constructos, length, integer(1)) < 2]
+      de_un_item <- setdiff(de_un_item, names(Filter(
+        function(r) identical(r, "condicion_binaria"), e$roles)))
+      if (length(de_un_item) > 0) {
+        shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
+                      paste("Hay constructos con un solo item:",
+                            paste(de_un_item, collapse = ", "),
+                            ". Marquelos como 'No usar', o vuelva a cargar el",
+                            "archivo con los items agrupados. Si la columna es",
+                            "dicotomica, el papel correcto es 'Condición",
+                            "binaria (0/1)'."))
+      } else NULL
+    },
 
     if (length(sugerencia$ignoradas) > 0) {
       shiny::tags$p(class = "ayuda", style = "margin-top:14px",
@@ -229,6 +273,15 @@ ui_membresia_condicion <- function(crudo, anclas) {
   # mover un ancla no puede depender de haber escrito el texto todavia.
   membresia <- try(calibrar(crudo, anclas), silent = TRUE)
   if (inherits(membresia, "try-error")) {
+    # Una condicion declarada binaria cuya columna no es 0/1 falla aqui, y
+    # el mensaje del motor dice exactamente eso. Taparlo con el de las
+    # anclas mandaria al investigador a mover unos deslizadores que en esa
+    # condicion ni siquiera existen.
+    if (identical(anclas$tipo, "crisp")) {
+      return(shiny::tags$p(
+        class = "ayuda", style = "color:var(--bloqueante)",
+        trimws(conditionMessage(attr(membresia, "condition")))))
+    }
     return(shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
                          paste("Las anclas tienen que ir en orden:",
                                "no pertenencia < cruce < pertenencia plena.")))
@@ -272,20 +325,36 @@ panel_calibracion <- function(e, borrador = list(), en_vivo = TRUE) {
       b <- borrador[[cond]]
       if (is.null(b)) b <- list(plena = 4, cruce = 3, nula = 2,
                                 fuente = "teoria", justificacion = "")
+      binaria <- identical(b$tipo, "crisp")
+      # El rango del control sale del dato, no de una constante: con un
+      # cuestionario Likert es 1-5 como siempre, y con una condicion de
+      # fuente secundaria -- dias, densidad, renta -- cubre lo observado.
+      # El motor decide, aqui solo se dibuja.
+      s <- anclas_sugeridas(e$agregacion$casos[[cond]],
+                            escala = e$mapeo$escala %||% c(1, 5))
 
       shiny::tags$div(
         class = "condicion",
         shiny::tags$h3(cond),
-        shiny::fluidRow(
-          shiny::column(4, shiny::sliderInput(
-            paste0("plena_", cond), "Pertenencia plena", 1, 5, b$plena,
-            step = 0.1)),
-          shiny::column(4, shiny::sliderInput(
-            paste0("cruce_", cond), "Punto de cruce", 1, 5, b$cruce,
-            step = 0.1)),
-          shiny::column(4, shiny::sliderInput(
-            paste0("nula_", cond), "No pertenencia", 1, 5, b$nula,
-            step = 0.1))),
+        if (binaria) {
+          shiny::tags$p(class = "ayuda", paste(
+            "Condicion binaria: no se calibra. La columna ya es la",
+            "pertenencia a un conjunto nitido -- 0 fuera del conjunto, 1",
+            "dentro --, asi que no hay tres anclas que fijar. Sigue",
+            "haciendo falta justificar la dicotomia, que es de las",
+            "decisiones mas discutidas."))
+        } else {
+          shiny::fluidRow(
+            shiny::column(4, shiny::sliderInput(
+              paste0("plena_", cond), "Pertenencia plena",
+              s$minimo, s$maximo, b$plena, step = s$paso)),
+            shiny::column(4, shiny::sliderInput(
+              paste0("cruce_", cond), "Punto de cruce",
+              s$minimo, s$maximo, b$cruce, step = s$paso)),
+            shiny::column(4, shiny::sliderInput(
+              paste0("nula_", cond), "No pertenencia",
+              s$minimo, s$maximo, b$nula, step = s$paso)))
+        },
 
         # La tira va en su propio uiOutput: asi mover un deslizador la
         # refresca en vivo sin tocar el resto del bloque -- ni las
@@ -357,8 +426,126 @@ panel_semaforo <- function(e) {
 
 # --- Paso 6 -----------------------------------------------------------
 
-panel_analisis <- function(e) {
-  if (is.null(e$analisis)) return(panel_en_construccion(6))
+# Como se lee cada direccion en pantalla. El valor que viaja al motor es
+# el del archivo de proyecto ("presente", "ausente", "indiferente"); lo que
+# se lee es lo que dice la teoria.
+ETIQUETAS_DIRECCION <- c("Presencia" = "presente",
+                         "Ausencia" = "ausente",
+                         "No importa" = "indiferente")
+
+#' Formulario de expectativas direccionales y umbrales del paso 6.
+#'
+#' El borrador llega como ARGUMENTO, igual que en el paso 4 y por la misma
+#' razon: si el panel leyera un reactiveValues que recoge cada tecla, cada
+#' letra escrita en una justificacion redibujaria el paso entero y borraria
+#' lo escrito. Aqui es una FOTO -- los valores con los que se dibujan los
+#' controles -- y lo que se teclea despues vive en los inputs.
+ui_expectativas <- function(condiciones, borrador, umbrales) {
+  shiny::tagList(
+    shiny::tags$h3(class = "etiqueta", "Expectativas direccionales"),
+    shiny::tags$p(class = "ayuda", paste(
+      "Para cada condicion, que dice la TEORIA: si se espera que contribuya",
+      "al resultado su presencia, su ausencia, o que da igual. Con eso se",
+      "decide que remanentes puede usar la minimizacion, y de ahi sale la",
+      "solucion intermedia, que es la que la practica recomienda reportar.",
+      "Es una decision teorica, no de datos.")),
+
+    lapply(condiciones, function(cond) {
+      b <- borrador[[cond]]
+      if (is.null(b)) b <- list(direccion = "indiferente", justificacion = "")
+
+      shiny::tags$div(
+        class = "condicion",
+        shiny::tags$h3(cond),
+        shiny::radioButtons(
+          paste0("exp_", cond), NULL, choices = ETIQUETAS_DIRECCION,
+          selected = b$direccion %||% "indiferente", inline = TRUE),
+        shiny::tags$div(
+          class = "justificacion",
+          shiny::tags$span(class = "etiqueta", "Justificacion teorica"),
+          shiny::tags$textarea(
+            id = paste0("just_exp_", cond), rows = 3,
+            placeholder = paste("Que teoria espera esta direccion y por que.",
+                                "Sale integra en el anexo."),
+            b$justificacion),
+          shiny::tags$p(class = "ayuda", paste(
+            "Minimo 30 caracteres. Es lo primero que revisa un evaluador con",
+            "experiencia en el metodo. Solo se exige a las condiciones donde",
+            "se declara presencia o ausencia: 'No importa' es la ausencia de",
+            "una afirmacion teorica y no hay nada que defender."))))
+    }),
+
+    shiny::tags$h3(class = "etiqueta", style = "margin-top:26px", "Umbrales"),
+    shiny::tags$p(class = "ayuda", paste(
+      "Los tres se declaran y salen impresos en el anexo. La frecuencia",
+      "minima de fabrica es 2 con 50 casos o menos y 3 por encima; la",
+      "consistencia, 0,80; el PRI, 0,70.")),
+    shiny::fluidRow(
+      shiny::column(4, shiny::numericInput(
+        "umbral_consistencia", "Consistencia", value = umbrales$consistencia,
+        min = 0, max = 1, step = 0.01)),
+      shiny::column(4, shiny::numericInput(
+        "umbral_frecuencia", "Frecuencia minima", value = umbrales$frecuencia,
+        min = 1, step = 1)),
+      shiny::column(4, shiny::numericInput(
+        "umbral_pri", "PRI", value = umbrales$pri, min = 0, max = 1,
+        step = 0.01))),
+
+    shiny::tags$div(
+      style = "margin-top:8px",
+      shiny::actionButton("correr_analisis",
+                          "Minimizar con estas expectativas", class = "btn"),
+      shiny::tags$p(class = "ayuda", style = "margin-top:8px", paste(
+        "Se rehacen la tabla de verdad y las tres soluciones con los",
+        "umbrales y las expectativas declaradas arriba.")))
+  )
+}
+
+#' Una solucion, con su ajuste y su ambiguedad de modelo.
+ui_solucion <- function(nombre, s, destacada = FALSE, nota = NULL) {
+  if (is.null(s)) {
+    return(shiny::tags$div(
+      class = "condicion",
+      shiny::tags$h3(nombre),
+      shiny::tags$p(class = "ayuda", paste(
+        "No se produjo: la solucion intermedia exige expectativas",
+        "direccionales, y no se declaro ninguna. Declare arriba al menos",
+        "una presencia o una ausencia y vuelva a minimizar."))))
+  }
+  shiny::tags$div(
+    class = if (destacada) "condicion destacada" else "condicion",
+    `data-solucion` = nombre,
+    shiny::tags$h3(nombre),
+    if (!is.null(nota)) shiny::tags$p(class = "ayuda", nota) else NULL,
+    shiny::tags$p(class = "num terminos", style = "font-size:14px",
+                  paste(s$terminos, collapse = "  +  ")),
+    shiny::tags$p(class = "ayuda", sprintf(
+      "consistencia %.3f · PRI %.3f · cobertura %.3f",
+      s$ajuste$consistencia, s$ajuste$pri, s$ajuste$cobertura)),
+    if (isTRUE(s$ambigua)) shiny::tags$p(class = "ayuda",
+                                         nota_ambiguedad(s)) else NULL)
+}
+
+panel_analisis <- function(e, borrador = list()) {
+  if (is.null(e$membresias)) return(panel_en_construccion(6))
+
+  condiciones <- setdiff(names(e$membresias),
+                         c(nombre_columna_id(e$mapeo), e$resultado))
+  # Los de fabrica cuando nadie los ha declarado todavia: el panel tambien
+  # lo dibuja app/capturar.R, que no tiene servidor ni estado reactivo.
+  umbrales <- e$umbrales %||% list(
+    consistencia = CONSISTENCIA_MINIMA, pri = PRI_MINIMO,
+    frecuencia = umbral_frecuencia(nrow(e$membresias)))
+  formulario <- ui_expectativas(condiciones, borrador, umbrales)
+
+  if (is.null(e$analisis)) {
+    return(shiny::tagList(
+      ui_encabezado(6, paste(
+        "Declare que espera la teoria de cada condicion y minimice. El PRI",
+        "se muestra siempre: es el umbral que con mas frecuencia se omite y",
+        "el que evita relaciones de subconjunto simultaneas.")),
+      formulario))
+  }
 
   nec <- e$analisis$necesidad$tabla
   tv <- e$analisis$tabla_verdad
@@ -369,6 +556,8 @@ panel_analisis <- function(e) {
       "Necesidad, tabla de verdad y las tres soluciones. El PRI se muestra",
       "siempre: es el umbral que con mas frecuencia se omite y el que evita",
       "relaciones de subconjunto simultaneas.")),
+
+    formulario,
 
     shiny::tags$h3(class = "etiqueta", "Condiciones necesarias"),
     shiny::tags$table(
@@ -413,20 +602,20 @@ panel_analisis <- function(e) {
       shiny::tags$p(class = "ayuda", style = "color:var(--bloqueante)",
                     e$analisis$suficiencia$motivo)
     } else NULL,
-    lapply(names(sol), function(nombre) {
-      s <- sol[[nombre]]
-      if (is.null(s)) return(NULL)
-      shiny::tags$div(
-        class = "condicion",
-        shiny::tags$h3(nombre),
-        shiny::tags$p(class = "num", style = "font-size:14px",
-                      paste(s$terminos, collapse = "  +  ")),
-        shiny::tags$p(class = "ayuda", sprintf(
-          "consistencia %.3f · PRI %.3f · cobertura %.3f",
-          s$ajuste$consistencia, s$ajuste$pri, s$ajuste$cobertura)),
-        if (isTRUE(s$ambigua)) shiny::tags$p(class = "ayuda", sprintf(
-          "%s", nota_ambiguedad(s))) else NULL)
-    })
+    # Las tres, y la intermedia primero y destacada: es la que la practica
+    # recomienda reportar. Las otras dos no son adorno -- presentar una
+    # sola es una de las observaciones habituales de los evaluadores -- y
+    # salen igualmente en el informe y en el archivo de proyecto.
+    ui_solucion("intermedia", sol$intermedia, destacada = TRUE,
+                nota = paste("Es la que la practica recomienda reportar:",
+                             "simplifica solo con los remanentes que la",
+                             "teoria declarada admite.")),
+    ui_solucion("conservadora", sol$conservadora,
+                nota = paste("No usa ningun remanente: es la mas cercana a",
+                             "los datos observados y la mas larga.")),
+    ui_solucion("parsimoniosa", sol$parsimoniosa,
+                nota = paste("Usa todos los remanentes, tenga sentido teorico",
+                             "o no: es la mas corta y la mas arriesgada."))
   )
 }
 
@@ -585,15 +774,22 @@ panel_exportacion <- function(e) {
         shiny::tags$table(
           class = "datos",
           shiny::tags$thead(shiny::tags$tr(lapply(
-            c("Condicion", "Plena", "Cruce", "Nula", "Fuente", "Justificacion"),
+            c("Condicion", "Plena", "Cruce", "Nula", "Fuente", "Tipo",
+              "Justificacion"),
             shiny::tags$th))),
           shiny::tags$tbody(lapply(seq_len(nrow(tabla)), function(i) {
+            # Una condicion crisp lleva 1 / 0,50 / 0 porque asi la leen el
+            # semaforo y el archivo de proyecto, pero esos tres numeros no
+            # son una decision de calibracion: no se calibro nada.
+            crisp <- identical(tabla$tipo[i], "crisp")
+            ancla <- function(x) if (crisp) "—" else sprintf("%.2f", x)
             shiny::tags$tr(
               shiny::tags$td(class = "num", tabla$condicion[i]),
-              shiny::tags$td(class = "num", sprintf("%.2f", tabla$plena[i])),
-              shiny::tags$td(class = "num", sprintf("%.2f", tabla$cruce[i])),
-              shiny::tags$td(class = "num", sprintf("%.2f", tabla$nula[i])),
+              shiny::tags$td(class = "num", ancla(tabla$plena[i])),
+              shiny::tags$td(class = "num", ancla(tabla$cruce[i])),
+              shiny::tags$td(class = "num", ancla(tabla$nula[i])),
               shiny::tags$td(tabla$fuente[i]),
+              shiny::tags$td(if (crisp) "binaria, sin calibrar" else "difusa"),
               # Integra, sin recortar: es lo primero que revisa un evaluador.
               shiny::tags$td(style = "font-family:var(--serif);max-width:46ch",
                              tabla$justificacion[i]))

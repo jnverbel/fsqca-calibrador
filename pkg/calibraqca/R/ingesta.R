@@ -47,6 +47,15 @@ leer_datos <- function(ruta) {
   )
 }
 
+# Roles admitidos para un constructo.
+#
+# "condicion_binaria" es una condicion CRISP: su columna ya trae la
+# pertenencia, 0 fuera del conjunto y 1 dentro, y no se calibra. Declararlo
+# es cosa del investigador: una columna de ceros y unos puede ser una
+# condicion dicotomica legitima o un item mal exportado, y esa diferencia
+# solo la sabe quien recogio los datos.
+ROLES_CONSTRUCTO <- c("condicion", "condicion_binaria", "resultado")
+
 #' Declara el mapeo de items a constructos.
 #'
 #' `columna_id = NULL` significa que el archivo no trae identificador y que
@@ -68,9 +77,11 @@ definir_mapeo <- function(columna_id, encuestados_por_caso, constructos,
     if (!all(c("nombre", "rol", "items") %in% names(con))) {
       stop("Cada constructo necesita nombre, rol e items.", call. = FALSE)
     }
-    if (!con$rol %in% c("condicion", "resultado")) {
+    if (!con$rol %in% ROLES_CONSTRUCTO) {
       stop("Rol invalido en el constructo ", con$nombre, ": ", con$rol,
-           ". Se admite 'condicion' o 'resultado'.", call. = FALSE)
+           ". Se admite ",
+           paste(sprintf("'%s'", ROLES_CONSTRUCTO), collapse = ", "), ".",
+           call. = FALSE)
     }
   }
   nombres <- vapply(constructos, function(x) x$nombre, character(1))
@@ -99,6 +110,33 @@ definir_mapeo <- function(columna_id, encuestados_por_caso, constructos,
 #' Todos los items declarados en el mapeo.
 items_mapeados <- function(mapeo) {
   unlist(lapply(mapeo$constructos, function(x) x$items), use.names = FALSE)
+}
+
+#' Constructos declarados como condicion binaria (crisp).
+#'
+#' Devuelve character(0) y no NULL cuando no hay ninguna: quien pregunta
+#' recorre el resultado, y un NULL obligaria a cada llamador a defenderse.
+condiciones_binarias <- function(mapeo) {
+  if (length(mapeo$constructos) == 0) return(character(0))
+  roles <- vapply(mapeo$constructos, function(x) x$rol, character(1))
+  nombres <- vapply(mapeo$constructos, function(x) x$nombre, character(1))
+  as.character(nombres[roles == "condicion_binaria"])
+}
+
+#' El constructo se declaro como condicion binaria.
+es_condicion_binaria <- function(mapeo, nombre) {
+  nombre %in% condiciones_binarias(mapeo)
+}
+
+#' La columna ya es la pertenencia a un conjunto nitido: solo 0 y 1.
+#'
+#' Se exige que aparezcan LOS DOS valores. Una columna de unos cumple el
+#' vocabulario 0/1 y no separa ningun caso: no es una condicion, y
+#' proponerla como tal invitaria a declararla.
+es_columna_binaria <- function(x) {
+  if (!is.numeric(x)) return(FALSE)
+  v <- x[!is.na(x)]
+  length(unique(v)) == 2 && all(v %in% c(0, 1))
 }
 
 #' Diagnosticos del paso 1.
@@ -136,7 +174,14 @@ diagnosticar_ingesta <- function(datos, mapeo) {
   }
 
   # A-03: constructo de un solo item.
+  #
+  # Una condicion binaria queda fuera y no es una excepcion de cortesia:
+  # A-03 existe porque calibrar un solo item Likert produce empates
+  # masivos entre casos, y una condicion crisp NO se calibra -- su columna
+  # ya es la pertenencia. Dispararla ahi seria una alerta bloqueante sobre
+  # un problema que no existe, y obligaria a reconocerlo por escrito.
   for (con in mapeo$constructos) {
+    if (identical(con$rol, "condicion_binaria")) next
     if (length(con$items) < 2) {
       encontradas[[length(encontradas) + 1]] <- alerta(
         "A-03", contexto = con$nombre,
@@ -224,7 +269,16 @@ sugerir_mapeo <- function(datos, columna_id) {
 
   constructos <- split(numericas, factor(prefijos, levels = unique(prefijos)))
 
+  # Condiciones binarias PROPUESTAS, no asumidas: el investigador las
+  # confirma en el desplegable del paso 1. Solo se propone un constructo de
+  # UN item, porque el promedio de varios items 0/1 ya no es 0/1 y la
+  # propuesta seria falsa.
+  binarias <- names(constructos)[vapply(constructos, function(items) {
+    length(items) == 1 && es_columna_binaria(datos[[items]])
+  }, logical(1))]
+
   list(constructos = constructos,
        ignoradas = ignoradas,
+       binarias = as.character(binarias),
        columna_id = columna_id)
 }

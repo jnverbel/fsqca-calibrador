@@ -15,7 +15,8 @@ PAQUETES_INFORME <- c("QCA", "SetMethods", "psych", "multilevel", "lavaan",
 #' Reune las once secciones del informe.
 reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
                            resultado, leido = NULL,
-                           idm = IDM_POR_DEFECTO, robustez = NULL) {
+                           idm = IDM_POR_DEFECTO, robustez = NULL,
+                           expectativas = NULL) {
   condiciones <- setdiff(names(anclas), resultado)
 
   validacion <- diagnosticar_validacion(datos, mapeo)
@@ -31,7 +32,10 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
                                consistencia = umbrales$consistencia,
                                pri = umbrales$pri,
                                frecuencia = umbrales$frecuencia)
-  suficiencia <- diagnosticar_suficiencia(tt)
+  # Las expectativas direccionales llegan declaradas condicion por
+  # condicion y se traducen aqui a la notacion de QCA. Sin ellas no hay
+  # solucion intermedia: el informe lo dice, no la inventa.
+  suficiencia <- diagnosticar_suficiencia(tt, expectativas_sop(expectativas))
 
   catalogo <- catalogo_alertas()
   alertas <- bitacora
@@ -93,6 +97,10 @@ reunir_informe <- function(datos, mapeo, anclas, bitacora, umbrales,
     necesidad = necesidad,
     tabla_verdad = leer_tabla_verdad(tt),
     umbrales = umbrales,
+    # La decision teorica que produjo la intermedia, con su justificacion
+    # integra: es lo que un evaluador pide cuando ve una solucion
+    # intermedia, y sin ella la solucion no se puede defender.
+    expectativas = tabla_expectativas(expectativas),
     soluciones = suficiencia$soluciones,
 
     robustez = if (is.null(robustez)) {

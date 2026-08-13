@@ -366,6 +366,16 @@ body {
   background: var(--papel);
 }
 
+/* La solucion intermedia, destacada entre las tres. El realce NO va solo
+   por color: la caja lleva ademas su propia linea de texto diciendo que es
+   la que se reporta, para quien no distinga el matiz o lea el informe
+   impreso en blanco y negro. */
+.condicion.destacada,
+.solucion.destacada {
+  border-left: 3px solid var(--dentro);
+  padding-left: 17px;
+}
+
 .condicion h3 {
   font-family: var(--mono);
   font-size: 13px;
