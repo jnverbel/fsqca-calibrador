@@ -3,21 +3,30 @@ title: "fsQCA Calibrator for Likert data"
 message: >-
   Scientific credit for the computations belongs to the packages and the works
   cited below, not to this tool: it reimplements no statistical formula. Cite
-  this repository only to identify the version of the instrument an analysis
-  was run with.
+  this repository only to identify the instrument an analysis was run with,
+  and name the git tag or commit you used: this repository has no release
+  numbering beyond its tags, so a citation without one identifies nothing.
 type: software
 authors:
   - family-names: "Núñez"
     given-names: "Javier"
 repository-code: "https://github.com/jnverbel/fsqca-calibrador"
+url: "https://github.com/jnverbel/fsqca-calibrador"
 abstract: >-
   A Shiny application that takes a file of five-point Likert responses to a
   methodological appendix for fsQCA, in eight steps: ingest, measurement
   validation, aggregation, direct fuzzy calibration, diagnostic traffic
   light, necessity and sufficiency analysis, robustness sweep and export.
-  Every computation is delegated to peer-reviewed packages. Its contribution
-  is to force every calibration decision to be justified in writing at the
-  moment it is taken, and to print that text in the final report. The
+  Conditions may be declared crisp, and directional expectations may be
+  declared condition by condition so that the intermediate solution is
+  reachable and its provenance is recorded. Every computation is delegated to
+  peer-reviewed packages. Its contribution is to force every calibration
+  decision to be justified in writing at the moment it is taken, and to print
+  that text in the final report. Its six analytical modules have been
+  contrasted, module by module, against eight published fsQCA studies through
+  the package's public functions; the coverage is modular and there is no
+  integral external validation of the complete Likert/multi-item workflow.
+  Figures, deviations and limits are in docs/validacion-integral.md. The
   interface and the generated report are in Spanish.
 keywords:
   - fsQCA
@@ -26,6 +35,8 @@ keywords:
   - fuzzy sets
   - Likert data
   - survey research
+  - replication
+  - external validation
   - R
   - Shiny
 license: MIT

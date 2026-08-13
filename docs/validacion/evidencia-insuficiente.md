@@ -70,8 +70,11 @@ Sostienen robustez: E001, E012, E026.
 
 En los demás, lo que el artículo publica es la tabla de **soluciones**, que ya
 es minimización y ajuste, y lo que llama robustez es un párrafo sin cifras
-alternativas. Esto no resuelve la falta de A: no autoriza afirmar
-validación integral, validación externa ni varias replicaciones completas.
+alternativas. Esto no resuelve la falta de A: por muchas replicaciones
+modulares que se ejecuten, no autoriza afirmar validación integral del flujo
+Likert/multiítem. Las que se ejecutaron —qué reprodujeron, qué no y con qué
+desviación— están en [`../validacion-integral.md`](../validacion-integral.md),
+que se abre declarando exactamente este límite.
 `busqueda-ampliada.md` identifica por B archivos, licencia, constructos,
 anclas, umbrales, soluciones y la limitación que bloquea A.
 
@@ -89,5 +92,6 @@ ningún módulo B nuevo).
 
 Dataverse global, GESIS y UK Data Service no expusieron un universo federado o
 exportación estable; ICPSR exigió credenciales. No se ejecutó
-`fsqca-calibrador`, no se versionaron archivos de terceros y no se promovieron
-candidatos para llenar cupos.
+`fsqca-calibrador` **para decidir esta selección**, no se versionaron archivos
+de terceros y no se promovieron candidatos para llenar cupos. La replicación
+que sí lo ejecuta es posterior y no reabre nada de lo congelado aquí.

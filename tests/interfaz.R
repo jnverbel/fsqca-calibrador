@@ -48,3 +48,12 @@ if (omitidas > 0) {
   stop("Hay pruebas de interfaz omitidas: una prueba omitida es una prueba ",
        "que no existe.", call. = FALSE)
 }
+
+# Los dos README anuncian cuantas pruebas de interfaz hay. Ese numero llego a
+# estar desfasado en dos ordenes de magnitud sin que nada chillara -- el flujo
+# comprueba fallos y omisiones, no las cifras de la portada. Se ata aqui,
+# contra el recuento que acaba de salir de esta corrida y no contra una
+# constante escrita a mano: el que mide es el que exige.
+source(file.path("validation", "R", "cifras-readme.R"))
+exigir_cifras_readme(interfaz = sum(resultado$passed))
+cat("Las cifras de interfaz de los dos README coinciden con esta corrida.\n")

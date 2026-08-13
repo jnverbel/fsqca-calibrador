@@ -60,6 +60,13 @@ jobs:
             cat("OMITIDAS:", omitidas, "\n")
             if (fallos > 0) stop("La suite tiene fallos.")
             if (omitidas > 0) stop("Hay pruebas omitidas: una prueba omitida es una prueba que no existe.")
+            # Las cifras de la portada se atan al recuento REAL de ESTA corrida,
+            # no a una constante escrita a mano. Los README llegaron a anunciar
+            # 660 pruebas cuando eran 891, y nada lo veia: este paso comprueba
+            # fallos y omisiones, y hasta aqui no comprobaba cifras.
+            source("validation/R/cifras-readme.R")
+            exigir_cifras_readme(motor = sum(r$passed))
+            cat("Las cifras de motor de los dos README coinciden con esta corrida.\n")
           '
 
       - name: Dossier de validacion externa
@@ -75,7 +82,7 @@ jobs:
             R_LIBS_SITE="$LIB" Rscript --vanilla "$t" || exit 1
             n=$((n + 1))
           done
-          test "$n" -ge 5 || { echo "Solo corrieron $n pruebas del dossier; se esperan 5 o mas."; exit 1; }
+          test "$n" -ge 6 || { echo "Solo corrieron $n pruebas del dossier; se esperan 6 o mas."; exit 1; }
           echo "Dossier: $n pruebas en verde."
 
       - name: Cada paquete citado en el informe se invoca de verdad

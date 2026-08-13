@@ -18,18 +18,32 @@ written trace of that justification in the report.
 
 ## What external evidence exists, and what does not
 
-The search for published studies to validate this tool against is closed and frozen in
-[`docs/validacion/busqueda-ampliada.md`](docs/validacion/busqueda-ampliada.md): **zero Level
-A studies** (a reproducible end-to-end chain), **nine Level B** (isolated module coverage),
-and **no replication executed yet**. There is no integral external validation of the
-Likert/multi-item workflow, and modular coverage is not added up to simulate one.
+The engine has been **contrasted against eight published studies**, through the package's
+public functions and over the data those studies deposited: the six modules — calibration,
+necessity, truth table, minimisation, fit and robustness — reproduce their published results.
+[`docs/validacion-integral.md`](docs/validacion-integral.md) gives every figure with the
+table it came from and the deviation measured.
+
+That coverage is **modular**. The frozen corpus holds **zero Level A studies** — no published
+study allows the whole Likert/multi-item chain to be reproduced end to end — and **nine Level
+B**, which cover isolated modules. **There is no integral external validation of the complete
+workflow**, and modular coverage is not added up to simulate one. The search behind that
+finding is closed and frozen in
+[`docs/validacion/busqueda-ampliada.md`](docs/validacion/busqueda-ampliada.md).
+
+The same report carries, in the same body text, what did **not** reproduce, and the
+**twenty-two defects the exercise found in this tool** — all of them closed, each with the
+mutation that turns a test red.
 
 ## Status
 
 [![tests](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
-**Complete and working.** An engine with 1,059 tests and 81 interface tests, none of them
-skipped, an eight-step Shiny interface, and a Quarto report in HTML and Word.
+**Complete and working.** The suites hold
+**1,063 engine tests** and **81 interface tests**,
+none of them skipped, behind an eight-step Shiny interface and a Quarto report in HTML and
+Word. Those two figures are not typed by hand: the CI job that runs each suite requires the
+README to publish the count it has just measured, exactly once.
 
 The calibration is **checked against a published result**: it reproduces the fuzzy
 calibration Ragin published for the Lipset (1959) data, to the precision at which that
@@ -82,6 +96,7 @@ Full instructions, deployment included: [`docs/development.md`](docs/development
 | [`docs/development.md`](docs/development.md) | For development: run it, build the report, deploy | English |
 | [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Development log with the local-environment detail | Spanish |
 | [`docs/especificacion.md`](docs/especificacion.md) | Architecture, the 8 steps, the 36 alerts, project-file schema, report and test plan | Spanish, English summary |
+| [`docs/validacion-integral.md`](docs/validacion-integral.md) | External validation: what was contrasted against published studies, with which figures, and what is left out | Spanish, English summary |
 | [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` and the reprexes for the upstream bug reports | R source |
 
 > `fuzzy_likert_5.R` is **a different methodological route** (fuzzy Delphi with triangular
