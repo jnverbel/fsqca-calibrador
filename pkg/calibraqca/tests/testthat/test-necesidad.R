@@ -16,12 +16,58 @@ test_that("la necesidad coincide con QCA::pof", {
   esperado <- QCA::pof(d[, CONDICIONES_LF], "SURV", d,
                        relation = "necessity")$incl.cov
 
-  obs <- analizar_necesidad(d, resultado = "SURV", condiciones = CONDICIONES_LF)
+  obs <- analizar_necesidad(d, resultado = "SURV",
+                            condiciones = CONDICIONES_LF, negadas = FALSE)
 
   expect_identical(obs$condicion, CONDICIONES_LF)
   expect_equal(obs$consistencia, esperado$inclN, tolerance = 1e-9)
   expect_equal(obs$ron, esperado$RoN, tolerance = 1e-9)
   expect_equal(obs$cobertura, esperado$covN, tolerance = 1e-9)
+})
+
+test_that("la necesidad analiza la presencia Y la ausencia de cada condicion", {
+  # fsQCA es asimetrico: una condicion puede no ser necesaria y su negacion
+  # serlo. Antes habia que fabricar a mano las columnas 1 - x, y los tres
+  # replicadores lo hicieron en los ocho estudios.
+  d <- datos_lf()
+
+  obs <- analizar_necesidad(d, resultado = "SURV",
+                            condiciones = CONDICIONES_LF)
+
+  expect_identical(obs$condicion,
+                   c(CONDICIONES_LF, paste0("~", CONDICIONES_LF)))
+  expect_identical(nrow(obs), 2L * length(CONDICIONES_LF))
+})
+
+test_that("las filas negadas son las de QCA::pof sobre 1 - x", {
+  # Fuente independiente: QCA, llamado aqui con la expresion negada.
+  d <- datos_lf()
+
+  obs <- analizar_necesidad(d, resultado = "SURV",
+                            condiciones = CONDICIONES_LF)
+  esperado <- QCA::pof("~DEV + ~URB", "SURV", d,
+                       relation = "necessity")$incl.cov
+
+  expect_equal(obs$consistencia[obs$condicion == "~DEV"],
+               as.numeric(esperado["~DEV", "inclN"]), tolerance = 1e-9)
+  expect_equal(obs$ron[obs$condicion == "~URB"],
+               as.numeric(esperado["~URB", "RoN"]), tolerance = 1e-9)
+})
+
+test_that("la presencia y la ausencia NO dan lo mismo", {
+  # Sin esto, un fallo que devolviera dos veces la presencia -- con la
+  # etiqueta de la negacion en la segunda mitad -- pasaria las pruebas
+  # anteriores.
+  d <- datos_lf()
+
+  obs <- analizar_necesidad(d, resultado = "SURV",
+                            condiciones = CONDICIONES_LF)
+
+  presencia <- obs$consistencia[match(CONDICIONES_LF, obs$condicion)]
+  ausencia <- obs$consistencia[match(paste0("~", CONDICIONES_LF),
+                                     obs$condicion)]
+
+  expect_false(any(abs(presencia - ausencia) < 1e-9))
 })
 
 test_that("A-27 se dispara con una condicion necesaria pero trivial", {

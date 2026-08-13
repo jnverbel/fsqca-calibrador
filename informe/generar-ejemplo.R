@@ -58,7 +58,7 @@ nec <- diagnosticar_necesidad(cal$membresias, "INNOV", condiciones)
 tt <- construir_tabla_verdad(cal$membresias, "INNOV", condiciones)
 suf <- diagnosticar_suficiencia(tt)
 bit <- registrar_alertas(bit, rbind(nec$alertas,
-                                    alertas_tabla_verdad(leer_tabla_verdad(tt)),
+                                    alertas_tabla_verdad(tt),
                                     suf$alertas), 6)
 
 # Se reconocen por escrito las alertas que frenan, como haria el

@@ -170,6 +170,22 @@ calibrar <- function(x, anclas, idm = IDM_POR_DEFECTO) {
     }
     return(v)
   }
+  # Una columna 0/1 calibrada como difusa NO devuelve la pertenencia
+  # publicada: con anclas 1 / 0,5 / 0 los ceros salen 0,05 y los unos 0,95.
+  #
+  # `definir_anclas(1, 0.5, 0, ...)` es la llamada que uno escribe por
+  # instinto para una dicotomica, y pasa las tres validaciones porque es
+  # monotona: nada avisaba. La comprobacion va aqui, contra el DATO, y no
+  # en definir_anclas(), que no lo ve -- y 1 / 0,5 / 0 son anclas legitimas
+  # para una proporcion que no sea dicotomica.
+  if (es_columna_binaria(x)) {
+    stop("La columna solo trae 0 y 1, y se esta calibrando como difusa: el ",
+         "resultado no seria la pertenencia publicada sino ",
+         "0,05 y 0,95. Una condicion dicotomica ya ES su pertenencia -- 1 ",
+         "dentro del conjunto, 0 fuera -- y se declara con ",
+         "definir_anclas_crisp(), que la deja pasar tal cual y sigue ",
+         "exigiendo la justificacion.", call. = FALSE)
+  }
   as.numeric(QCA::calibrate(
     as.numeric(x), type = "fuzzy",
     thresholds = c(e = anclas$nula, c = anclas$cruce, i = anclas$plena),
@@ -347,6 +363,18 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
   ids <- as.character(casos[[columna_id]])
   membresias <- data.frame(ids, stringsAsFactors = FALSE)
   names(membresias) <- columna_id
+  # Los nombres de los casos van tambien en los ROWNAMES, no solo en la
+  # columna. QCA::truthTable(show.cases = TRUE) lee los rownames, asi que
+  # con los de fabrica -- 1..n -- la columna `casos` de la solucion salia
+  # "41; 22,44,50; ..." en vez de "Israel; Czech Republic, Japan, Malta;
+  # ...", que es lo primero que verifica un evaluador contra el articulo.
+  #
+  # Solo si los identificadores sirven de rownames: R los exige unicos y no
+  # vacios, y un fichero con el id repetido tiene un problema anterior a
+  # este. Ahi se dejan los de fabrica antes que abortar el paso 4.
+  if (!anyNA(ids) && all(nzchar(ids)) && !anyDuplicated(ids)) {
+    rownames(membresias) <- ids
+  }
 
   encontradas <- list()
   correccion <- list()

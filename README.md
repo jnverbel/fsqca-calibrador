@@ -28,7 +28,7 @@ Likert/multi-item workflow, and modular coverage is not added up to simulate one
 
 [![tests](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
-**Complete and working.** An engine with 660 tests and 18 interface tests, none of them
+**Complete and working.** An engine with 1,059 tests and 81 interface tests, none of them
 skipped, an eight-step Shiny interface, and a Quarto report in HTML and Word.
 
 The calibration is **checked against a published result**: it reproduces the fuzzy

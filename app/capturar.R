@@ -87,7 +87,7 @@ e$analisis <- list(necesidad = nec, tabla_verdad = leer_tabla_verdad(tt),
                    suficiencia = suf)
 bit <- registrar_alertas(bit,
                          rbind(nec$alertas,
-                               alertas_tabla_verdad(leer_tabla_verdad(tt)),
+                               alertas_tabla_verdad(tt),
                                suf$alertas), 6)
 e$bitacora <- bit
 

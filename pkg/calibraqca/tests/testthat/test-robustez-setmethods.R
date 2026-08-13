@@ -105,7 +105,8 @@ test_that("un escenario alternativo se calibra, se minimiza y se compara", {
   obs <- ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
                             desplazamiento = 0.25,
                             consistencia = 0.8, frecuencia = 2, pri = 0.7,
-                            solucion_inicial = inicial)
+                            solucion_inicial = inicial,
+                            expectativas = NULL)
 
   expect_identical(obs$id, "anclas +0.25")
   expect_type(obs$mantenidas, "integer")
@@ -124,7 +125,8 @@ test_that("el ajuste del escenario sale de SetMethods::rob.fit", {
   obs <- ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
                             desplazamiento = 0.25,
                             consistencia = 0.8, frecuencia = 2, pri = 0.7,
-                            solucion_inicial = inicial)
+                            solucion_inicial = inicial,
+                            expectativas = NULL)
 
   expect_named(obs$ajuste, c("RF_cov", "RF_cons", "RF_SC_minTS", "RF_SC_maxTS"))
   expect_true(all(is.na(obs$ajuste) | (obs$ajuste >= 0 & obs$ajuste <= 1)))
@@ -141,7 +143,8 @@ test_that("el ajuste se lee por nombre y no por posicion", {
   obs <- ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
                             desplazamiento = 0.5,
                             consistencia = 0.8, frecuencia = 2, pri = 0.7,
-                            solucion_inicial = inicial)
+                            solucion_inicial = inicial,
+                            expectativas = NULL)
 
   # Fuente independiente: rob.fit devuelve una matriz con sus propias
   # etiquetas. Leerla por indice mostraria la cobertura donde va la
@@ -168,15 +171,44 @@ test_that("un escenario cuya minimizacion es imposible se declara, no revienta",
                                consistencia = 0.8, frecuencia = 2, pri = 0.7)
   inicial <- QCA::minimize(tt, details = TRUE)
 
-  # Un desplazamiento enorme deja a todos los casos del mismo lado: la
-  # tabla de verdad se queda sin filas positivas y minimize() aborta.
-  obs <- ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
-                            desplazamiento = 50,
-                            consistencia = 0.8, frecuencia = 2, pri = 0.7,
-                            solucion_inicial = inicial)
+  # Con las anclas desplazadas tres cuartos de paso y un umbral de
+  # consistencia exigente, la tabla de verdad se queda sin filas positivas
+  # y minimize() aborta. Es informacion sobre la solucion -- no sobrevive a
+  # ese escenario -- y no puede tumbar el paso entero.
+  #
+  # La pareja de casos opuestos, que es lo que distingue "se declara" de
+  # "siempre dice que no": con consistencia 0,80 el mismo desplazamiento SI
+  # es comparable.
+  escenario <- function(consistencia) {
+    ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
+                       desplazamiento = 0.75,
+                       consistencia = consistencia, frecuencia = 2, pri = 0.7,
+                       solucion_inicial = inicial, expectativas = NULL)
+  }
 
+  expect_true(escenario(0.8)$comparable)
+  obs <- escenario(0.95)
   expect_false(obs$comparable)
   expect_match(obs$motivo, "escenario|minimiz")
+})
+
+test_that("un desplazamiento que ya no perturba la calibracion se niega, no se ejecuta", {
+  # Antes, `desplazamiento = 50` sobre anclas 4 / 3 / 2 se ejecutaba y
+  # devolvia "ninguna configuracion sobrevive", que en el anexo se lee como
+  # un hallazgo sobre el estudio y no como un escenario sin sentido.
+  crudo <- casos_crudos()
+  anclas <- anclas_base()
+  membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
+  tt <- construir_tabla_verdad(membresias, "INN", c("CAP", "RED"),
+                               consistencia = 0.8, frecuencia = 2, pri = 0.7)
+  inicial <- QCA::minimize(tt, details = TRUE)
+
+  expect_error(
+    ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
+                       desplazamiento = 50,
+                       consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                       solucion_inicial = inicial, expectativas = NULL),
+    "separacion")
 })
 
 # --- barrido_robustez: la orquestacion del paso 7 ---------------------
@@ -186,7 +218,7 @@ test_that("el barrido devuelve rangos de todas las condiciones y escenarios", {
   anclas <- anclas_base()
 
   obs <- barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                          consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                          consistencia = 0.8, frecuencia = 2, pri = 0.7, expectativas = NULL,
                           desplazamientos = c(-0.25, 0.25),
                           paso = 0.1, max_pasos = 3)
 
@@ -201,7 +233,7 @@ test_that("el barrido no toca el resultado, solo las condiciones", {
   anclas <- anclas_base()
 
   obs <- barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                          consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                          consistencia = 0.8, frecuencia = 2, pri = 0.7, expectativas = NULL,
                           desplazamientos = c(0.25),
                           paso = 0.1, max_pasos = 3)
 
@@ -216,7 +248,7 @@ test_that("el barrido avisa cuando idm no es el que usa SetMethods", {
   # distinto del suyo los rangos no serian comparables con el paso 4.
   expect_warning(
     barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                     consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                     consistencia = 0.8, frecuencia = 2, pri = 0.7, expectativas = NULL,
                      desplazamientos = c(0.25), paso = 0.1, max_pasos = 1,
                      idm = 0.9),
     "idm")
@@ -363,7 +395,7 @@ test_that("el barrido incluye los rangos de umbral y el estatus inicial", {
   anclas <- anclas_base()
 
   obs <- barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                          consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                          consistencia = 0.8, frecuencia = 2, pri = 0.7, expectativas = NULL,
                           desplazamientos = c(0.25),
                           paso = 0.1, max_pasos = 2)
 
@@ -489,7 +521,8 @@ test_that("el escenario del paso 7 usa el PRI que se le declara", {
   escenario <- function(pri) {
     ejecutar_escenario(crudo, anclas, "id_empresa", "INN",
                        desplazamiento = 0.5, consistencia = 0.8,
-                       frecuencia = 2, pri = pri, solucion_inicial = inicial)
+                       frecuencia = 2, pri = pri, solucion_inicial = inicial,
+                            expectativas = NULL)
   }
 
   expect_true(escenario(0.7)$comparable)
@@ -505,7 +538,7 @@ test_that("barrido_robustez exige el PRI en vez de suponerlo", {
 
   expect_error(
     barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                     consistencia = 0.8, frecuencia = 2,
+                     consistencia = 0.8, frecuencia = 2, expectativas = NULL,
                      desplazamientos = 0.25, paso = 0.1, max_pasos = 1),
     "umbral de PRI")
 })
@@ -516,7 +549,7 @@ test_that("el barrido conserva los tres umbrales con los que dictamino", {
   anclas <- anclas_base()
 
   obs <- barrido_robustez(crudo, anclas, "id_empresa", "INN",
-                          consistencia = 0.8, frecuencia = 2, pri = 0.6,
+                          consistencia = 0.8, frecuencia = 2, pri = 0.6, expectativas = NULL,
                           desplazamientos = 0.25, paso = 0.1, max_pasos = 1)
 
   expect_equal(obs$pri, 0.6)
@@ -535,10 +568,13 @@ test_that("el PRI llega tambien al barrido de las anclas", {
   membresias <- cbind(caso = rownames(e$LF), e$LF[, c(CONDS_LIPSET, "SURV")])
   anclas <- definir_anclas(895.99, 550.21, 403.56, "teoria", strrep("x", 40))
 
+  # `paso` va en fracciones de la separacion entre anclas: 10 dolares de
+  # DEV son 10 / 146,65 de paso. Escrito asi, la prueba sigue barriendo de
+  # diez en diez dolares como cuando el paso era absoluto.
   rango <- function(pri) {
     rango_anclas(crudo, membresias, "DEV", anclas, "SURV", CONDS_LIPSET,
                  consistencia = 0.75, frecuencia = 1, pri = pri,
-                 paso = 10, max_pasos = 8)
+                 paso = 10 / separacion_anclas(anclas), max_pasos = 8)
   }
 
   # Con PRI 0,50 el cruce aguanta de 500,21 a 580,21; con 0,70 la ventana
@@ -570,15 +606,20 @@ test_that("una condicion crisp declara que su rango no se midio", {
 })
 
 test_that("una condicion difusa no arrastra el motivo de una crisp", {
-  # El caso opuesto: donde SI se midio, la columna tiene que quedar vacia,
-  # o el informe escribiria "no medido" en todas partes.
+  # El caso opuesto: donde SI se midio, la columna no puede decir "crisp",
+  # o el informe escribiria "no medido" en todas partes. Donde el barrido
+  # SI encontro los dos limites, ademas, el motivo queda vacio: es lo que
+  # hace que el hueco signifique algo.
   crudo <- casos_crudos()
   anclas <- anclas_base()
   membresias <- diagnosticar_calibracion(crudo, anclas, "id_empresa")$membresias
 
   obs <- rango_anclas(crudo, membresias, "CAP", anclas$CAP, "INN",
                       c("CAP", "RED"), consistencia = 0.8, frecuencia = 2,
-                      pri = 0.7, paso = 0.1, max_pasos = 3)
+                      pri = 0.7, paso = 0.1, max_pasos = 10)
 
-  expect_true(all(is.na(obs$motivo)))
+  expect_false(any(grepl("crisp", obs$motivo)))
+  hallados <- !is.na(obs$inferior) & !is.na(obs$superior)
+  expect_true(any(hallados))
+  expect_true(all(is.na(obs$motivo[hallados])))
 })

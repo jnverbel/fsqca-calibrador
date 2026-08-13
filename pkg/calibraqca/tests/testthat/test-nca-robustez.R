@@ -45,12 +45,24 @@ test_that("los escenarios desplazan las tres anclas por igual", {
   expect_equal(esc[[2]]$cruce, 3.5)
 })
 
-test_that("un desplazamiento que rompe la monotonia se descarta, no revienta", {
+test_that("un desplazamiento admisible conserva la monotonia de las anclas", {
   base <- definir_anclas(4, 3, 2, "teoria", strrep("x", 50))
 
-  # Un desplazamiento enorme dejaria el ancla nula bajo el minimo util,
-  # pero la monotonia se conserva porque las tres se mueven juntas.
-  expect_silent(escenarios_anclas(base, desplazamientos = c(-10, 10)))
+  # Hasta un paso de ancla entero, la monotonia se conserva porque las tres
+  # se mueven juntas.
+  esc <- escenarios_anclas(base, desplazamientos = c(-1, 1))
+
+  for (e in esc) expect_true(e$nula < e$cruce && e$cruce < e$plena)
+})
+
+test_that("un desplazamiento mayor que la separacion entre anclas se niega", {
+  base <- definir_anclas(4, 3, 2, "teoria", strrep("x", 50))
+
+  # Antes se ejecutaba: +10 sobre anclas 4 / 3 / 2 dejaba toda la muestra
+  # fuera del tramo calibrado y el paso 7 leia eso como "la solucion se
+  # derrumba en los cuatro escenarios".
+  expect_error(escenarios_anclas(base, desplazamientos = c(-10, 10)),
+               "separacion")
 })
 
 test_that("A-31 se dispara cuando una configuracion desaparece", {

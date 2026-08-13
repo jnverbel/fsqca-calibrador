@@ -14,11 +14,41 @@
 # La primera responde "cuanto margen tengo"; la segunda, "que pasa si me
 # equivoque en esta direccion concreta". El informe necesita las dos.
 
+# LOS DESPLAZAMIENTOS SON FRACCIONES, NO UNIDADES.
+#
+# Aqui vivia el defecto mas grave del paso 7. Estas dos constantes se
+# sumaban EN UNIDADES ABSOLUTAS a las anclas de cualquier condicion, asi
+# que el mismo escenario significaba cosas opuestas segun la variable:
+#
+#   E026, capital humano (anclas 0,34 / 0,18 / 0,09, dato 0,02 a 1,09):
+#     el escenario -0,50 dejaba las anclas en -0,41 / -0,32 / -0,16 y TODA
+#     la muestra por encima del ancla plena. El paso 7 reportaba A-31,
+#     "la solucion pierde configuraciones en 4 de 4 escenarios", como si
+#     fuera un hallazgo sobre el estudio.
+#
+#   E012, ingreso nacional per capita (rango 440 a 83.280 dolares):
+#     el escenario +0,50 movia la pertenencia max|dif| = 0,000032 y no
+#     cruzaba ni un caso. El paso 7 certificaba la solucion como robusta
+#     SIN HABERLA PERTURBADO.
+#
+# La unidad de cada condicion es la separacion entre sus anclas: es la
+# distancia que el investigador declaro que separa "fuera del conjunto"
+# de "dentro". Un desplazamiento de 0,50 es medio paso de ancla, mida la
+# condicion dias, dolares o puntos Likert. Sobre la escala Likert de
+# fabrica -- anclas 4 / 3 / 2, separacion 1 -- la fraccion coincide con el
+# valor absoluto de antes, que es de donde salieron estos cuatro numeros.
 DESPLAZAMIENTOS_ANCLA <- c(-0.5, -0.25, 0.25, 0.5)
 MINIMO_ESCENARIOS <- 2L
 
 PASO_RANGO <- 0.1
 MAX_PASOS_RANGO <- 10L
+
+# Un desplazamiento mayor que la separacion entre anclas ya no perturba la
+# calibracion: la sustituye. El ancla nula acaba mas alla del punto de
+# cruce original y el escenario deja de medir "me equivoque en esta
+# direccion" para medir otro concepto. Barrer ahi produce numeros que
+# parecen robustez y no lo son, asi que se niega.
+DESPLAZAMIENTO_MAXIMO <- 1
 
 # rob.calibrange llama a QCA::calibrate() sin pasarle idm, asi que trabaja
 # siempre con el valor por defecto de QCA. Con otro idm en el paso 4 los
@@ -74,11 +104,58 @@ analizar_nca <- function(datos, condiciones, resultado, ceilings = "ce_fdh") {
        p_valor = unname(p))
 }
 
+#' La unidad propia de una condicion: la separacion entre sus anclas.
+#'
+#' Se toma la MENOR de las dos separaciones -- nula a cruce y cruce a
+#' plena -- y no la distancia nula-plena entera. Con anclas asimetricas la
+#' menor es la que decide cuando un desplazamiento deja de ser una
+#' perturbacion: en E012-INCOME (63.703 / 12.200 / 746) el tramo corto son
+#' 11.453 dolares y el largo 51.503, y un desplazamiento de medio tramo
+#' largo se comeria el tramo corto entero.
+separacion_anclas <- function(anclas) {
+  min(abs(anclas$plena - anclas$cruce), abs(anclas$cruce - anclas$nula))
+}
+
+#' Un desplazamiento relativo, en las unidades en que se midio la condicion.
+desplazamiento_absoluto <- function(anclas, fraccion) {
+  fraccion * separacion_anclas(anclas)
+}
+
+#' Los desplazamientos son fracciones de la separacion entre anclas.
+.validar_desplazamientos <- function(desplazamientos) {
+  if (length(desplazamientos) == 0) return(invisible(desplazamientos))
+  if (!is.numeric(desplazamientos) || anyNA(desplazamientos)) {
+    stop("Los desplazamientos de ancla tienen que ser numericos y sin NA.",
+         call. = FALSE)
+  }
+  excesivos <- abs(desplazamientos) > DESPLAZAMIENTO_MAXIMO
+  if (any(excesivos)) {
+    stop("Desplazamiento de ancla mayor que la separacion entre anclas: ",
+         paste(format(desplazamientos[excesivos]), collapse = ", "),
+         ". Los desplazamientos se expresan como FRACCION de la separacion ",
+         "entre anclas contiguas, no en las unidades del dato: ", format(1),
+         " es un paso de ancla completo y ", format(0.5), " es medio paso. ",
+         "Por encima de ", format(DESPLAZAMIENTO_MAXIMO), " el ancla nula ",
+         "rebasa el punto de cruce original y el escenario ya no perturba ",
+         "la calibracion, la sustituye: lo que devolveria no seria robustez.",
+         call. = FALSE)
+  }
+  invisible(desplazamientos)
+}
+
 #' Juegos alternativos de anclas, desplazando las tres por igual.
 #'
 #' Desplazar las tres juntas conserva la monotonia por construccion, asi
 #' que ningun escenario puede producir anclas invalidas.
+#'
+#' `desplazamientos` va en FRACCIONES de la separacion entre anclas y no en
+#' unidades del dato: ver el comentario de DESPLAZAMIENTOS_ANCLA. Cada
+#' escenario deja escrito en su justificacion las dos cifras -- la fraccion
+#' y las unidades en que se tradujo -- porque el informe imprime ese texto
+#' y el lector necesita las dos para juzgar el escenario.
 escenarios_anclas <- function(anclas, desplazamientos = DESPLAZAMIENTOS_ANCLA) {
+  .validar_desplazamientos(desplazamientos)
+
   # Una condicion crisp no tiene anclas que desplazar: su columna ya es la
   # pertenencia. Desplazarlas produciria anclas invalidas y, sobre todo, un
   # escenario que no significa nada. Se devuelve tal cual, y el escenario
@@ -87,14 +164,45 @@ escenarios_anclas <- function(anclas, desplazamientos = DESPLAZAMIENTOS_ANCLA) {
     return(lapply(desplazamientos, function(d) anclas))
   }
   lapply(desplazamientos, function(d) {
-    definir_anclas(plena = anclas$plena + d,
-                   cruce = anclas$cruce + d,
-                   nula = anclas$nula + d,
+    unidades <- desplazamiento_absoluto(anclas, d)
+    definir_anclas(plena = anclas$plena + unidades,
+                   cruce = anclas$cruce + unidades,
+                   nula = anclas$nula + unidades,
                    fuente = anclas$fuente,
                    justificacion = paste0(anclas$justificacion,
                                           " [escenario de robustez ",
-                                          sprintf("%+.2f", d), "]"))
+                                          sprintf("%+.2f", d),
+                                          " de la separacion entre anclas, ",
+                                          "es decir ",
+                                          format(unidades, digits = 4),
+                                          " en las unidades de la condicion]"))
   })
+}
+
+# El texto que acompana a un limite que el barrido no encontro.
+#
+# Un NA a secas no distingue "no hay limite" de "el barrido no llego", y en
+# la tabla del anexo la lectura por defecto es la primera: se lee como
+# "aguanto toda la ventana". En rango_anclas() de E012 salian 27 de 30
+# limites en NA sin una palabra al lado, y esa tabla afirmaba una robustez
+# que nadie habia medido. El motivo dice cual es el limite que falta y
+# CUANTA ventana se recorrio, en las unidades de lo que se movio, que es lo
+# unico con lo que el lector puede juzgar si el hueco significa algo.
+.motivo_sin_limite <- function(inferior, superior, paso, max_pasos, unidad) {
+  ventana <- paste0(format(max_pasos), " paso(s) de ", format(paso, digits = 4),
+                    " ", unidad, ", es decir ",
+                    format(max_pasos * paso, digits = 4), " a cada lado")
+  faltan <- c(if (is.na(inferior)) "inferior", if (is.na(superior)) "superior")
+  if (length(faltan) == 0) return(NA_character_)
+
+  paste0("El barrido recorrio ", ventana, " sin que la solucion cambiara: ",
+         if (length(faltan) == 2) {
+           "ni el limite inferior ni el superior estan"
+         } else {
+           paste0("el limite ", faltan, " no esta")
+         },
+         " dentro de esa ventana. No es que el limite no exista: es que ",
+         "queda fuera de lo explorado.")
 }
 
 #' Hasta donde puede moverse cada ancla sin que la solucion cambie.
@@ -103,12 +211,17 @@ escenarios_anclas <- function(anclas, desplazamientos = DESPLAZAMIENTOS_ANCLA) {
 #' desplaza una ancla cada vez, en pasos de `paso`, hasta que la solucion
 #' minimizada difiere de la original.
 #'
-#' Un limite NA no es un dato que falte: significa que la solucion aguanto
-#' toda la ventana explorada, `max_pasos` pasos a cada lado, sin cambiar.
-#' Es el mejor resultado posible y el informe lo dice con esas palabras.
+#' `paso` va en FRACCIONES de la separacion entre anclas, igual que los
+#' desplazamientos de escenario y por el mismo motivo: un paso de 0,1
+#' absoluto recorre en diez iteraciones un dolar de ingreso per capita y
+#' declara un margen infinito sobre una condicion que nunca se movio.
+#'
+#' Un limite NA no es un dato que falte, pero tampoco es "aguanto toda la
+#' ventana" a secas: viene siempre con el motivo que dice cuanta ventana se
+#' recorrio, para que el lector no lea el hueco como un resultado.
 rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
                          condiciones, consistencia, frecuencia,
-                         pri = PRI_MINIMO,
+                         pri = PRI_MINIMO, expectativas = NULL,
                          paso = PASO_RANGO, max_pasos = MAX_PASOS_RANGO) {
   fila <- function(inferior, superior, motivo) {
     data.frame(
@@ -129,6 +242,9 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
                       "hay anclas que desplazar y el margen no aplica.")))
   }
 
+  # El paso, traducido a las unidades de ESTA condicion.
+  paso_unidades <- desplazamiento_absoluto(anclas, paso)
+
   th <- NULL
   # rob.calibrange informa su avance por consola en cada iteracion. El
   # investigador no tiene por que ver eso.
@@ -142,16 +258,17 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
   # la misma llamada funciona. Es la misma trampa que ya documenta
   # .minimizar_seguro() para dir.exp.
   intento <- try(utils::capture.output(
-    th <- do.call(SetMethods::rob.calibrange, list(
+    th <- do.call(SetMethods::rob.calibrange, c(list(
       raw.data = as.data.frame(crudo[, c(condiciones, resultado),
                                      drop = FALSE]),
       calib.data = as.data.frame(membresias[, c(condiciones, resultado),
                                             drop = FALSE]),
       test.cond.raw = condicion, test.cond.calib = condicion,
       test.thresholds = c(e = anclas$nula, c = anclas$cruce, i = anclas$plena),
-      type = "fuzzy", step = paso, max.runs = max_pasos,
+      type = "fuzzy", step = paso_unidades, max.runs = max_pasos,
       outcome = resultado, conditions = condiciones,
-      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri)),
+      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri),
+      .argumentos_intermedia(expectativas))),
     type = "output"), silent = TRUE)
 
   if (inherits(intento, "try-error") || is.null(th)) {
@@ -160,8 +277,13 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
                       trimws(as.character(intento)))))
   }
 
-  fila(as.numeric(th["Lower bound", ]), as.numeric(th["Upper bound", ]),
-       NA_character_)
+  inferior <- as.numeric(th["Lower bound", ])
+  superior <- as.numeric(th["Upper bound", ])
+  fila(inferior, superior,
+       vapply(seq_along(inferior), function(i) {
+         .motivo_sin_limite(inferior[i], superior[i], paso_unidades, max_pasos,
+                            paste("en las unidades de", condicion))
+       }, character(1)))
 }
 
 #' Rango de un umbral del paso 6 dentro del cual la solucion no cambia.
@@ -176,7 +298,8 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
 #' SetMethods 4.1, no de los datos.
 .rango_umbral <- function(funcion, membresias, resultado, condiciones,
                           consistencia, frecuencia, pri, paso, max_pasos,
-                          etiqueta, actual) {
+                          etiqueta, actual, expectativas = NULL,
+                          unidad = "") {
   datos <- as.data.frame(membresias[, c(condiciones, resultado), drop = FALSE])
 
   th <- NULL
@@ -192,10 +315,11 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
   # `...` viaja hasta QCA::minimize(), que lo reevalua en otro marco donde
   # `pri` no existe.
   intento <- try(utils::capture.output(
-    th <- do.call(funcion, list(
+    th <- do.call(funcion, c(list(
       data = datos, step = paso, max.runs = max_pasos,
       outcome = resultado, conditions = condiciones,
-      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri)),
+      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri),
+      .argumentos_intermedia(expectativas))),
     type = "output"), silent = TRUE)
 
   if (inherits(intento, "try-error") || is.null(th)) {
@@ -207,12 +331,14 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
       stringsAsFactors = FALSE))
   }
 
+  inferior <- as.numeric(th["Lower bound", ])
+  superior <- as.numeric(th["Upper bound", ])
   data.frame(
     umbral = etiqueta,
     actual = actual,
-    inferior = as.numeric(th["Lower bound", ]),
-    superior = as.numeric(th["Upper bound", ]),
-    motivo = NA_character_,
+    inferior = inferior,
+    superior = superior,
+    motivo = .motivo_sin_limite(inferior, superior, paso, max_pasos, unidad),
     stringsAsFactors = FALSE
   )
 }
@@ -220,21 +346,25 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
 #' Hasta donde puede moverse el umbral de consistencia.
 rango_consistencia <- function(membresias, resultado, condiciones,
                                consistencia, frecuencia, pri = PRI_MINIMO,
+                               expectativas = NULL,
                                paso = PASO_CONSISTENCIA,
                                max_pasos = MAX_PASOS_RANGO) {
   .rango_umbral(SetMethods::rob.inclrange, membresias, resultado, condiciones,
                 consistencia, frecuencia, pri, paso, max_pasos,
-                etiqueta = "consistencia", actual = consistencia)
+                etiqueta = "consistencia", actual = consistencia,
+                expectativas = expectativas, unidad = "de consistencia")
 }
 
 #' Hasta donde puede moverse la frecuencia minima.
 rango_frecuencia <- function(membresias, resultado, condiciones,
                              consistencia, frecuencia, pri = PRI_MINIMO,
+                             expectativas = NULL,
                              paso = PASO_FRECUENCIA,
                              max_pasos = MAX_PASOS_RANGO) {
   .rango_umbral(SetMethods::rob.ncutrange, membresias, resultado, condiciones,
                 consistencia, frecuencia, pri, paso, max_pasos,
-                etiqueta = "frecuencia", actual = frecuencia)
+                etiqueta = "frecuencia", actual = frecuencia,
+                expectativas = expectativas, unidad = "de frecuencia (casos)")
 }
 
 #' Clasifica cada caso frente a la solucion.
@@ -321,13 +451,33 @@ cambios_de_estatus <- function(inicial, alterno) {
 #' declaro. Medido: con un PRI declarado de 0,60, el paso 6 daba tres
 #' configuraciones y el paso 7 dictaminaba sobre una sola, distinta, sin
 #' decir nada.
+#'
+#' `expectativas` tampoco lo tiene, y por el MISMO motivo. La guarda del
+#' PRI se puso y la de dir.exp no, asi que el paso 7 seguia juzgando la
+#' conservadora mientras el paso 6 publicaba la intermedia. Medido en E012:
+#'
+#'   paso 6 PRESENTA     DENSITY*INCOME + DELAY*EXP*INCOME +
+#'                       ~EXP*ELDERLY*DENSITY + EXP*~ELDERLY*INCOME
+#'   paso 7 DICTAMINABA  ELDERLY*DENSITY*INCOME + ~DELAY*~EXP*ELDERLY*DENSITY
+#'                       + ~DELAY*~EXP*DENSITY*INCOME + ... (cinco terminos
+#'                       de la conservadora)
+#'
+#' NULL es una respuesta valida -- significa "el paso 6 no produjo
+#' intermedia y presenta la conservadora" --, pero hay que escribirla.
 ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
                                resultado, desplazamiento, consistencia,
-                               frecuencia, pri, solucion_inicial,
+                               frecuencia, pri, solucion_inicial, expectativas,
                                idm = IDM_POR_DEFECTO,
                                estatus_inicial = NULL) {
+  if (missing(expectativas)) {
+    stop("El paso 7 necesita las mismas expectativas direccionales con las ",
+         "que el paso 6 produjo la solucion que presenta. Sin ellas ",
+         "dictaminaria sobre la conservadora mientras el informe publica la ",
+         "intermedia. Escriba expectativas = NULL si el paso 6 no declaro ",
+         "ninguna.", call. = FALSE)
+  }
   id <- sprintf("anclas %+.2f", desplazamiento)
-  terminos_iniciales <- unlist(solucion_inicial$solution)
+  terminos_iniciales <- .terminos_presentados(solucion_inicial, expectativas)
   total <- length(terminos_iniciales)
   condiciones <- setdiff(names(anclas_por_condicion), resultado)
   sin_cambios <- cambios_de_estatus(data.frame(), data.frame())
@@ -351,7 +501,7 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
     tt <- construir_tabla_verdad(membresias, resultado, condiciones,
                                  consistencia = consistencia,
                                  frecuencia = frecuencia, pri = pri)
-    QCA::minimize(tt, details = TRUE)
+    .minimizacion_presentada(tt, expectativas)
   }), silent = TRUE)
 
   if (inherits(intento, "try-error")) {
@@ -361,7 +511,7 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
       "Ninguna configuracion de la solucion original sobrevive.")))
   }
 
-  terminos <- unlist(intento$solution)
+  terminos <- .terminos_presentados(intento, expectativas)
   ajuste <- try(suppressWarnings(
     SetMethods::rob.fit(test_sol = intento, initial_sol = solucion_inicial,
                         outcome = resultado)), silent = TRUE)
@@ -386,15 +536,21 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
   list(id = id, comparable = TRUE, motivo = NA_character_,
        mantenidas = sum(terminos_iniciales %in% terminos),
        total = total,
-       cobertura = .ajuste_solucion(intento)$ajuste$cobertura,
+       cobertura = .solucion_presentada(intento, expectativas)$ajuste$cobertura,
        terminos = terminos,
        cambios = cambios,
        ajuste = ajuste)
 }
 
 #' Paso 7 completo: rangos de cada ancla mas escenarios alternativos.
+#'
+#' `expectativas` no tiene valor por defecto por lo mismo que `pri`: el
+#' paso 7 tiene que dictaminar sobre la solucion que el paso 6 PRESENTA, y
+#' un NULL implicito la convertia en la conservadora sin decirlo. Se
+#' escribe NULL a proposito cuando el paso 6 no declaro ninguna direccion.
 barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
                              resultado, consistencia, frecuencia, pri,
+                             expectativas,
                              desplazamientos = DESPLAZAMIENTOS_ANCLA,
                              paso = PASO_RANGO, max_pasos = MAX_PASOS_RANGO,
                              idm = IDM_POR_DEFECTO) {
@@ -414,6 +570,17 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
          "la tabla de verdad del paso 6. Sin el, la robustez se calcularia ",
          "sobre una solucion distinta de la que se dictamina.", call. = FALSE)
   }
+  if (missing(expectativas)) {
+    stop("El paso 7 necesita las mismas expectativas direccionales del paso ",
+         "6. Sin ellas dictaminaria sobre la solucion conservadora mientras ",
+         "el informe publica la intermedia, y no lo diria. Escriba ",
+         "expectativas = NULL si el paso 6 no declaro ninguna direccion.",
+         call. = FALSE)
+  }
+  # Se niega a barrer con desplazamientos que no son perturbaciones ANTES de
+  # calibrar nada: si no, el primer escenario invalido reventaria despues de
+  # varios minutos de rangos ya calculados.
+  .validar_desplazamientos(desplazamientos)
 
   condiciones <- setdiff(names(anclas_por_condicion), resultado)
   sin_ejecutar <- function(motivo) {
@@ -427,7 +594,7 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
     tt <- construir_tabla_verdad(membresias, resultado, condiciones,
                                  consistencia = consistencia,
                                  frecuencia = frecuencia, pri = pri)
-    QCA::minimize(tt, details = TRUE)
+    .minimizacion_presentada(tt, expectativas)
   }), silent = TRUE)
 
   if (inherits(inicial, "try-error")) {
@@ -439,15 +606,18 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
   rangos <- do.call(rbind, lapply(condiciones, function(cond) {
     rango_anclas(crudo, membresias, cond, anclas_por_condicion[[cond]],
                  resultado, condiciones, consistencia = consistencia,
-                 frecuencia = frecuencia, pri = pri, paso = paso,
+                 frecuencia = frecuencia, pri = pri,
+                 expectativas = expectativas, paso = paso,
                  max_pasos = max_pasos)
   }))
 
   umbrales <- rbind(
     rango_consistencia(membresias, resultado, condiciones, consistencia,
-                       frecuencia, pri = pri, max_pasos = max_pasos),
+                       frecuencia, pri = pri, expectativas = expectativas,
+                       max_pasos = max_pasos),
     rango_frecuencia(membresias, resultado, condiciones, consistencia,
-                     frecuencia, pri = pri, max_pasos = max_pasos))
+                     frecuencia, pri = pri, expectativas = expectativas,
+                     max_pasos = max_pasos))
 
   estatus_inicial <- estatus_de_casos(inicial, resultado,
                                       as.character(crudo[[columna_id]]))
@@ -456,7 +626,7 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
     ejecutar_escenario(crudo, anclas_por_condicion, columna_id, resultado,
                        desplazamiento = d, consistencia = consistencia,
                        frecuencia = frecuencia, pri = pri,
-                       solucion_inicial = inicial,
+                       solucion_inicial = inicial, expectativas = expectativas,
                        idm = idm, estatus_inicial = estatus_inicial)
   })
 
@@ -464,7 +634,15 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
        estatus_inicial = estatus_inicial, ejecutado = TRUE,
        motivo = NA_character_, idm = idm, paso = paso, max_pasos = max_pasos,
        consistencia = consistencia, frecuencia = frecuencia, pri = pri,
-       terminos_iniciales = unlist(inicial$solution))
+       expectativas = expectativas,
+       # Los terminos de la solucion que el paso 6 PRESENTA, sin aplanar los
+       # modelos equivalentes. `unlist(inicial$solution)` concatenaba los
+       # terminos de todos los modelos con repeticiones -- en E012, 10 donde
+       # hay 6 -- y solucion_robusta() comparaba entonces un multiconjunto:
+       # un termino presente en dos modelos contaba doble y podia tapar la
+       # perdida de otro. Es el defecto que .modelos_de() ya habia corregido
+       # en el paso 6, mudado aqui.
+       terminos_iniciales = .terminos_presentados(inicial, expectativas))
 }
 
 #' La solucion se mantiene en un escenario alternativo.

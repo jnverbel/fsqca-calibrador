@@ -16,22 +16,46 @@ PRI_MINIMO <- 0.70
 PROPORCION_DEGENERADA <- 0.80
 CONSISTENCIA_CONTRADICCION <- 0.50
 
+#' La negacion de un conjunto difuso: 1 menos la pertenencia.
+#'
+#' Vale igual para una condicion crisp, donde 1 - 0 = 1 y 1 - 1 = 0.
+.negar <- function(x) 1 - as.numeric(x)
+
 #' Analisis de condiciones necesarias. El calculo lo hace QCA::pof.
 #'
 #' Se reporta la cobertura de relevancia (RoN) junto a la consistencia:
 #' reportar solo la consistencia es el error clasico, porque una condicion
 #' necesaria trivial tiene consistencia alta y RoN baja.
-analizar_necesidad <- function(datos, resultado, condiciones) {
+#'
+#' Se analiza la PRESENCIA y la AUSENCIA de cada condicion. fsQCA es
+#' asimetrico -- lo dice A-35 sobre el resultado y vale igual para las
+#' condiciones --, asi que una condicion puede no ser necesaria y su
+#' negacion serlo. Es practica estandar y las tablas de necesidad
+#' publicadas la traen; antes habia que fabricar a mano las columnas 1 - x,
+#' y los tres replicadores lo hicieron en los ocho estudios.
+#'
+#' Las filas negadas se nombran "~COND", que es la notacion de QCA y la que
+#' sale impresa en el informe.
+analizar_necesidad <- function(datos, resultado, condiciones,
+                               negadas = TRUE) {
   faltantes <- setdiff(c(resultado, condiciones), names(datos))
   if (length(faltantes) > 0) {
     stop("No estan en los datos: ", paste(faltantes, collapse = ", "),
          call. = FALSE)
   }
 
-  res <- QCA::pof(datos[, condiciones, drop = FALSE], resultado, datos,
-                  relation = "necessity")$incl.cov
+  entrada <- datos[, condiciones, drop = FALSE]
+  nombres <- condiciones
+  if (isTRUE(negadas) && length(condiciones) > 0) {
+    negadas_df <- as.data.frame(lapply(entrada, .negar))
+    nombres <- c(condiciones, paste0("~", condiciones))
+    entrada <- cbind(entrada, negadas_df)
+    names(entrada) <- nombres
+  }
 
-  data.frame(condicion = condiciones,
+  res <- QCA::pof(entrada, resultado, datos, relation = "necessity")$incl.cov
+
+  data.frame(condicion = nombres,
              consistencia = as.numeric(res$inclN),
              ron = as.numeric(res$RoN),
              cobertura = as.numeric(res$covN),
@@ -45,8 +69,10 @@ necesidad_trivial <- function(consistencia, ron) {
 }
 
 #' Paso 6, primera parte.
-diagnosticar_necesidad <- function(datos, resultado, condiciones) {
-  tabla <- analizar_necesidad(datos, resultado, condiciones)
+diagnosticar_necesidad <- function(datos, resultado, condiciones,
+                                   negadas = TRUE) {
+  tabla <- analizar_necesidad(datos, resultado, condiciones,
+                              negadas = negadas)
   encontradas <- list()
 
   for (i in seq_len(nrow(tabla))) {
@@ -75,12 +101,56 @@ umbral_frecuencia <- function(n_casos) {
   if (n_casos <= LIMITE_MUESTRA_PEQUENA) FRECUENCIA_PEQUENA else FRECUENCIA_GRANDE
 }
 
+# Una pertenencia de 0,50 exacta no cae en ninguna fila de la tabla de
+# verdad, y QCA::truthTable() DESCARTA ese caso: no lo cuenta en ninguna
+# configuracion y lo unico que dice es un Warning en ingles que se pierde
+# entre los demas. Medido sobre E015-2021, que publica 36 pertenencias en
+# 0,50 exacto: la tabla se construia con 37 de los 60 casos.
+#
+# La correccion existe desde el paso 4 -- corregir_050(), que suma 0,001 y
+# lista los casos afectados --, pero diagnosticar_calibracion() la aplica y
+# calibrar() no, y calibrar() tambien es publica. Fiar la comprobacion a
+# que el investigador haya pasado por el paso 4 completo es fiarla a que
+# recuerde: la tabla de verdad se construye con lo que le den, y es aqui
+# donde el dato se pierde. Asi que se comprueba aqui, sobre las membresias
+# que llegan, y se dice en castellano.
+#
+# Es el defecto que cometio el estudio publicado.
+.avisar_membresias_en_cruce <- function(datos, columnas,
+                                        tolerancia = TOLERANCIA_050) {
+  columnas <- intersect(columnas, names(datos))
+  en_cruce <- lapply(columnas, function(col) {
+    v <- suppressWarnings(as.numeric(datos[[col]]))
+    which(!is.na(v) & abs(v - 0.5) <= tolerancia)
+  })
+  names(en_cruce) <- columnas
+
+  con_casos <- Filter(function(x) length(x) > 0, en_cruce)
+  if (length(con_casos) == 0) return(invisible(FALSE))
+
+  casos <- unique(unlist(con_casos, use.names = FALSE))
+  warning(sprintf(paste(
+    "A-17: %d pertenencia(s) en 0,50 exacto, repartidas asi: %s. QCA deja",
+    "FUERA de la tabla de verdad a todo caso con una pertenencia de 0,50 --",
+    "aqui %d de %d casos -- y solo lo dice con un aviso en ingles. Corrija",
+    "las membresias antes de construir la tabla: diagnosticar_calibracion()",
+    "aplica corregir_050() y lista los casos afectados para declararlos en",
+    "el informe."),
+    sum(lengths(con_casos)),
+    paste(sprintf("%s %d", names(con_casos), lengths(con_casos)),
+          collapse = ", "),
+    length(casos), nrow(datos)), call. = FALSE)
+  invisible(TRUE)
+}
+
 #' Construye la tabla de verdad con los umbrales declarados.
 construir_tabla_verdad <- function(datos, resultado, condiciones,
                                    consistencia = CONSISTENCIA_MINIMA,
                                    pri = PRI_MINIMO,
                                    frecuencia = NULL) {
   if (is.null(frecuencia)) frecuencia <- umbral_frecuencia(nrow(datos))
+
+  .avisar_membresias_en_cruce(datos, c(condiciones, resultado))
 
   QCA::truthTable(datos, outcome = resultado, conditions = condiciones,
                   incl.cut = consistencia, n.cut = frecuencia,
@@ -116,15 +186,75 @@ leer_tabla_verdad <- function(tt) {
 #'
 #' Es la que produce relaciones de subconjunto simultaneas, y el umbral que
 #' con mas frecuencia se omite.
-pri_insuficiente <- function(incl, pri) {
-  !is.na(incl) && !is.na(pri) && incl >= CONSISTENCIA_MINIMA && pri < PRI_MINIMO
+#'
+#' Los dos umbrales son parametros y no constantes fijas: la tabla se
+#' construye con los que el investigador declara, y comparar contra otros
+#' produce una alerta que habla de una tabla distinta de la que analiza.
+#' Medido en E027 con `pri = 0`: A-26 llamaba problematicas a ocho
+#' configuraciones que esa misma tabla cuenta como SUFICIENTES.
+pri_insuficiente <- function(incl, pri,
+                             consistencia_minima = CONSISTENCIA_MINIMA,
+                             pri_minimo = PRI_MINIMO) {
+  !is.na(incl) && !is.na(pri) &&
+    incl >= consistencia_minima && pri < pri_minimo
 }
 
-#' Diagnosticos sobre la tabla de verdad ya leida.
-alertas_tabla_verdad <- function(tabla) {
+# Los umbrales con los que se construyo la tabla viajan en tt$options.
+.umbrales_declarados <- function(tt) {
+  if (!inherits(tt, "QCA_tt") || is.null(tt$options)) {
+    return(list(consistencia = CONSISTENCIA_MINIMA, pri = PRI_MINIMO))
+  }
+  # incl.cut puede venir con dos valores (incl.cut1, incl.cut0): el que
+  # decide si una fila es positiva es el primero.
+  list(consistencia = as.numeric(tt$options$incl.cut)[1],
+       pri = as.numeric(tt$options$pri.cut)[1])
+}
+
+# Columnas que alertas_tabla_verdad() necesita de una tabla ya leida.
+COLUMNAS_TABLA_VERDAD <- c("fila", "OUT", "incl", "PRI")
+
+#' Diagnosticos sobre la tabla de verdad.
+#'
+#' Acepta las DOS formas que circulan por el motor: el objeto QCA_tt que
+#' devuelve construir_tabla_verdad() -- que es lo que recibe toda la cadena
+#' publica -- y el data.frame de leer_tabla_verdad(). Antes solo admitia el
+#' segundo y no lo comprobaba: con el primero moria en
+#' "argument to 'which' is not logical", varios marcos por debajo de la
+#' llamada y en ingles.
+#'
+#' Con el objeto QCA_tt los umbrales salen de tt$options, que es donde el
+#' investigador los declaro. Con un data.frame ya no viajan con el dato, y
+#' entonces hay que pasarlos: si no, se usan los del catalogo y la alerta
+#' lo dice imprimiendolos.
+alertas_tabla_verdad <- function(tabla, consistencia = NULL, pri = NULL) {
+  if (inherits(tabla, "QCA_tt")) {
+    declarados <- .umbrales_declarados(tabla)
+    if (is.null(consistencia)) consistencia <- declarados$consistencia
+    if (is.null(pri)) pri <- declarados$pri
+    tabla <- leer_tabla_verdad(tabla)
+  }
+  if (is.null(consistencia)) consistencia <- CONSISTENCIA_MINIMA
+  if (is.null(pri)) pri <- PRI_MINIMO
+
+  faltan <- setdiff(COLUMNAS_TABLA_VERDAD, names(tabla))
+  if (!is.data.frame(tabla) || length(faltan) > 0) {
+    stop("alertas_tabla_verdad() analiza una tabla de verdad: o el objeto ",
+         "que devuelve construir_tabla_verdad(), o el data.frame que ",
+         "devuelve leer_tabla_verdad(). Lo recibido no es ninguno de los ",
+         "dos: ",
+         if (!is.data.frame(tabla)) {
+           paste0("no es un data.frame (es ", class(tabla)[1], ").")
+         } else {
+           paste0("le faltan las columnas ", paste(faltan, collapse = ", "),
+                  ".")
+         }, call. = FALSE)
+  }
+
   encontradas <- list()
 
-  malas <- which(mapply(pri_insuficiente, tabla$incl, tabla$PRI))
+  malas <- which(mapply(pri_insuficiente, tabla$incl, tabla$PRI,
+                        MoreArgs = list(consistencia_minima = consistencia,
+                                        pri_minimo = pri)))
   if (length(malas) > 0) {
     encontradas[[length(encontradas) + 1]] <- alerta(
       "A-26",
@@ -132,7 +262,7 @@ alertas_tabla_verdad <- function(tabla) {
                               "pero PRI < %.2f (filas %s): son las que",
                               "producen relaciones de subconjunto",
                               "simultaneas."),
-                        length(malas), CONSISTENCIA_MINIMA, PRI_MINIMO,
+                        length(malas), consistencia, pri,
                         paste(tabla$fila[malas], collapse = ", "))
     )
   }
@@ -163,8 +293,11 @@ alertas_tabla_verdad <- function(tabla) {
     )
   }
 
+  # Tambien contra el umbral DECLARADO: una fila es contradictoria cuando
+  # se queda a medio camino del umbral que decide la suficiencia en ESTA
+  # tabla, no del que trae el catalogo.
   contradictorias <- which(tabla$incl > CONSISTENCIA_CONTRADICCION &
-                             tabla$incl < CONSISTENCIA_MINIMA)
+                             tabla$incl < consistencia)
   if (length(contradictorias) > 0) {
     encontradas[[length(encontradas) + 1]] <- alerta(
       "A-30",
@@ -172,7 +305,7 @@ alertas_tabla_verdad <- function(tabla) {
                               "(filas %s): ni suficientes ni claramente",
                               "insuficientes."),
                         length(contradictorias), CONSISTENCIA_CONTRADICCION,
-                        CONSISTENCIA_MINIMA,
+                        consistencia,
                         paste(tabla$fila[contradictorias], collapse = ", "))
     )
   }
@@ -617,6 +750,46 @@ tabla_expectativas <- function(expectativas) {
   invisible(expectativas)
 }
 
+# --- La solucion que se PRESENTA -------------------------------------
+#
+# Estas tres funciones existen para que el paso 6 y el paso 7 no puedan
+# hablar de soluciones distintas. Antes cada uno minimizaba por su cuenta:
+# el paso 6 pasaba dir.exp y presentaba la intermedia, el paso 7 no lo
+# aceptaba y dictaminaba sobre la conservadora, y nadie decia nada. Ahora
+# las dos rutas pasan por aqui, asi que la identidad es del codigo y no de
+# que alguien acuerde de replicar la llamada.
+
+#' Los argumentos que hacen que QCA produzca la solucion INTERMEDIA.
+#'
+#' Se devuelven como lista para engancharlos con do.call: las funciones
+#' rob.* de SetMethods reenvian su `...` a QCA::minimize(), que lo reevalua
+#' en otro marco, y `dir.exp` escrito como simbolo no llegaria ligado.
+#' Tambien lleva `include = "?"`: sin remanentes que simplificar no hay
+#' bloques i.sol y la intermedia no existe.
+.argumentos_intermedia <- function(expectativas) {
+  if (is.null(expectativas)) return(list())
+  list(include = "?", dir.exp = expectativas)
+}
+
+#' Minimiza como lo hace el paso 6 con esas expectativas.
+.minimizacion_presentada <- function(tt, expectativas = NULL) {
+  if (is.null(expectativas)) return(.minimizar_seguro(tt, details = TRUE))
+  .validar_expectativas(expectativas, tt)
+  do.call(.minimizar_seguro,
+          c(list(tt, details = TRUE), .argumentos_intermedia(expectativas)))
+}
+
+#' Lee de ese objeto la solucion que el paso 6 presenta.
+.solucion_presentada <- function(objeto, expectativas = NULL) {
+  if (is.null(expectativas)) .ajuste_solucion(objeto)
+  else .ajuste_intermedia(objeto)
+}
+
+#' Los terminos de la solucion presentada, sin repeticiones entre modelos.
+.terminos_presentados <- function(objeto, expectativas = NULL) {
+  .solucion_presentada(objeto, expectativas)$terminos
+}
+
 minimizar <- function(tt, expectativas = NULL) {
   conservadora <- .ajuste_solucion(.minimizar_seguro(tt, details = TRUE))
   parsimoniosa <- .ajuste_solucion(.minimizar_seguro(tt, include = "?",
@@ -624,14 +797,102 @@ minimizar <- function(tt, expectativas = NULL) {
   intermedia <- if (is.null(expectativas)) {
     NULL
   } else {
-    .validar_expectativas(expectativas, tt)
-    .ajuste_intermedia(.minimizar_seguro(tt, include = "?",
-                                         dir.exp = expectativas,
-                                         details = TRUE))
+    .solucion_presentada(.minimizacion_presentada(tt, expectativas),
+                         expectativas)
   }
 
   list(conservadora = conservadora, intermedia = intermedia,
        parsimoniosa = parsimoniosa)
+}
+
+# La fila que QCA::pof anade al final con el ajuste de la expresion entera.
+FILA_EXPRESION <- "expression"
+
+#' Ajuste de una expresion DADA sobre unas membresias dadas.
+#'
+#' El unico hueco de la API que obligo a los tres replicadores a salirse
+#' del motor y llamar a QCA::pof() a mano. Contrastar contra un articulo es
+#' evaluar SU expresion sobre TUS membresias, y el motor solo sabia
+#' minimizar su propia tabla de verdad: podia decir "esto es lo que me sale
+#' a mi" y no "esto es lo que da lo que usted publico".
+#'
+#' `expresion` va en la notacion de QCA -- "DENSITY*INCOME + DELAY*EXP" --,
+#' la misma que ya usan las expectativas direccionales y la misma en que
+#' los articulos publican sus soluciones, asi que se copia del papel.
+#'
+#' Devuelve las mismas columnas que las configuraciones del paso 6, para
+#' que las dos tablas se puedan poner una al lado de la otra, mas el ajuste
+#' global de la expresion entera.
+ajuste_de_expresion <- function(expresion, resultado, membresias,
+                                relacion = c("sufficiency", "necessity")) {
+  relacion <- match.arg(relacion)
+  if (!is.character(expresion) || length(expresion) != 1 ||
+      is.na(expresion) || !nzchar(trimws(expresion))) {
+    stop("La expresion tiene que ser una sola cadena en la notacion de QCA, ",
+         "por ejemplo \"DENSITY*INCOME + DELAY*EXP*INCOME\": el nombre a ",
+         "secas es la condicion presente, ~ es la condicion ausente, * es ",
+         "la interseccion y + la union.", call. = FALSE)
+  }
+  if (!resultado %in% names(membresias)) {
+    stop("El resultado ", resultado, " no esta en las membresias. Hay: ",
+         paste(names(membresias), collapse = ", "), ".", call. = FALSE)
+  }
+
+  ajuste <- try(suppressWarnings(
+    QCA::pof(setms = expresion, outcome = resultado,
+             data = as.data.frame(membresias), relation = relacion)),
+    silent = TRUE)
+  if (inherits(ajuste, "try-error")) {
+    stop("QCA no pudo evaluar la expresion \"", expresion, "\" sobre estas ",
+         "membresias. Compruebe que cada nombre que aparece en ella es una ",
+         "columna de las membresias -- hay ",
+         paste(setdiff(names(membresias), resultado), collapse = ", "),
+         " -- y que la notacion es la de QCA. (Mensaje de QCA: ",
+         trimws(conditionMessage(attr(ajuste, "condition"))), ")",
+         call. = FALSE)
+  }
+
+  ic <- ajuste$incl.cov
+  es_global <- rownames(ic) == FILA_EXPRESION
+  terminos <- ic[!es_global, , drop = FALSE]
+  global <- ic[es_global, , drop = FALSE]
+  # Con un solo termino QCA no anade la fila "expression": la expresion ES
+  # el termino, y dejar el ajuste global en NA imprimiria un hueco donde el
+  # valor es conocido.
+  if (nrow(global) == 0 && nrow(terminos) == 1) global <- terminos
+
+  # QCA nombra las columnas segun la relacion: inclS/covS en suficiencia,
+  # inclN/covN en necesidad. Se leen por nombre y no por posicion.
+  columna <- function(x, sufijo, alternativa = NULL) {
+    nombre <- if (sufijo %in% names(x)) sufijo else alternativa
+    if (is.null(nombre) || !nombre %in% names(x)) {
+      return(rep(NA_real_, nrow(x)))
+    }
+    as.numeric(x[[nombre]])
+  }
+
+  configuraciones <- data.frame(
+    configuracion = rownames(terminos),
+    consistencia = columna(terminos, "inclS", "inclN"),
+    pri = if (is.null(terminos$PRI)) rep(NA_real_, nrow(terminos))
+          else as.numeric(terminos$PRI),
+    cobertura_bruta = columna(terminos, "covS", "covN"),
+    cobertura_unica = if (is.null(terminos$covU))
+      rep(NA_real_, nrow(terminos)) else as.numeric(terminos$covU),
+    stringsAsFactors = FALSE)
+  rownames(configuraciones) <- NULL
+
+  list(
+    expresion = expresion,
+    relacion = relacion,
+    configuraciones = configuraciones,
+    ajuste = list(
+      consistencia = if (nrow(global) == 0) NA_real_ else
+        columna(global, "inclS", "inclN")[1],
+      pri = if (nrow(global) == 0 || is.null(global$PRI)) NA_real_ else
+        as.numeric(global$PRI)[1],
+      cobertura = if (nrow(global) == 0) NA_real_ else
+        columna(global, "covS", "covN")[1]))
 }
 
 #' Una solucion que explica menos de la mitad del resultado.
@@ -671,19 +932,85 @@ alertas_ambiguedad_modelo <- function(soluciones) {
   do.call(rbind, encontradas)
 }
 
+# El techo de la solucion intermedia, en REMANENTES.
+#
+# Con expectativas direccionales, QCA::minimize() no retorna: sobre la
+# tabla de E014 -- 10 condiciones, 1.024 filas, 1.014 remanentes -- se dejo
+# corriendo mas de 30 minutos sin resultado, con las diez expectativas y
+# tambien con una sola, mientras la conservadora y la parsimoniosa tardaban
+# 0,5 segundos cada una. Con 6 condiciones (64 filas, 31 remanentes) sale
+# en segundos: la frontera esta entre ambos.
+#
+# El coste esta dentro de QCA::minimize(), no en este envoltorio, y no hay
+# nada que arreglar ahi. Lo que si es nuestro es que el investigador se
+# quede colgado sin saber por que: diagnosticar_suficiencia() existe para
+# eso. Asi que el techo se declara, se avisa ANTES de lanzar la intermedia
+# y se sigue con las otras dos, que son las que si llegan.
+#
+# La variable es el numero de REMANENTES y no el de condiciones porque es
+# lo que hace crecer el trabajo: son las filas sin casos que la
+# minimizacion tiene que decidir si simplifica. 256 son las de una tabla de
+# ocho condiciones casi vacia, holgadamente por encima de los 31 que salen
+# en segundos y muy por debajo de los 1.014 que no vuelven.
+REMANENTES_MAXIMOS_INTERMEDIA <- 256L
+
+#' Cuantas filas de la tabla de verdad no tienen ningun caso.
+#'
+#' Se cuentan las filas con OUT "?" y no 2^k menos las observadas: con
+#' `complete = FALSE` QCA ya trae las filas remanentes marcadas asi, y
+#' restar de una potencia calculada a mano seria una segunda fuente de
+#' verdad que puede desalinearse de la primera.
+remanentes_de <- function(tt) {
+  if (!inherits(tt, "QCA_tt") || is.null(tt$tt) || is.null(tt$tt$OUT)) {
+    return(NA_integer_)
+  }
+  as.integer(sum(tt$tt$OUT == "?"))
+}
+
+#' La intermedia de esta tabla puede no volver nunca.
+intermedia_inabordable <- function(remanentes,
+                                   maximo = REMANENTES_MAXIMOS_INTERMEDIA) {
+  !is.na(remanentes) && remanentes > maximo
+}
+
 #' Paso 6, tercera parte.
 #'
 #' Si no hay ninguna configuracion suficiente, QCA::minimize() aborta. Eso
 #' no es un fallo del programa: es un resultado, y A-28 ya lo explica en
 #' castellano. Aqui se recoge para que el paso siga vivo y el investigador
 #' vea el diagnostico en vez de un error en ingles.
-diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
+#'
+#' Con demasiados remanentes la intermedia no se lanza: se avisa y se sigue
+#' con la conservadora y la parsimoniosa. `max_remanentes = Inf` la lanza de
+#' todos modos, para quien tenga tiempo y quiera esperar.
+diagnosticar_suficiencia <- function(tt, expectativas = NULL,
+                                     max_remanentes =
+                                       REMANENTES_MAXIMOS_INTERMEDIA) {
+  remanentes <- remanentes_de(tt)
+  intermedia_omitida <- !is.null(expectativas) &&
+    intermedia_inabordable(remanentes, max_remanentes)
+  if (intermedia_omitida) {
+    warning("La solucion intermedia NO se calculo: esta tabla de verdad ",
+            "tiene ", remanentes, " remanentes y el techo declarado son ",
+            max_remanentes, ". Con expectativas direccionales, ",
+            "QCA::minimize() no retorna a esa escala -- medido sobre una ",
+            "tabla de 10 condiciones y 1.014 remanentes, mas de 30 minutos ",
+            "sin resultado, con diez expectativas y con una sola --, ",
+            "mientras la conservadora y la parsimoniosa tardan medio ",
+            "segundo. Se siguen entregando esas dos. Para lanzarla de todos ",
+            "modos: max_remanentes = Inf. Para bajar de la frontera: menos ",
+            "condiciones, o mas casos por configuracion.", call. = FALSE)
+    expectativas <- NULL
+  }
+
   intento <- try(minimizar(tt, expectativas), silent = TRUE)
   if (inherits(intento, "try-error")) {
     return(list(
       soluciones = list(conservadora = NULL, intermedia = NULL,
                         parsimoniosa = NULL),
       minimizacion_posible = FALSE,
+      remanentes = remanentes,
+      intermedia_omitida = intermedia_omitida,
       # En castellano: el mensaje de QCA llega en ingles y el investigador
       # no tiene por que leerlo. El original va detras, para quien depure.
       motivo = paste0(
@@ -719,5 +1046,6 @@ diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
   alertas <- rbind(alertas, alertas_ambiguedad_modelo(soluciones))
 
   list(soluciones = soluciones, alertas = alertas,
-       minimizacion_posible = TRUE, motivo = NA_character_)
+       minimizacion_posible = TRUE, motivo = NA_character_,
+       remanentes = remanentes, intermedia_omitida = intermedia_omitida)
 }

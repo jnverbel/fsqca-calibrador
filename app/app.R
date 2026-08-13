@@ -185,7 +185,7 @@ server <- function(input, output, session) {
                               suficiencia = suf)
       estado$bitacora <- registrar_alertas(
         estado$bitacora,
-        rbind(nec$alertas, alertas_tabla_verdad(leer_tabla_verdad(tt)),
+        rbind(nec$alertas, alertas_tabla_verdad(tt),
               suf$alertas), 6)
     }
   })
@@ -431,7 +431,7 @@ server <- function(input, output, session) {
     estado$umbrales <- umbrales
     estado$bitacora <- registrar_alertas(
       estado$bitacora,
-      rbind(nec$alertas, alertas_tabla_verdad(tabla), suf$alertas,
+      rbind(nec$alertas, alertas_tabla_verdad(tt), suf$alertas,
             alertas_solucion_degenerada(suf$soluciones, estado$semaforo),
             alerta_asimetria_causal(estado$mapeo$resultado)), 6)
     invisible(NULL)
@@ -530,7 +530,10 @@ server <- function(input, output, session) {
       columna_id = nombre_columna_id(estado$mapeo),
       resultado = estado$resultado,
       consistencia = u$consistencia, frecuencia = u$frecuencia,
-      pri = u$pri), silent = TRUE)
+      pri = u$pri,
+      # Las MISMAS del paso 6. Sin esto el paso 7 dictaminaba sobre la
+      # conservadora mientras el informe publicaba la intermedia.
+      expectativas = expectativas_sop(estado$expectativas)), silent = TRUE)
 
     if (inherits(rob, "try-error")) {
       showNotification(

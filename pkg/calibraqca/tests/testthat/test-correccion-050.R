@@ -264,8 +264,12 @@ test_that("una condicion crisp pasa sus valores sin calibrar", {
   a <- definir_anclas_crisp(fuente = "teoria", justificacion = just)
 
   expect_identical(calibrar(c(0, 1, 1, 0), a), c(0, 1, 1, 0))
-  expect_equal(calibrar(c(0, 1), definir_anclas(1, 0.5, 0, "teoria", just)),
-               c(0.05, 0.95))
+
+  # Y la otra mitad: esa llamada -- la que uno escribe por instinto para
+  # una dicotomica -- ya no devuelve 0,05 y 0,95 en silencio, se niega y
+  # remite a definir_anclas_crisp().
+  expect_error(calibrar(c(0, 1), definir_anclas(1, 0.5, 0, "teoria", just)),
+               "definir_anclas_crisp")
 })
 
 test_that("una condicion crisp con valores intermedios se rechaza", {

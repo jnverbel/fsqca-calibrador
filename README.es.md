@@ -29,7 +29,7 @@ integral del flujo Likert/multiítem, y la cobertura modular no se suma para sim
 
 [![pruebas](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
-**Completo y funcionando.** Motor con 660 pruebas y 18 de interfaz, ninguna con `skip`,
+**Completo y funcionando.** Motor con 1.059 pruebas y 81 de interfaz, ninguna con `skip`,
 interfaz Shiny de ocho pasos e informe Quarto en HTML y Word.
 
 La calibración está **contrastada contra un resultado publicado**: reproduce la calibración

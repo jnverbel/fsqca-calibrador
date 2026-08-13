@@ -101,7 +101,8 @@ test_that("barrido_robustez declara en su salida el paso y la ventana que uso", 
 
   salida <- suppressWarnings(
     barrido_robustez(crudo, anclas, "id_empresa", resultado = "INN",
-                     consistencia = 0.8, frecuencia = 2, pri = 0.7)
+                     consistencia = 0.8, frecuencia = 2, pri = 0.7,
+                     expectativas = NULL)
   )
 
   expect_identical(salida$paso, 0.1)
