@@ -145,6 +145,86 @@ for (id_incluido in niveles$b$id) {
 # El artefacto de auditoría es parte de la congelación de las evaluaciones.
 stopifnot(file.exists("docs/validacion/busqueda-ampliada.md"))
 
+# Y desde que los dos README lo citan, es además la fuente pública de las cifras
+# del flujo. Comprobar que el archivo existe no impedía escribir en él
+# «985 + 680 + 28 = 1.689» —la suma que ya se publicó una vez y no cuadraba—.
+# Las cifras no se cotejan una a una, que sólo comprueba lo que a uno se le
+# ocurre comprobar: se GENERAN desde los CSV y se exigen literales, de modo que
+# el documento y el dato no puedan divergir. Se ata el DATO, no la redacción:
+# la tercera columna de la tabla queda libre salvo donde ella misma es dato.
+auditoria <- readLines("docs/validacion/busqueda-ampliada.md",
+                       encoding = "UTF-8", warn = FALSE)
+exige_auditoria <- function(x) {
+  if (!any(grepl(x, auditoria, fixed = TRUE))) {
+    stop("Falta en busqueda-ampliada.md, y sale de los CSV: ", x, call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+# El documento escribe los miles con punto, como el resto del dossier. No se usa
+# `formatC(big.mark = ".")` porque avisa en cada llamada de que el separador de
+# miles y el decimal coinciden, y una prueba que grita no es una prueba que
+# alguien lea.
+miles <- function(x) {
+  gsub("(\\d)(?=(\\d{3})+$)", "\\1.", as.character(as.integer(x)), perl = TRUE)
+}
+por_ronda <- table(cribado$ronda)
+duplicados <- sum(cribado$decision == "duplicado")
+descartes <- sum(cribado$decision == "descartar_metadatos")
+principales <- sum(cribado$decision == "evaluacion_completa")
+reaperturas <- nrow(evidencia) - principales
+
+exige_auditoria(sprintf("| Tarjetas identificadas | %s |", miles(nrow(cribado))))
+exige_auditoria(sprintf(
+  "R0: %s; R1: %s; R2: %s; R3: %s.",
+  miles(por_ronda[["0"]]), miles(por_ronda[["1"]]),
+  miles(por_ronda[["2"]]), miles(por_ronda[["3"]])
+))
+exige_auditoria(sprintf("| Duplicados | %s |", miles(duplicados)))
+exige_auditoria(sprintf("| Descartes de metadatos | %s |", miles(descartes)))
+exige_auditoria(sprintf(
+  "| Tarjetas abiertas a texto completo | %s |", miles(principales)
+))
+exige_auditoria(sprintf(
+  "Cierra el flujo: %s + %s + %s = %s.",
+  miles(duplicados), miles(descartes), miles(principales), miles(nrow(cribado))
+))
+exige_auditoria(sprintf(
+  "| Canónicos evaluados a texto completo | %s |", miles(nrow(evidencia))
+))
+exige_auditoria(sprintf(
+  "Las %s anteriores más %s reaperturas R3.",
+  miles(principales), miles(reaperturas)
+))
+exige_auditoria(sprintf(
+  "| Nivel A / B / exclusión | %d / %d / %d |",
+  nrow(niveles$a), nrow(niveles$b), sum(estudios$decision == "excluir")
+))
+
+# La pareja de casos opuestos: donde lo correcto es aprobar aprueba —las nueve
+# exigencias de arriba— y donde lo correcto es rechazar rechaza. Sin esto, un
+# detector mudo pasaría igual y no se distinguiría de uno que funciona.
+stopifnot(falla(exige_auditoria(sprintf(
+  "| Duplicados | %s |", miles(duplicados + 1L)
+))))
+stopifnot(falla(exige_auditoria(sprintf(
+  "Cierra el flujo: %s + %s + %s = %s.",
+  miles(duplicados), miles(descartes), miles(nrow(evidencia)), miles(nrow(cribado))
+))))
+
+# El documento afirma que los nueve B cubren conjuntamente los seis módulos. Esa
+# frase es un hecho sobre `estudios.csv`, no una conclusión editorial: si alguna
+# vez un módulo se queda sin ningún `si` —al auditar las celdas contra los
+# artículos, por ejemplo— la frase deja de ser cierta y hay que reescribirla.
+sin_cobertura <- modulos[!vapply(
+  modulos, function(m) any(niveles$b[[m]] == "si"), logical(1)
+)]
+if (length(sin_cobertura)) {
+  stop("busqueda-ampliada.md afirma cobertura conjunta de los seis modulos, y ",
+       "estos no la tienen en estudios.csv: ",
+       paste(sin_cobertura, collapse = ", "), call. = FALSE)
+}
+
 cat(sprintf(paste0(
   "seleccion ampliada valida: %d texto completo; %d A; %d B; ",
   "matriz de modulos congelada en %d celdas `si` con firma %s\n"
