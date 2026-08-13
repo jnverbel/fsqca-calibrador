@@ -67,20 +67,33 @@ tabla_rangos_robustez <- function(rangos) {
     return(shiny::tags$p(class = "nota-informe",
                          "No se calcularon rangos de anclas."))
   }
-  limite <- function(x) if (is.na(x)) "no cambia" else fmt(x, 2)
+  # Un NA con motivo NO significa "aguanto toda la ventana": significa que
+  # ese rango no se midio -- una condicion crisp no tiene anclas que
+  # desplazar, y el barrido puede fallar. Confundirlos anunciaria la
+  # robustez mas alta posible justo donde no se comprobo ninguna.
+  limite <- function(x, motivo) {
+    if (!is.na(motivo)) "no medido"
+    else if (is.na(x)) "no cambia"
+    else fmt(x, 2)
+  }
+  sin_medir <- unique(rangos$motivo[!is.na(rangos$motivo)])
 
-  tabla_informe(
-    c("Condición", "Ancla", "Límite inferior", "Valor usado",
-      "Límite superior"),
-    lapply(seq_len(nrow(rangos)), function(i) {
-      fila <- rangos[i, ]
-      shiny::tags$tr(
-        shiny::tags$td(fila$condicion),
-        shiny::tags$td(fila$ancla),
-        shiny::tags$td(class = "num", limite(fila$inferior)),
-        shiny::tags$td(class = "num", fmt(fila$actual, 2)),
-        shiny::tags$td(class = "num", limite(fila$superior)))
-    }))
+  shiny::tagList(
+    tabla_informe(
+      c("Condición", "Ancla", "Límite inferior", "Valor usado",
+        "Límite superior"),
+      lapply(seq_len(nrow(rangos)), function(i) {
+        fila <- rangos[i, ]
+        shiny::tags$tr(
+          shiny::tags$td(fila$condicion),
+          shiny::tags$td(fila$ancla),
+          shiny::tags$td(class = "num", limite(fila$inferior, fila$motivo)),
+          shiny::tags$td(class = "num", fmt(fila$actual, 2)),
+          shiny::tags$td(class = "num", limite(fila$superior, fila$motivo)))
+      })),
+    if (length(sin_medir) > 0) {
+      shiny::tags$ul(class = "nota-informe", lapply(sin_medir, shiny::tags$li))
+    } else NULL)
 }
 
 #' Rangos de los umbrales del paso 6 (rob.inclrange y rob.ncutrange).
@@ -287,7 +300,9 @@ informe_html <- function(inf) {
       shiny::tags$p(class = "ajuste", sprintf(
         "consistencia %s · PRI %s · cobertura %s",
         fmt(s$ajuste$consistencia), fmt(s$ajuste$pri),
-        fmt(s$ajuste$cobertura))))
+        fmt(s$ajuste$cobertura))),
+      if (isTRUE(s$ambigua))
+        shiny::tags$p(class = "nota-informe", nota_ambiguedad(s)) else NULL)
   })
 
   # --- Declaraciones obligatorias --------------------------------------

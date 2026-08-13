@@ -9,6 +9,11 @@
 IDM_POR_DEFECTO <- 0.95
 MIN_CARACTERES_JUSTIFICACION <- 30
 
+# Holgura al comprobar que la calibracion no retrocede. QCA::calibrate es
+# determinista y la unica holgura que hace falta es el ruido de la coma
+# flotante; cualquier retroceso mayor es un fallo del calculo.
+TOLERANCIA_MONOTONIA <- 1e-9
+
 # Lista cerrada, de mas a menos defendible. "distribucion muestral" es
 # admisible solo como ultimo recurso y obliga a ejecutar el paso 7.
 FUENTES_ANCLA <- c("teoria", "normativa sectorial", "referencia de desempeno",
@@ -44,8 +49,41 @@ definir_anclas <- function(plena, cruce, nula, fuente, justificacion) {
 
   list(plena = plena, cruce = cruce, nula = nula,
        fuente = fuente, justificacion = justificacion,
-       decreciente = decreciente)
+       decreciente = decreciente, tipo = "difusa")
 }
+
+#' Declara una condicion CRISP: la columna ya es la pertenencia, 0 o 1.
+#'
+#' No toda condicion de un fsQCA es difusa. Las dicotomicas -- el pais
+#' afronto una epidemia anterior o no, la norma existe o no -- se publican
+#' ya como pertenencia y no hay nada que calibrar: 1 es dentro del
+#' conjunto, 0 es fuera.
+#'
+#' Antes no habia forma de decirlo. `definir_anclas()` exige tres anclas
+#' monotonas, y los percentiles de una columna 0/1 salen 0 / 1 / 1 -- ni
+#' crecientes ni decrecientes --, asi que la condicion no pasaba el paso 4;
+#' y como el paso 4 y el paso 7 exigen anclas para TODAS las columnas,
+#' ningun modelo con una condicion crisp podia completarse. Forzarla a
+#' pasar por QCA::calibrate() tampoco vale: con anclas 0 / 0,5 / 1 los ceros
+#' salen 0,05 y los unos 0,95, que ya no es la pertenencia publicada.
+#'
+#' Se representa con las tres anclas del caso crisp -- 0 fuera, 0,50 el
+#' punto de cruce, 1 dentro --, de modo que la tabla de calibracion del
+#' anexo, el semaforo y el archivo de proyecto la leen sin cambios. Lo que
+#' la distingue es `tipo`, y es lo que hace que la calibracion la deje
+#' pasar tal cual.
+#'
+#' La justificacion se sigue exigiendo: dicotomizar es una decision, y de
+#' las mas discutidas.
+definir_anclas_crisp <- function(fuente, justificacion) {
+  a <- definir_anclas(plena = 1, cruce = 0.5, nula = 0,
+                      fuente = fuente, justificacion = justificacion)
+  a$tipo <- "crisp"
+  a
+}
+
+#' La condicion es crisp y su columna ya trae la pertenencia.
+es_crisp <- function(anclas) identical(anclas$tipo, "crisp")
 
 #' Calibracion directa. El calculo lo hace QCA::calibrate.
 #'
@@ -54,6 +92,17 @@ definir_anclas <- function(plena, cruce, nula, fuente, justificacion) {
 #' tercer decimal frente al programa fs/QCA de Ragin, y por eso se declara
 #' siempre en el informe.
 calibrar <- function(x, anclas, idm = IDM_POR_DEFECTO) {
+  if (es_crisp(anclas)) {
+    v <- as.numeric(x)
+    fuera <- !is.na(v) & !(v %in% c(0, 1))
+    if (any(fuera)) {
+      stop("Una condicion crisp solo admite 0 y 1: la columna trae ",
+           paste(utils::head(unique(v[fuera]), 5), collapse = ", "),
+           ". Si el dato no es dicotomico, declare las tres anclas con ",
+           "definir_anclas().", call. = FALSE)
+    }
+    return(v)
+  }
   as.numeric(QCA::calibrate(
     as.numeric(x), type = "fuzzy",
     thresholds = c(e = anclas$nula, c = anclas$cruce, i = anclas$plena),
@@ -65,13 +114,37 @@ calibrar <- function(x, anclas, idm = IDM_POR_DEFECTO) {
 # cruce: sin ella quedan excluidos de necesidad y suficiencia.
 CORRECCION_050 <- 0.001
 
-#' Suma 0,001 a las membresias exactamente iguales a 0,50 y las lista.
+# Hasta que distancia de 0,50 se considera que un caso cae EN el punto de
+# cruce.
+#
+# Comparar con `== 0.5` es un umbral atado a un dato en coma flotante, y
+# los datos reales casi nunca aterrizan ahi: el ancla publicada viene
+# redondeada, asi que el caso que el autor situa en el cruce sale en
+# 0,5001082 y la igualdad exacta no dispara nunca. Medido contra un estudio
+# publicado que corrigio 93 casos: el motor detectaba 52, y en tres
+# condiciones informaba "0 casos" donde el estudio declaraba 41.
+#
+# El valor sale de dos limites, no del dato:
+#
+#   - por arriba, tiene que ser MENOR que CORRECCION_050, para que un caso
+#     ya corregido quede fuera de la banda y la correccion sea idempotente;
+#   - por abajo, tiene que absorber el desvio que introduce un ancla
+#     redondeada, que es del orden de la diezmilesima.
+#
+# 0,0005 es la mitad de la correccion y cinco veces el mayor desvio
+# observado. Que sea un parametro es deliberado: un umbral se prueba
+# moviendo el umbral, no el dato -- el dato en coma flotante nunca aterriza
+# justo en el limite y la prueba no distingue `<=` de `<`.
+TOLERANCIA_050 <- 0.0005
+
+#' Suma 0,001 a las membresias que caen en el punto de cruce y las lista.
 #'
 #' El listado no es decorativo: la correccion debe declararse en el texto
 #' junto con los casos a los que se aplico.
-corregir_050 <- function(membresias, ids = names(membresias)) {
+corregir_050 <- function(membresias, ids = names(membresias),
+                         tolerancia = TOLERANCIA_050) {
   if (is.null(ids)) ids <- as.character(seq_along(membresias))
-  en_medio <- !is.na(membresias) & membresias == 0.5
+  en_medio <- !is.na(membresias) & abs(membresias - 0.5) <= tolerancia
 
   membresias[en_medio] <- membresias[en_medio] + CORRECCION_050
   list(membresias = membresias,
@@ -162,15 +235,30 @@ justificaciones_calcadas <- function(anclas_por_condicion,
 #' como declaracion del informe -- la calibracion no reordena, su aporte es
 #' el umbral formal y la lectura en terminos de pertenencia -- con este rho
 #' como evidencia.
-orden_conservado <- function(crudo, calibrado, decreciente = FALSE) {
+orden_conservado <- function(crudo, calibrado, decreciente = FALSE,
+                             tolerancia = TOLERANCIA_MONOTONIA) {
   completos <- !is.na(crudo) & !is.na(calibrado)
-  rho <- suppressWarnings(
-    stats::cor(crudo[completos], calibrado[completos], method = "spearman")
-  )
+  x <- crudo[completos]
+  y <- calibrado[completos]
+  rho <- suppressWarnings(stats::cor(x, y, method = "spearman"))
   esperado <- if (isTRUE(decreciente)) -1 else 1
-  list(rho = rho,
-       esperado = esperado,
-       conservado = !is.na(rho) && isTRUE(all.equal(rho, esperado)))
+
+  # La propiedad es la MONOTONIA, no rho == 1. Recorriendo los casos de
+  # menor a mayor valor crudo, la pertenencia no puede retroceder; que
+  # varios casos compartan pertenencia SI es legitimo, y es lo normal en
+  # los extremos, donde la calibracion satura en 0 y en 1. Esos empates
+  # bajan rho -- con cinco casos saturados sale 0,999996847693142 -- sin
+  # que nada este mal, y exigir rho == 1 los denunciaba como fallo del
+  # calculo mientras el mensaje imprimia "rho = 1,0000" con cuatro
+  # decimales, contradiciendose a si mismo.
+  paso <- diff(y[order(x)])
+  conservado <- if (isTRUE(decreciente)) {
+    all(paso <= tolerancia)
+  } else {
+    all(paso >= -tolerancia)
+  }
+
+  list(rho = rho, esperado = esperado, conservado = conservado)
 }
 
 #' Paso 4 completo: calibra todas las condiciones y emite sus diagnosticos.
@@ -207,11 +295,21 @@ diagnosticar_calibracion <- function(casos, anclas_por_condicion, columna_id,
     if (!orden[[cond]]$conservado) {
       encontradas[[length(encontradas) + 1]] <- alerta(
         "A-13", contexto = cond,
-        detalle = sprintf(paste("rho de Spearman = %.4f en %s, cuando la",
-                                "direccion declarada de las anclas exige %+d:",
-                                "la calibracion altero el orden de los casos,",
-                                "lo que indica un fallo del calculo."),
-                          orden[[cond]]$rho, cond, orden[[cond]]$esperado)
+        # rho va con todas sus cifras a proposito: con %.4f el mensaje
+        # imprimia "rho = 1,0000" mientras afirmaba que el orden se habia
+        # alterado, y quien lo leia no podia sino desconfiar del programa.
+        detalle = sprintf(paste("La calibracion de %s no es monotona %s: al",
+                                "ordenar los casos por su valor crudo, la",
+                                "pertenencia retrocede. La calibracion",
+                                "directa es monotona por construccion, asi",
+                                "que esto indica un fallo del calculo, no un",
+                                "hallazgo del estudio. (rho de Spearman = %s,",
+                                "esperado %+d.)"),
+                          cond,
+                          if (orden[[cond]]$esperado < 0) "decreciente"
+                          else "creciente",
+                          format(orden[[cond]]$rho, digits = 15),
+                          orden[[cond]]$esperado)
       )
     }
 

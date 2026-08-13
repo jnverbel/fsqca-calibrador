@@ -79,6 +79,13 @@ analizar_nca <- function(datos, condiciones, resultado, ceilings = "ce_fdh") {
 #' Desplazar las tres juntas conserva la monotonia por construccion, asi
 #' que ningun escenario puede producir anclas invalidas.
 escenarios_anclas <- function(anclas, desplazamientos = DESPLAZAMIENTOS_ANCLA) {
+  # Una condicion crisp no tiene anclas que desplazar: su columna ya es la
+  # pertenencia. Desplazarlas produciria anclas invalidas y, sobre todo, un
+  # escenario que no significa nada. Se devuelve tal cual, y el escenario
+  # mide entonces la robustez de las condiciones que si se calibran.
+  if (es_crisp(anclas)) {
+    return(lapply(desplazamientos, function(d) anclas))
+  }
   lapply(desplazamientos, function(d) {
     definir_anclas(plena = anclas$plena + d,
                    cruce = anclas$cruce + d,
@@ -101,32 +108,60 @@ escenarios_anclas <- function(anclas, desplazamientos = DESPLAZAMIENTOS_ANCLA) {
 #' Es el mejor resultado posible y el informe lo dice con esas palabras.
 rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
                          condiciones, consistencia, frecuencia,
+                         pri = PRI_MINIMO,
                          paso = PASO_RANGO, max_pasos = MAX_PASOS_RANGO) {
-  columnas <- c(condiciones, resultado)
-  crudo_sm <- as.data.frame(crudo[, columnas, drop = FALSE])
-  calib_sm <- as.data.frame(membresias[, columnas, drop = FALSE])
+  fila <- function(inferior, superior, motivo) {
+    data.frame(
+      condicion = rep(condicion, 3),
+      ancla = ANCLAS_EN_ORDEN,
+      actual = c(anclas$nula, anclas$cruce, anclas$plena),
+      inferior = inferior, superior = superior, motivo = motivo,
+      stringsAsFactors = FALSE)
+  }
+
+  # Una condicion crisp no se calibra, asi que no tiene margen de ancla que
+  # medir. Un NA a secas significa en esta tabla "aguanto toda la ventana",
+  # que es el mejor resultado posible: dejarlo sin motivo declararia una
+  # robustez que nadie midio.
+  if (es_crisp(anclas)) {
+    return(fila(NA_real_, NA_real_,
+                paste("Condicion crisp: su columna ya es la pertenencia, no",
+                      "hay anclas que desplazar y el margen no aplica.")))
+  }
 
   th <- NULL
   # rob.calibrange informa su avance por consola en cada iteracion. El
   # investigador no tiene por que ver eso.
-  utils::capture.output(
-    th <- SetMethods::rob.calibrange(
-      raw.data = crudo_sm, calib.data = calib_sm,
+  #
+  # do.call con los valores ya evaluados, no una llamada normal: las tres
+  # funciones rob.* reenvian su `...` a QCA::minimize(), que lo REEVALUA en
+  # otro marco. Escrito `pri.cut = pri`, el simbolo `pri` no existe alli y
+  # QCA no protesta -- construye una tabla de verdad sin filas explicadas y
+  # aborta con "None of the values in OUT is explained", que parece un
+  # problema de los datos y no de la llamada. Con `pri.cut = 0.7` literal
+  # la misma llamada funciona. Es la misma trampa que ya documenta
+  # .minimizar_seguro() para dir.exp.
+  intento <- try(utils::capture.output(
+    th <- do.call(SetMethods::rob.calibrange, list(
+      raw.data = as.data.frame(crudo[, c(condiciones, resultado),
+                                     drop = FALSE]),
+      calib.data = as.data.frame(membresias[, c(condiciones, resultado),
+                                            drop = FALSE]),
       test.cond.raw = condicion, test.cond.calib = condicion,
       test.thresholds = c(e = anclas$nula, c = anclas$cruce, i = anclas$plena),
       type = "fuzzy", step = paso, max.runs = max_pasos,
       outcome = resultado, conditions = condiciones,
-      incl.cut = consistencia, n.cut = frecuencia),
-    type = "output")
+      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri)),
+    type = "output"), silent = TRUE)
 
-  data.frame(
-    condicion = rep(condicion, 3),
-    ancla = ANCLAS_EN_ORDEN,
-    actual = c(anclas$nula, anclas$cruce, anclas$plena),
-    inferior = as.numeric(th["Lower bound", ]),
-    superior = as.numeric(th["Upper bound", ]),
-    stringsAsFactors = FALSE
-  )
+  if (inherits(intento, "try-error") || is.null(th)) {
+    return(fila(NA_real_, NA_real_,
+                paste("El barrido del ancla no pudo completarse:",
+                      trimws(as.character(intento)))))
+  }
+
+  fila(as.numeric(th["Lower bound", ]), as.numeric(th["Upper bound", ]),
+       NA_character_)
 }
 
 #' Rango de un umbral del paso 6 dentro del cual la solucion no cambia.
@@ -140,15 +175,27 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
 #' en cuanto el barrido inferior agota max.runs. Es un fallo de
 #' SetMethods 4.1, no de los datos.
 .rango_umbral <- function(funcion, membresias, resultado, condiciones,
-                          consistencia, frecuencia, paso, max_pasos,
+                          consistencia, frecuencia, pri, paso, max_pasos,
                           etiqueta, actual) {
   datos <- as.data.frame(membresias[, c(condiciones, resultado), drop = FALSE])
 
   th <- NULL
+  # `pri.cut` no esta en los formales de rob.inclrange ni de rob.ncutrange,
+  # pero las dos reenvian su `...` a QCA::minimize(), que a su vez lo pasa a
+  # truthTable: el umbral SI llega. Comprobado sobre Lipset con incl.cut
+  # 0,70 y n.cut 2, donde el rango de frecuencia pasa de [1, 2] con
+  # pri.cut 0,50 a [1, 4] con pri.cut 0,75. Sin pasarlo, el paso 7 barria
+  # con el PRI por defecto de SetMethods y dictaminaba sobre una solucion
+  # distinta de la del paso 6.
+  #
+  # do.call y no una llamada normal, por lo mismo que en rango_anclas():
+  # `...` viaja hasta QCA::minimize(), que lo reevalua en otro marco donde
+  # `pri` no existe.
   intento <- try(utils::capture.output(
-    th <- funcion(data = datos, step = paso, max.runs = max_pasos,
-                  outcome = resultado, conditions = condiciones,
-                  incl.cut = consistencia, n.cut = frecuencia),
+    th <- do.call(funcion, list(
+      data = datos, step = paso, max.runs = max_pasos,
+      outcome = resultado, conditions = condiciones,
+      incl.cut = consistencia, n.cut = frecuencia, pri.cut = pri)),
     type = "output"), silent = TRUE)
 
   if (inherits(intento, "try-error") || is.null(th)) {
@@ -172,21 +219,21 @@ rango_anclas <- function(crudo, membresias, condicion, anclas, resultado,
 
 #' Hasta donde puede moverse el umbral de consistencia.
 rango_consistencia <- function(membresias, resultado, condiciones,
-                               consistencia, frecuencia,
+                               consistencia, frecuencia, pri = PRI_MINIMO,
                                paso = PASO_CONSISTENCIA,
                                max_pasos = MAX_PASOS_RANGO) {
   .rango_umbral(SetMethods::rob.inclrange, membresias, resultado, condiciones,
-                consistencia, frecuencia, paso, max_pasos,
+                consistencia, frecuencia, pri, paso, max_pasos,
                 etiqueta = "consistencia", actual = consistencia)
 }
 
 #' Hasta donde puede moverse la frecuencia minima.
 rango_frecuencia <- function(membresias, resultado, condiciones,
-                             consistencia, frecuencia,
+                             consistencia, frecuencia, pri = PRI_MINIMO,
                              paso = PASO_FRECUENCIA,
                              max_pasos = MAX_PASOS_RANGO) {
   .rango_umbral(SetMethods::rob.ncutrange, membresias, resultado, condiciones,
-                consistencia, frecuencia, paso, max_pasos,
+                consistencia, frecuencia, pri, paso, max_pasos,
                 etiqueta = "frecuencia", actual = frecuencia)
 }
 
@@ -267,9 +314,16 @@ cambios_de_estatus <- function(inicial, alterno) {
 #' Si el escenario deja la tabla de verdad sin filas positivas, minimize()
 #' aborta. Eso es informacion -- la solucion no sobrevive a ese
 #' desplazamiento -- y no puede tumbar el paso entero.
+#'
+#' `pri` no tiene valor por defecto propio a proposito: el paso 7 dictamina
+#' sobre la solucion del paso 6, y si aqui se pudiera omitir volveria a
+#' caer en PRI_MINIMO mientras el paso 6 usa el umbral que el investigador
+#' declaro. Medido: con un PRI declarado de 0,60, el paso 6 daba tres
+#' configuraciones y el paso 7 dictaminaba sobre una sola, distinta, sin
+#' decir nada.
 ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
                                resultado, desplazamiento, consistencia,
-                               frecuencia, solucion_inicial,
+                               frecuencia, pri, solucion_inicial,
                                idm = IDM_POR_DEFECTO,
                                estatus_inicial = NULL) {
   id <- sprintf("anclas %+.2f", desplazamiento)
@@ -296,7 +350,7 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
                                            idm = idm)$membresias
     tt <- construir_tabla_verdad(membresias, resultado, condiciones,
                                  consistencia = consistencia,
-                                 frecuencia = frecuencia)
+                                 frecuencia = frecuencia, pri = pri)
     QCA::minimize(tt, details = TRUE)
   }), silent = TRUE)
 
@@ -340,7 +394,7 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
 
 #' Paso 7 completo: rangos de cada ancla mas escenarios alternativos.
 barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
-                             resultado, consistencia, frecuencia,
+                             resultado, consistencia, frecuencia, pri,
                              desplazamientos = DESPLAZAMIENTOS_ANCLA,
                              paso = PASO_RANGO, max_pasos = MAX_PASOS_RANGO,
                              idm = IDM_POR_DEFECTO) {
@@ -349,6 +403,16 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
             "rangos con idm = ", format(IDM_SETMETHODS), ", que es el valor ",
             "por defecto de QCA. Los rangos son orientativos mientras esa ",
             "diferencia exista.", call. = FALSE)
+  }
+
+  # El PRI se comprueba ANTES de entrar en el try() que envuelve la
+  # minimizacion inicial: forzado ahi dentro, el "argument pri is missing"
+  # quedaria atrapado y el paso 7 diria que no hay solucion que someter a
+  # robustez, cuando lo que falta es un umbral.
+  if (missing(pri) || length(pri) != 1 || is.na(pri)) {
+    stop("El paso 7 necesita el mismo umbral de PRI con el que se construyo ",
+         "la tabla de verdad del paso 6. Sin el, la robustez se calcularia ",
+         "sobre una solucion distinta de la que se dictamina.", call. = FALSE)
   }
 
   condiciones <- setdiff(names(anclas_por_condicion), resultado)
@@ -362,7 +426,7 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
   inicial <- try(suppressWarnings({
     tt <- construir_tabla_verdad(membresias, resultado, condiciones,
                                  consistencia = consistencia,
-                                 frecuencia = frecuencia)
+                                 frecuencia = frecuencia, pri = pri)
     QCA::minimize(tt, details = TRUE)
   }), silent = TRUE)
 
@@ -375,14 +439,15 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
   rangos <- do.call(rbind, lapply(condiciones, function(cond) {
     rango_anclas(crudo, membresias, cond, anclas_por_condicion[[cond]],
                  resultado, condiciones, consistencia = consistencia,
-                 frecuencia = frecuencia, paso = paso, max_pasos = max_pasos)
+                 frecuencia = frecuencia, pri = pri, paso = paso,
+                 max_pasos = max_pasos)
   }))
 
   umbrales <- rbind(
     rango_consistencia(membresias, resultado, condiciones, consistencia,
-                       frecuencia, max_pasos = max_pasos),
+                       frecuencia, pri = pri, max_pasos = max_pasos),
     rango_frecuencia(membresias, resultado, condiciones, consistencia,
-                     frecuencia, max_pasos = max_pasos))
+                     frecuencia, pri = pri, max_pasos = max_pasos))
 
   estatus_inicial <- estatus_de_casos(inicial, resultado,
                                       as.character(crudo[[columna_id]]))
@@ -390,13 +455,15 @@ barrido_robustez <- function(crudo, anclas_por_condicion, columna_id,
   escenarios <- lapply(desplazamientos, function(d) {
     ejecutar_escenario(crudo, anclas_por_condicion, columna_id, resultado,
                        desplazamiento = d, consistencia = consistencia,
-                       frecuencia = frecuencia, solucion_inicial = inicial,
+                       frecuencia = frecuencia, pri = pri,
+                       solucion_inicial = inicial,
                        idm = idm, estatus_inicial = estatus_inicial)
   })
 
   list(rangos = rangos, umbrales = umbrales, escenarios = escenarios,
        estatus_inicial = estatus_inicial, ejecutado = TRUE,
        motivo = NA_character_, idm = idm, paso = paso, max_pasos = max_pasos,
+       consistencia = consistencia, frecuencia = frecuencia, pri = pri,
        terminos_iniciales = unlist(inicial$solution))
 }
 

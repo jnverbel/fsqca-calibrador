@@ -417,7 +417,8 @@ server <- function(input, output, session) {
       anclas_por_condicion = estado$anclas,
       columna_id = nombre_columna_id(estado$mapeo),
       resultado = estado$resultado,
-      consistencia = u$consistencia, frecuencia = u$frecuencia), silent = TRUE)
+      consistencia = u$consistencia, frecuencia = u$frecuencia,
+      pri = u$pri), silent = TRUE)
 
     if (inherits(rob, "try-error")) {
       showNotification(

@@ -1,5 +1,18 @@
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+#' La ambiguedad de modelo, dicha donde se lee la solucion.
+#'
+#' La alerta A-36 ya la registra en la bitacora, pero quien mira la
+#' solucion no mira la bitacora al mismo tiempo: si la linea de terminos no
+#' dice que hay alternativas, se lee como LA solucion.
+nota_ambiguedad <- function(s) {
+  sprintf(paste("Se muestra el modelo %s de %d equivalentes, que se reducen",
+                "a %d solucion(es) distinta(s). Elegir entre modelos que",
+                "ajustan igual no es un calculo: declare cual presenta y por",
+                "que."),
+          s$modelo, s$n_modelos, s$n_distintos)
+}
+
 # Paneles de cada paso. Funciones puras de dibujo: reciben el estado ya
 # calculado y devuelven tags. No llaman al motor para decidir nada; el
 # servidor les pasa lo que el motor ya resolvio.
@@ -410,7 +423,9 @@ panel_analisis <- function(e) {
                       paste(s$terminos, collapse = "  +  ")),
         shiny::tags$p(class = "ayuda", sprintf(
           "consistencia %.3f · PRI %.3f · cobertura %.3f",
-          s$ajuste$consistencia, s$ajuste$pri, s$ajuste$cobertura)))
+          s$ajuste$consistencia, s$ajuste$pri, s$ajuste$cobertura)),
+        if (isTRUE(s$ambigua)) shiny::tags$p(class = "ayuda", sprintf(
+          "%s", nota_ambiguedad(s))) else NULL)
     })
   )
 }
@@ -446,14 +461,29 @@ panel_robustez <- function(e) {
               "Limite superior"), shiny::tags$th))),
           shiny::tags$tbody(lapply(seq_len(nrow(e$robustez$rangos)), function(i) {
             fila <- e$robustez$rangos[i, ]
-            limite <- function(x) if (is.na(x)) "no cambia" else sprintf("%.2f", x)
+            # Un NA con motivo NO es "no cambia": es que nadie lo midio.
+            # Escribirlos igual anunciaria la robustez mas alta posible
+            # justo donde no se comprobo ninguna.
+            limite <- function(x) {
+              if (!is.na(fila$motivo)) "no medido"
+              else if (is.na(x)) "no cambia"
+              else sprintf("%.2f", x)
+            }
             shiny::tags$tr(
               shiny::tags$td(fila$condicion),
               shiny::tags$td(fila$ancla),
               shiny::tags$td(class = "num", limite(fila$inferior)),
               shiny::tags$td(class = "num", sprintf("%.2f", fila$actual)),
               shiny::tags$td(class = "num", limite(fila$superior)))
-          }))))
+          }))),
+        {
+          sin_medir <- unique(e$robustez$rangos$motivo[
+            !is.na(e$robustez$rangos$motivo)])
+          if (length(sin_medir) > 0) {
+            shiny::tags$ul(class = "ayuda",
+                           lapply(sin_medir, shiny::tags$li))
+          } else NULL
+        })
     } else NULL,
     if (!is.null(e$robustez) && !is.null(e$robustez$umbrales) &&
         nrow(e$robustez$umbrales) > 0) {

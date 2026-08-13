@@ -130,7 +130,7 @@ guardar_proyecto <- function(proyecto, ruta,
 
 COLUMNAS_RANGOS <- list(condicion = NA_character_, ancla = NA_character_,
                         actual = NA_real_, inferior = NA_real_,
-                        superior = NA_real_)
+                        superior = NA_real_, motivo = NA_character_)
 COLUMNAS_UMBRALES <- list(umbral = NA_character_, actual = NA_real_,
                           inferior = NA_real_, superior = NA_real_,
                           motivo = NA_character_)
@@ -281,6 +281,7 @@ construir_proyecto <- function(leido, mapeo, anclas, bitacora, umbrales,
     casos = por_condicion)
   p$calibracion$condiciones <- lapply(anclas, function(a)
     list(anclas = list(plena = a$plena, cruce = a$cruce, nula = a$nula),
+         tipo = a$tipo %||% "difusa",
          fuente = a$fuente, justificacion = a$justificacion))
 
   p$analisis <- list(resultado = resultado, umbrales = umbrales)

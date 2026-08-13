@@ -795,6 +795,42 @@ herramienta genera**, sobre un recorrido completo con datos sintéticos, el 31/0
 | `A-34` | 4 | advertencia | Dos o más justificaciones de ancla son casi el mismo texto |
 | `A-35` | 6 | advertencia | El resultado negado no se ha analizado |
 
+### La alerta que salió de replicar ocho estudios publicados
+
+Tampoco se descubrió ejecutando pruebas: apareció **replicando análisis publicados** contra
+el motor, en agosto de 2026.
+
+| Código | Paso | Severidad | Qué caza |
+|---|---|---|---|
+| `A-36` | 6 | advertencia | La tabla de verdad admite varias minimizaciones igual de buenas y la solución presentada no es la única |
+
+**`A-36`.** `QCA::minimize()` no siempre devuelve *una* solución. Cuando la tabla de verdad
+admite varias minimizaciones igual de buenas —**ambigüedad de modelo**— devuelve todas, y
+cambia de sitio el ajuste al hacerlo: con un modelo va en `sol$IC$incl.cov`, con varios en
+`sol$IC$individual[[k]]`. El motor leía siempre las rutas de un solo modelo, así que se
+quedaba con `configuraciones` de cero filas y `ajuste` de longitud cero **sin error**, y el
+paso 6 moría varios marcos después preguntando por la cobertura. Ocurría en 7 de 9 escenarios
+reales. Y `unlist(sol$solution)` concatenaba los términos de todos los modelos, con
+repeticiones, y los presentaba como una sola solución: dieciséis términos donde había cuatro.
+
+**Qué hace el motor ante la ambigüedad.** Presenta el **primer modelo que devuelve QCA** y
+deja los demás accesibles en `$modelos`, cada uno con su ajuste. Elegir entre modelos
+equivalentes no es un cálculo —todos ajustan igual de bien— y exige conocimiento sustantivo
+que el motor no tiene; aplanarlos sería mentir, porque son soluciones alternativas y no
+términos de una misma solución, y morir sería peor. Así que se elige con un criterio
+explícito, se dice cuál (`$modelo`, con la etiqueta de QCA: `M1`, o `C1P1` para la
+intermedia), y `A-36` obliga a mirar los otros y a declarar por escrito con cuál se queda.
+La alerta se decide sobre los modelos **distintos**, no sobre cuántos devuelve QCA: con
+varias expectativas direccionales compatibles puede devolver ocho bloques que se reducen a
+dos soluciones, y avisar de ocho donde hay dos es ruido.
+
+**Dónde vivía el peor de los defectos.** Con `dir.exp`, QCA 3.25 deja la solución intermedia
+en `sol$i.sol$C1P1$solution` y su ajuste en `sol$i.sol$C1P1$IC`; `sol$solution` y `sol$IC` de
+primer nivel siguen siendo los de la **parsimoniosa**. El motor leía el primer nivel, así que
+`minimizar()$intermedia` **era la parsimoniosa**: sin error, sin aviso y con la etiqueta
+correcta. En la replicación del estudio E012 la solución que reproduce las tablas publicadas
+es exactamente la intermedia, y era la que el motor nunca llegaba a mostrar.
+
 **`A-33`.** El motor ya tenía las dos piezas: `A-18` avisa en el paso 5 de que una condición
 supera 0,50 en casi todos los casos, y el paso 6 entrega la solución. Nadie las cruzaba. En el
 recorrido de prueba, dos de las tres condiciones de la solución conservadora estaban por encima

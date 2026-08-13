@@ -286,6 +286,15 @@ for (nombre in names(inf$soluciones)) {
   emitir(paste0("Consistencia ", f3(s$ajuste$consistencia),
                 " · PRI ", f3(s$ajuste$pri),
                 " · cobertura ", f3(s$ajuste$cobertura)))
+  # Ambigüedad de modelo: sin esta línea, una solución entre varias
+  # equivalentes se lee como LA solución.
+  if (isTRUE(s$ambigua)) {
+    emitir(sprintf(paste("Se muestra el modelo %s de %d equivalentes, que se",
+                         "reducen a %d solución(es) distinta(s). Elegir entre",
+                         "modelos que ajustan igual no es un cálculo: se",
+                         "declara cuál se presenta y por qué."),
+                   s$modelo, s$n_modelos, s$n_distintos))
+  }
 }
 
 # La frase de cierre depende de lo que de verdad se produjo. Estaba fija
@@ -324,12 +333,16 @@ if (isTRUE(inf$robustez$ejecutado)) {
            inf$robustez$max_pasos, "pasos de", inf$robustez$paso,
            "a cada lado. «No cambia» significa que la solución aguantó toda",
            "la ventana sin alterarse.")
+    # Un NA con motivo no es «no cambia»: es que ese rango no se midió.
+    sin_medir <- if (is.null(r$motivo)) rep(FALSE, nrow(r)) else !is.na(r$motivo)
+    lim <- function(x) ifelse(sin_medir, "no medido", limite(x))
     kb(data.frame(
       Condición = r$condicion, Ancla = r$ancla,
-      `Límite inferior` = limite(r$inferior),
+      `Límite inferior` = lim(r$inferior),
       `Valor usado` = sprintf("%.2f", r$actual),
-      `Límite superior` = limite(r$superior),
+      `Límite superior` = lim(r$superior),
       check.names = FALSE))
+    for (m in unique(r$motivo[sin_medir])) emitir("-", m)
   }
 
   u <- inf$robustez$umbrales

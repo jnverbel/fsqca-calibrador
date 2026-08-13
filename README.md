@@ -81,7 +81,7 @@ Full instructions, deployment included: [`docs/development.md`](docs/development
 | [`INSTALAR.md`](INSTALAR.md) | The same, for the Spanish-speaking researcher | Spanish |
 | [`docs/development.md`](docs/development.md) | For development: run it, build the report, deploy | English |
 | [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Development log with the local-environment detail | Spanish |
-| [`docs/especificacion.md`](docs/especificacion.md) | Architecture, the 8 steps, the 35 alerts, project-file schema, report and test plan | Spanish, English summary |
+| [`docs/especificacion.md`](docs/especificacion.md) | Architecture, the 8 steps, the 36 alerts, project-file schema, report and test plan | Spanish, English summary |
 | [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` and the reprexes for the upstream bug reports | R source |
 
 > `fuzzy_likert_5.R` is **a different methodological route** (fuzzy Delphi with triangular

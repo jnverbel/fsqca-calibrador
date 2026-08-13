@@ -14,6 +14,7 @@ Depends: R (>= 4.4)
 Imports:
     NCA,
     QCA,
+    SetMethods,
     digest,
     jsonlite,
     lavaan,

@@ -11,21 +11,169 @@ tt_lf <- function() {
   construir_tabla_verdad(datos_lf3(), "SURV", CONDS3, frecuencia = 1)
 }
 
+EXPECTATIVAS3 <- "DEV + URB + LIT + IND + STB"
+
 test_that("las tres soluciones coinciden con QCA::minimize llamado directamente", {
   tt <- tt_lf()
-  expectativas <- stats::setNames(rep(1, length(CONDS3)), CONDS3)
 
   # Fuente independiente: QCA, llamado aqui con los mismos argumentos.
   esp_cons <- QCA::minimize(tt, details = TRUE)
   esp_pars <- QCA::minimize(tt, include = "?", details = TRUE)
-  esp_inte <- QCA::minimize(tt, include = "?", dir.exp = expectativas,
+  esp_inte <- QCA::minimize(tt, include = "?", dir.exp = EXPECTATIVAS3,
                             details = TRUE)
 
-  obs <- minimizar(tt, expectativas = expectativas)
+  obs <- minimizar(tt, expectativas = EXPECTATIVAS3)
 
-  expect_identical(obs$conservadora$terminos, unlist(esp_cons$solution))
-  expect_identical(obs$parsimoniosa$terminos, unlist(esp_pars$solution))
-  expect_identical(obs$intermedia$terminos, unlist(esp_inte$solution))
+  expect_identical(obs$conservadora$terminos, as.character(esp_cons$solution[[1]]))
+  expect_identical(obs$parsimoniosa$terminos, as.character(esp_pars$solution[[1]]))
+  # La intermedia vive en $i.sol$C1P1, no en el primer nivel. Comparar
+  # contra unlist(esp_inte$solution) -- que es lo que se hacia -- comparaba
+  # la lectura equivocada del motor contra la misma lectura equivocada de
+  # QCA: la prueba pasaba con la parsimoniosa a los dos lados.
+  expect_identical(obs$intermedia$terminos,
+                   as.character(esp_inte$i.sol$C1P1$solution[[1]]))
+})
+
+test_that("la intermedia de Lipset NO es la parsimoniosa", {
+  # El defecto que esta prueba habria cazado y no cazaba.
+  obs <- minimizar(tt_lf(), expectativas = EXPECTATIVAS3)
+
+  expect_setequal(obs$intermedia$terminos,
+                  c("DEV*URB*LIT*STB", "DEV*LIT*~IND*STB"))
+  expect_setequal(obs$parsimoniosa$terminos, c("DEV*~IND", "URB*STB"))
+  expect_false(identical(obs$intermedia$terminos, obs$parsimoniosa$terminos))
+})
+
+test_that("la intermedia declara el bloque i.sol del que sale", {
+  obs <- minimizar(tt_lf(), expectativas = EXPECTATIVAS3)
+
+  expect_identical(obs$intermedia$modelo, "C1P1")
+})
+
+test_that("el ajuste de la intermedia es el suyo y no el de la parsimoniosa", {
+  obs <- minimizar(tt_lf(), expectativas = EXPECTATIVAS3)
+  esperado <- QCA::minimize(tt_lf(), include = "?", dir.exp = EXPECTATIVAS3,
+                            details = TRUE)$i.sol$C1P1$IC$sol.incl.cov
+
+  expect_equal(obs$intermedia$ajuste$cobertura, as.numeric(esperado$covS[1]))
+  expect_false(isTRUE(all.equal(obs$intermedia$ajuste$cobertura,
+                                obs$parsimoniosa$ajuste$cobertura)))
+})
+
+# --- Ambiguedad de modelo (A-36) --------------------------------------
+
+# Seis casos, tres condiciones: la tabla de verdad admite cuatro
+# minimizaciones parsimoniosas igual de buenas. Es el caso minimo que
+# reproduce el aborto del paso 6, y no necesita datos externos.
+datos_ambiguos <- function() {
+  data.frame(A = c(1, 1, 0, 0, 1, 0), B = c(1, 0, 1, 0, 0, 1),
+             C = c(0, 1, 1, 0, 1, 0), Y = c(1, 1, 1, 0, 0, 0))
+}
+
+tt_ambigua <- function() {
+  construir_tabla_verdad(datos_ambiguos(), "Y", c("A", "B", "C"),
+                         consistencia = 0.8, frecuencia = 1, pri = 0)
+}
+
+test_that("con varios modelos el paso 6 no aborta", {
+  # Antes: "missing value where TRUE/FALSE needed". Con varios modelos QCA
+  # mueve el ajuste a $IC$overall / $IC$individual, el motor leia las rutas
+  # de un solo modelo y se quedaba con numeric(0) sin decir nada.
+  res <- diagnosticar_suficiencia(tt_ambigua())
+
+  expect_true(res$minimizacion_posible)
+  expect_false(is.na(res$soluciones$parsimoniosa$ajuste$cobertura))
+  expect_gt(nrow(res$soluciones$parsimoniosa$configuraciones), 0)
+})
+
+test_that("con varios modelos no se aplanan los terminos en una retahila", {
+  crudo <- QCA::minimize(tt_ambigua(), include = "?", details = TRUE)
+  obs <- minimizar(tt_ambigua())
+
+  # unlist() daba ocho terminos con repeticiones para cuatro modelos de dos.
+  expect_length(unlist(crudo$solution), 8L)
+  expect_identical(obs$parsimoniosa$terminos, as.character(crudo$solution[[1]]))
+  expect_identical(obs$parsimoniosa$n_modelos, 4L)
+})
+
+test_that("cada modelo alternativo trae su propio ajuste", {
+  obs <- minimizar(tt_ambigua())
+  crudo <- QCA::minimize(tt_ambigua(), include = "?", details = TRUE)
+
+  expect_length(obs$parsimoniosa$modelos, 4L)
+  for (k in seq_along(obs$parsimoniosa$modelos)) {
+    m <- obs$parsimoniosa$modelos[[k]]
+    expect_identical(m$terminos, as.character(crudo$solution[[k]]))
+    expect_equal(m$ajuste$cobertura,
+                 as.numeric(crudo$IC$individual[[k]]$sol.incl.cov$covS[1]))
+  }
+})
+
+test_that("A-36 se dispara cuando la solucion no es unica", {
+  res <- diagnosticar_suficiencia(tt_ambigua())
+
+  expect_true("A-36" %in% res$alertas$codigo)
+  expect_true(res$soluciones$parsimoniosa$ambigua)
+  expect_gt(res$soluciones$parsimoniosa$n_distintos, 1L)
+})
+
+test_that("A-36 no se dispara cuando la solucion es unica", {
+  res <- diagnosticar_suficiencia(tt_lf())
+
+  expect_false("A-36" %in% res$alertas$codigo)
+  expect_false(res$soluciones$conservadora$ambigua)
+  expect_identical(res$soluciones$conservadora$n_modelos, 1L)
+})
+
+# --- Expectativas direccionales ---------------------------------------
+
+test_that("la notacion SOP y un valor por condicion dan la misma intermedia", {
+  # QCA 3.25 admite las dos, y esta prueba fija cual es la equivalencia
+  # para que un cambio de version no la rompa en silencio.
+  sop <- minimizar(tt_lf(), expectativas = EXPECTATIVAS3)
+  vector <- minimizar(tt_lf(),
+                      expectativas = stats::setNames(rep(1, length(CONDS3)),
+                                                     CONDS3))
+
+  expect_identical(sop$intermedia$terminos, vector$intermedia$terminos)
+})
+
+test_that("unas expectativas incompletas se rechazan en castellano", {
+  # QCA aborta aqui con "Number of expectations does not match number of
+  # conditions", en ingles y sin decir cuantas condiciones hay.
+  expect_error(minimizar(tt_lf(), expectativas = c(DEV = 1, URB = 1)),
+               "5 condiciones")
+  expect_error(minimizar(tt_lf(), expectativas = c(DEV = 1, URB = 1)),
+               "notacion SOP")
+})
+
+test_that("unas expectativas vacias se rechazan", {
+  expect_error(minimizar(tt_lf(), expectativas = ""), "vacias")
+  expect_error(minimizar(tt_lf(), expectativas = c("DEV", "URB")), "vacias")
+})
+
+# --- Cobertura unica --------------------------------------------------
+
+test_that("con un solo termino la cobertura unica iguala a la bruta", {
+  # QCA deja covU en NA cuando no hay con quien repartir: el anexo imprimia
+  # un hueco donde el valor es conocido.
+  ic <- data.frame(inclS = 0.9, PRI = 0.8, covS = 0.7, covU = NA_real_,
+                   row.names = "A*B")
+
+  obs <- .configuraciones_modelo(ic)
+
+  expect_equal(obs$cobertura_unica, 0.7)
+})
+
+test_that("con varios terminos la cobertura unica no se inventa", {
+  ic <- data.frame(inclS = c(0.9, 0.8), PRI = c(0.8, 0.7),
+                   covS = c(0.7, 0.6), covU = c(NA_real_, 0.2),
+                   row.names = c("A*B", "C*D"))
+
+  obs <- .configuraciones_modelo(ic)
+
+  expect_true(is.na(obs$cobertura_unica[1]))
+  expect_equal(obs$cobertura_unica[2], 0.2)
 })
 
 test_that("la solucion conservadora de LF es la publicada", {

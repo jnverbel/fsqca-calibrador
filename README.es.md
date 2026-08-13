@@ -83,7 +83,7 @@ Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/
 | [`INSTALL.md`](INSTALL.md) | Lo mismo, en inglés | Inglés |
 | [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Para desarrollo: ejecutar, generar el informe y desplegar | Español |
 | [`docs/development.md`](docs/development.md) | La misma guía, condensada, en inglés | Inglés |
-| [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 35 alertas, esquema del archivo de proyecto, informe y plan de pruebas | Español, resumen en inglés |
+| [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 36 alertas, esquema del archivo de proyecto, informe y plan de pruebas | Español, resumen en inglés |
 | [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` y los reprex de los reportes de bugs aguas arriba | Código R |
 
 > `fuzzy_likert_5.R` es **otra ruta metodológica** (Delphi difuso con números

@@ -185,29 +185,157 @@ alertas_tabla_verdad <- function(tabla) {
 
 COBERTURA_MINIMA <- 0.50
 
-#' Extrae el ajuste de una solucion de QCA::minimize.
-.ajuste_solucion <- function(sol) {
-  ic <- sol$IC$incl.cov
-  global <- sol$IC$sol.incl.cov
+#' Configuraciones de UN modelo, con sus tipos.
+#'
+#' `cases` no viaja en el ajuste de los modelos individuales -- QCA solo lo
+#' pone cuando hay un unico modelo --, asi que se rellena con NA en vez de
+#' reventar.
+.configuraciones_modelo <- function(ic) {
+  vacia <- data.frame(configuracion = character(0), consistencia = numeric(0),
+                      pri = numeric(0), cobertura_bruta = numeric(0),
+                      cobertura_unica = numeric(0), casos = character(0),
+                      stringsAsFactors = FALSE)
+  if (is.null(ic) || nrow(ic) == 0) return(vacia)
 
-  configuraciones <- data.frame(
+  salida <- data.frame(
     configuracion = rownames(ic),
     consistencia = as.numeric(ic$inclS),
     pri = as.numeric(ic$PRI),
     cobertura_bruta = as.numeric(ic$covS),
-    cobertura_unica = as.numeric(ic$covU),
-    casos = as.character(ic$cases),
+    cobertura_unica = .cobertura_unica(ic),
+    casos = if (is.null(ic$cases)) NA_character_ else as.character(ic$cases),
     stringsAsFactors = FALSE
   )
-  rownames(configuraciones) <- NULL
+  rownames(salida) <- NULL
+  salida
+}
 
-  list(
-    terminos = unlist(sol$solution),
-    configuraciones = configuraciones,
-    ajuste = list(consistencia = as.numeric(global$inclS[1]),
-                  pri = as.numeric(global$PRI[1]),
-                  cobertura = as.numeric(global$covS[1]))
-  )
+#' Cobertura unica, tambien cuando la solucion tiene un solo termino.
+#'
+#' Con un unico termino QCA deja covU en NA, y el anexo imprimia un hueco
+#' donde el valor es conocido: si no hay otro termino con el que compartir
+#' casos, la cobertura unica ES la bruta. Se rellena solo en ese caso, que
+#' es el unico en que la identidad se sostiene.
+.cobertura_unica <- function(ic) {
+  cu <- if (is.null(ic$covU)) rep(NA_real_, nrow(ic)) else as.numeric(ic$covU)
+  if (nrow(ic) == 1 && is.na(cu[1])) cu[1] <- as.numeric(ic$covS)[1]
+  cu
+}
+
+#' Ajuste global de UN modelo.
+.ajuste_global <- function(global) {
+  if (is.null(global) || nrow(global) == 0) {
+    return(list(consistencia = NA_real_, pri = NA_real_,
+                cobertura = NA_real_))
+  }
+  list(consistencia = as.numeric(global$inclS[1]),
+       pri = as.numeric(global$PRI[1]),
+       cobertura = as.numeric(global$covS[1]))
+}
+
+#' Todos los modelos que devuelve un objeto de QCA, uno a uno.
+#'
+#' QCA::minimize() no siempre devuelve UNA solucion. Cuando la tabla de
+#' verdad admite varias minimizaciones igual de buenas -- ambiguedad de
+#' modelo -- devuelve todas, y cambia de sitio el ajuste al hacerlo:
+#'
+#'   un modelo    ->  sol$IC$incl.cov          y  sol$IC$sol.incl.cov
+#'   varios       ->  sol$IC$individual[[k]]$incl.cov  (y sol.incl.cov),
+#'                    mas un sol$IC$overall agregado
+#'
+#' Leer siempre las rutas de un modelo dejaba `configuraciones` con cero
+#' filas y `ajuste` con numeric(0) -- en silencio, sin error --, y el paso 6
+#' moria varios marcos despues al preguntar por la cobertura. Y
+#' unlist(sol$solution) concatenaba los terminos de TODOS los modelos, con
+#' repeticiones, y los presentaba como una sola solucion.
+.modelos_de <- function(objeto, prefijo = "") {
+  soluciones <- objeto$solution
+  if (is.null(soluciones)) return(list())
+  if (!is.list(soluciones)) soluciones <- list(soluciones)
+
+  ic <- objeto$IC
+  # Con un solo modelo el ajuste esta en la raiz de IC; con varios, en
+  # $individual, uno por modelo y en el mismo orden que $solution.
+  piezas <- if (!is.null(ic$individual)) ic$individual else list(ic)
+
+  lapply(seq_along(soluciones), function(k) {
+    parte <- if (k <= length(piezas)) piezas[[k]] else NULL
+    etiqueta <- if (length(soluciones) > 1 || !nzchar(prefijo)) {
+      paste0(prefijo, if (nzchar(prefijo)) "-" else "", "M", k)
+    } else {
+      prefijo
+    }
+    list(etiqueta = etiqueta,
+         terminos = as.character(soluciones[[k]]),
+         configuraciones = .configuraciones_modelo(parte$incl.cov),
+         ajuste = .ajuste_global(parte$sol.incl.cov))
+  })
+}
+
+#' Empaqueta los modelos eligiendo uno y declarando que hubo mas.
+#'
+#' QUE HACE EL MOTOR ANTE AMBIGUEDAD DE MODELO. Presenta el PRIMERO que
+#' devuelve QCA y deja los demas accesibles en `$modelos`. Elegir entre
+#' modelos equivalentes no es un calculo: todos ajustan igual de bien, y
+#' quedarse con uno exige conocimiento sustantivo que el motor no tiene.
+#' Aplanarlos seria mentir -- son soluciones alternativas, no terminos de
+#' una misma solucion -- y morir seria peor. Asi que se elige con un
+#' criterio explicito, se dice cual, y A-36 obliga al investigador a
+#' mirar los otros y a declarar por escrito con cual se queda.
+#'
+#' `ambigua` se decide sobre los modelos DISTINTOS, no sobre cuantos
+#' devuelve QCA: con varias expectativas direccionales compatibles QCA
+#' puede devolver ocho bloques que se reducen a dos soluciones, y avisar de
+#' ocho donde hay dos es ruido.
+.empaquetar_modelos <- function(modelos) {
+  if (length(modelos) == 0) {
+    return(list(etiqueta = NA_character_, terminos = character(0),
+                configuraciones = .configuraciones_modelo(NULL),
+                ajuste = .ajuste_global(NULL), modelos = list(),
+                n_modelos = 0L, n_distintos = 0L, modelo = NA_character_,
+                ambigua = FALSE))
+  }
+
+  distintos <- unique(vapply(modelos, function(m)
+    paste(sort(m$terminos), collapse = " + "), character(1)))
+
+  c(modelos[[1]],
+    list(modelos = modelos,
+         n_modelos = length(modelos),
+         n_distintos = length(distintos),
+         modelo = modelos[[1]]$etiqueta,
+         ambigua = length(distintos) > 1))
+}
+
+#' Extrae el ajuste de una solucion conservadora o parsimoniosa.
+.ajuste_solucion <- function(sol) {
+  .empaquetar_modelos(.modelos_de(sol))
+}
+
+#' Extrae el ajuste de la solucion INTERMEDIA.
+#'
+#' Aqui vivia el defecto mas grave del motor. Con `dir.exp`, QCA 3.25 deja
+#' la intermedia en sol$i.sol$C1P1$solution y su ajuste en
+#' sol$i.sol$C1P1$IC; sol$solution y sol$IC de primer nivel siguen siendo
+#' los de la PARSIMONIOSA. Leer el primer nivel devolvia la parsimoniosa
+#' con la etiqueta de la intermedia: sin error, sin aviso, y con el numero
+#' equivocado impreso en el anexo.
+#'
+#' Cada bloque C{c}P{p} combina un modelo conservador con uno parsimonioso.
+#' Se recorren todos, en el orden en que QCA los devuelve, y se presenta el
+#' primero -- C1P1, que es el que publican los estudios que declaran una
+#' sola solucion intermedia.
+.ajuste_intermedia <- function(sol) {
+  if (is.null(sol$i.sol) || length(sol$i.sol) == 0) {
+    # Sin restos que simplificar no hay bloques intermedios y la
+    # intermedia coincide con la parsimoniosa, que esta en el primer nivel.
+    return(.ajuste_solucion(sol))
+  }
+  modelos <- unlist(
+    lapply(names(sol$i.sol),
+           function(b) .modelos_de(sol$i.sol[[b]], prefijo = b)),
+    recursive = FALSE)
+  .empaquetar_modelos(modelos)
 }
 
 #' La asimetria causal, declarada en vez de omitida.
@@ -343,6 +471,39 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
 #' porque presentar solo una es una de las observaciones habituales de los
 #' evaluadores. La intermedia necesita expectativas direccionales; sin ellas
 #' no se inventa una.
+#' Las expectativas direccionales, antes de que las lea QCA.
+#'
+#' QCA 3.25 admite dos formas -- la notacion SOP ("DEV + URB + ~STB") y un
+#' vector con una expectativa POR CONDICION -- y ante una lista incompleta
+#' aborta en ingles con "Number of expectations does not match number of
+#' conditions". El investigador no tiene por que leer eso, y la
+#' comprobacion aqui dice ademas cuantas condiciones tiene su tabla.
+.validar_expectativas <- function(expectativas, tt) {
+  condiciones <- tt$options$conditions
+  ayuda <- paste("Las expectativas direccionales van en notacion SOP, en una",
+                 "sola cadena: \"DEV + URB + ~STB\", donde el nombre a secas",
+                 "significa que se espera la condicion presente y ~ que se",
+                 "espera ausente. Tambien se admite un valor por condicion,",
+                 "uno por cada una de las", length(condiciones), "que tiene",
+                 "esta tabla de verdad:",
+                 paste(condiciones, collapse = ", "), ".")
+
+  if (is.character(expectativas)) {
+    if (length(expectativas) != 1 || is.na(expectativas) ||
+        !nzchar(trimws(expectativas))) {
+      stop("Expectativas direccionales vacias o partidas en varias cadenas. ",
+           ayuda, call. = FALSE)
+    }
+    return(invisible(expectativas))
+  }
+  if (length(expectativas) != length(condiciones)) {
+    stop("Se declararon ", length(expectativas), " expectativa(s) ",
+         "direccional(es) y la tabla de verdad tiene ", length(condiciones),
+         " condiciones. ", ayuda, call. = FALSE)
+  }
+  invisible(expectativas)
+}
+
 minimizar <- function(tt, expectativas = NULL) {
   conservadora <- .ajuste_solucion(.minimizar_seguro(tt, details = TRUE))
   parsimoniosa <- .ajuste_solucion(.minimizar_seguro(tt, include = "?",
@@ -350,8 +511,10 @@ minimizar <- function(tt, expectativas = NULL) {
   intermedia <- if (is.null(expectativas)) {
     NULL
   } else {
-    .ajuste_solucion(.minimizar_seguro(tt, include = "?",
-                                       dir.exp = expectativas, details = TRUE))
+    .validar_expectativas(expectativas, tt)
+    .ajuste_intermedia(.minimizar_seguro(tt, include = "?",
+                                         dir.exp = expectativas,
+                                         details = TRUE))
   }
 
   list(conservadora = conservadora, intermedia = intermedia,
@@ -359,8 +522,40 @@ minimizar <- function(tt, expectativas = NULL) {
 }
 
 #' Una solucion que explica menos de la mitad del resultado.
+#'
+#' Exige UN valor y no simplemente uno no-NA: leyendo el ajuste por la ruta
+#' equivocada la cobertura llegaba aqui como numeric(0), `!is.na()` devolvia
+#' logical(0) y el `if` de quien preguntaba reventaba con "missing value
+#' where TRUE/FALSE needed" a varios marcos de distancia del error real.
 cobertura_baja <- function(cobertura) {
-  !is.na(cobertura) && cobertura < COBERTURA_MINIMA
+  length(cobertura) == 1 && !is.na(cobertura) &&
+    cobertura < COBERTURA_MINIMA
+}
+
+#' Ambiguedad de modelo: la solucion presentada no es la unica posible.
+alertas_ambiguedad_modelo <- function(soluciones) {
+  vacia <- alerta("A-36")[0, , drop = FALSE]
+  encontradas <- list()
+
+  for (nombre in names(soluciones)) {
+    sol <- soluciones[[nombre]]
+    if (is.null(sol) || !isTRUE(sol$ambigua)) next
+    encontradas[[length(encontradas) + 1]] <- alerta(
+      "A-36", contexto = nombre,
+      detalle = sprintf(paste("La solucion %s no es unica: la tabla de verdad",
+                              "admite %d minimizacion(es) igual de buena(s),",
+                              "que se reducen a %d solucion(es) distinta(s).",
+                              "Se presenta la primera que devuelve QCA (%s) y",
+                              "las demas quedan disponibles; elegir entre",
+                              "modelos equivalentes no es un calculo, exige",
+                              "conocimiento sustantivo. Declare cual presenta",
+                              "y por que, y reporte que habia alternativas."),
+                        nombre, sol$n_modelos, sol$n_distintos, sol$modelo)
+    )
+  }
+
+  if (length(encontradas) == 0) return(vacia)
+  do.call(rbind, encontradas)
 }
 
 #' Paso 6, tercera parte.
@@ -408,6 +603,7 @@ diagnosticar_suficiencia <- function(tt, expectativas = NULL) {
   } else {
     do.call(rbind, encontradas)
   }
+  alertas <- rbind(alertas, alertas_ambiguedad_modelo(soluciones))
 
   list(soluciones = soluciones, alertas = alertas,
        minimizacion_posible = TRUE, motivo = NA_character_)
