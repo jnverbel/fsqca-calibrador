@@ -64,7 +64,19 @@ jobs:
 
       - name: Dossier de validacion externa
         run: |
-          for t in validation/tests/*.R; do Rscript --vanilla "$t" || exit 1; done
+          # `--vanilla` ignora .Rprofile, que es donde renv activa su biblioteca:
+          # sin esto, `digest` y `jsonlite` no se encuentran en el runner aunque
+          # esten en renv.lock. Se conserva `--vanilla` (cada prueba corre aislada,
+          # como documenta el plan) y se le pasa la biblioteca por R_LIBS_SITE.
+          LIB="$(Rscript -e 'cat(renv::paths$library())')"
+          test -d "$LIB" || { echo "Biblioteca de renv no encontrada: $LIB"; exit 1; }
+          n=0
+          for t in validation/tests/*.R; do
+            R_LIBS_SITE="$LIB" Rscript --vanilla "$t" || exit 1
+            n=$((n + 1))
+          done
+          test "$n" -ge 5 || { echo "Solo corrieron $n pruebas del dossier; se esperan 5 o mas."; exit 1; }
+          echo "Dossier: $n pruebas en verde."
 
       - name: Cada paquete citado en el informe se invoca de verdad
         run: |
