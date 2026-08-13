@@ -2186,47 +2186,40 @@ stopifnot(cuenta("varias replicaciones completas") == 0L)
 # sancion que quedaba tras sacar el D-APP del CI.
 res <- leer_csv("docs/validacion/replicaciones.csv")
 inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
-# Linea a linea y con el patron ANCLADO: `grepl` sobre el documento entero y
-# sin ancla daba por bueno «E025/necesidad: 24» cuando el censo habia bajado a
-# 2, porque «2» es prefijo de «24». Eso anulaba la mitigacion del censo.
+# Una clave, UNA linea. `exige_exacto()` pedia que ALGUNA linea terminara con
+# el valor y nada impedia publicar ademas la ancha: bastaba dejar las dos, y
+# eso alcanzaba tambien al censo, que es la mitigacion central de la Task 12.
+# `unico()` cierra de golpe la forma prefijo y la forma linea duplicada, en las
+# cuatro familias y sin dos anclas distintas que alguien pueda unificar.
 lineas <- readLines("docs/validacion-integral.md", warn = FALSE)
-hay <- function(x) any(grepl(paste0("\\Q", x, "\\E([^0-9]|$)"), lineas,
-                            perl = TRUE))
-exige <- function(x) if (!hay(x)) {
-  stop("Falta en el informe, y sale del CSV: ", x, call. = FALSE)
+unico <- function(clave, valor) {
+  hits <- grep(clave, lineas, fixed = TRUE)
+  if (length(hits) != 1L) {
+    stop("El informe publica ", length(hits), " lineas con '", clave,
+         "'; tiene que publicar exactamente una.", call. = FALSE)
+  }
+  if (!endsWith(lineas[hits], paste0(clave, valor))) {
+    stop("El informe dice otra cosa que el CSV en '", clave, "': el CSV da '",
+         valor, "'.", call. = FALSE)
+  }
 }
-# La familia del censo lleva un NUMERO al final, y ahi `([^0-9]|$)` es el ancla
-# correcta: distingue «2» de «24». La familia de `fuentes` lleva TEXTO, y contra
-# texto esa ancla es inerte —a «Tabla 9» le sigue una coma, que ya es [^0-9]—,
-# asi que degrada a comprobacion de PREFIJO y el documento puede publicar un
-# dominio mas ancho que el del manifiesto. Esa familia va con final de linea.
-hay_exacto <- function(x) any(grepl(paste0("\\Q", x, "\\E$"), lineas,
-                                   perl = TRUE))
-exige_exacto <- function(x) if (!hay_exacto(x)) {
-  stop("Falta literal en el informe, y sale del CSV: ", x, call. = FALSE)
-}
-prohibe <- function(x) if (hay(x)) {
-  stop("El informe afirma lo contrario que el CSV: ", x, call. = FALSE)
-}
-exige(paste("D-APP registrados:", sum(res$codigo == "D-APP")))
+res <- leer_csv("docs/validacion/replicaciones.csv")
+inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
+unico("D-APP registrados: ", sum(res$codigo == "D-APP"))
 for (i in seq_len(nrow(inc))) {
-  v <- veredicto(res, inc$id[i])
-  exige(paste0(inc$id[i], ": ", v))
-  for (otro in setdiff(VEREDICTOS, v)) prohibe(paste0(inc$id[i], ": ", otro))
+  unico(paste0(inc$id[i], ": "), veredicto(res, inc$id[i]))
   man <- jsonlite::fromJSON(sprintf("validation/manifiestos/%s.json", inc$id[i]),
                             simplifyVector = FALSE)
   for (k in names(man$comparaciones)) {
-    exige(sprintf("%s/%s: %s", inc$id[i], k, man$comparaciones[[k]]))
-    # `fuentes` tambien se publica: sin esto, ampliar la lista de un modulo
-    # —mudar una fila a la tabla hermana y declararla— era mas barato que bajar
-    # el censo Y ademas invisible en el documento publico.
+    unico(sprintf("%s/%s: ", inc$id[i], k), man$comparaciones[[k]])
     fu <- paste(unlist(man$fuentes[[k]]), collapse = ", ")
-    exige_exacto(sprintf("%s/%s/fuentes: %s", inc$id[i], k,
-                         if (nzchar(fu)) fu else "(ninguna)"))
+    unico(sprintf("%s/%s/fuentes: ", inc$id[i], k),
+          if (nzchar(fu)) fu else "(ninguna)")
   }
 }
 # La ambiguedad de `no_pasa` es una promesa del plan: el informe la declara.
-stopifnot(hay("no distingue si falla la hipótesis de agregación o el motor"))
+stopifnot(grepl("no distingue si falla la hipótesis de agregación o el motor",
+                doc, fixed = TRUE))
 
 for (r in c("README.md", "README.es.md")) {
   txt <- paste(readLines(r, warn = FALSE), collapse = "\n")
@@ -2267,6 +2260,12 @@ exactamente así:
 - **en el orden en que están en el manifiesto**, no alfabético;
 - y `(ninguna)` cuando la lista está vacía —los módulos cuyo censo es `0`—;
 - y **nada detrás**: la línea termina en la última tabla.
+
+Y lo mismo vale para las otras tres familias: **cada clave se publica en una línea y solo en
+una**. `unico()` cuenta las líneas que contienen la clave y exige exactamente una, así que un
+informe que publique el censo dos veces —el valor verdadero y otro— falla aunque el verdadero
+esté. Eso también acota la redacción: ninguna frase del documento puede contener `E025: `,
+`E025/necesidad: ` ni `E025/necesidad/fuentes: ` fuera de su línea generada.
 
 Si la primera ejecución falla por una coma, lo que se corrige es el generador, nunca la
 comprobación.
@@ -2884,4 +2883,6 @@ Dónde puede mudarse ahora:
    informe** para que ampliar la lista obligara a cambiar el documento público; **la décima
    descubrió que esa exigencia no mordía**, porque comprobaba un valor de texto con el ancla
    numérica del censo y degradaba a prefijo: bastaba publicar el dominio ancho antes de
-   ampliarlo. Con la comprobación contra el final de línea sí muerde, y así queda medido.
+   ampliarlo. La comprobación contra el final de línea cierra **la forma prefijo**; la forma
+   «publicar las dos líneas a la vez» seguía verde, y esa la cierra `unico()` en la undécima
+   pasada exigiendo que cada clave aparezca **una sola vez**.
