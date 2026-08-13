@@ -231,10 +231,17 @@ Van aquí, con la misma letra que los aciertos.
 ## 8. Observaciones sobre los trabajos replicados
 
 Lo que sigue son **observaciones derivadas de una replicación independiente**, no
-conclusiones. Cada una dice qué se midió, contra qué y dónde. Pueden tener explicaciones que
-los datos publicados no permiten distinguir —una versión distinta del archivo, un paso
-intermedio no descrito, una convención de etiquetado—, y **lo procedente es comunicárselas a
-los autores antes de sacar cualquier conclusión**. No se atribuye intención a nadie.
+conclusiones. Cada una dice qué se midió, contra qué y dónde, de modo que cualquiera pueda
+comprobarla con los datos depositados y los parámetros que aquí se indican. Pueden tener
+explicaciones que los datos publicados no permiten distinguir —una versión distinta del
+archivo, un paso intermedio no descrito, una convención de etiquetado—, y **no se ha
+contactado con los autores de los trabajos replicados**: ninguna de estas observaciones lleva,
+por tanto, la explicación que ellos pudieran dar. No se atribuye intención a nadie.
+
+Se publican porque sostienen decisiones de este corpus que de otro modo quedarían sin
+fundamento —varias celdas `mod_*` se marcaron como no comparables por lo que aquí se
+describe— y porque una replicación que solo publicase lo que le cuadra no sería una
+replicación.
 
 - **E025, Tabla 9 (necesidad).** Tal como está impresa, 16 de sus 24 valores caen dentro de
   0,01 de lo que medimos, con una desviación máxima de 0,1095. Si se intercambian las filas
