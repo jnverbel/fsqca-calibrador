@@ -54,6 +54,36 @@ depósito y metadatos.
 | `decision` | Estado de selección: sólo `incluir`, `excluir` o `pendiente`. |
 | `motivo` | Justificación de la decisión de selección. |
 
+Los seis campos `mod_*` admiten `si`, `no` y `no_evaluable`, y los tres se
+definen aquí porque hasta la auditoría de celdas del 2026-08-13 sólo estaba
+definido el primero:
+
+| Valor | Significado | Uso hoy |
+| --- | --- | --- |
+| `si` | **El artículo publica un objeto comparable de ese módulo.** Nunca «la aplicación puede reproducirlo» ni «el artículo menciona el módulo». | 34 celdas, todas en incluidos. |
+| `no_evaluable` | Dos sentidos que **no** son el mismo y conviene no confundir: **(a) no se evaluó**, porque el estudio quedó excluido antes de llegar al módulo —las 114 celdas de los 19 excluidos—; y **(b) se evaluó y el objeto no existe**, que es el resultado de mirar el artículo y no encontrarlo. Las diez celdas apagadas el 2026-08-13 son del sentido (b), y su `motivo` lo dice con el localizador. | 134 celdas. |
+| `no` | Reservado a «el artículo declara explícitamente que **no** hizo ese análisis». **No se usa en ninguna de las 168 celdas**: en la práctica, un módulo que no aparece se documenta como `no_evaluable` (b), que es más honesto porque distingue lo que se buscó de lo que el autor negó. | 0 celdas. |
+
+La distinción que falló en la auditoría: describir la tabla de verdad al
+explicar el método **no** es publicarla, y la tabla de soluciones
+—configuraciones ya minimizadas con su consistencia y sus coberturas— es
+`mod_minimizacion` y `mod_ajuste`, no `mod_tabla_verdad`. Para
+`mod_tabla_verdad = si` hacen falta filas de configuración con su frecuencia,
+su consistencia y sus casos; para `mod_robustez = si`, **cifras alternativas
+publicadas** bajo otros parámetros, no la afirmación de que el resultado no
+cambió.
+
+**Una celda `si` no auditada no es una celda comprobada.** La auditoría del
+2026-08-13 revisó `mod_tabla_verdad` en los nueve incluidos y `mod_robustez`
+donde estaba en `si`; las demás columnas conservan la evaluación de su ronda.
+El candidato declarado para la siguiente pasada es **`E012:necesidad`**, que
+está en `si` y no tiene objeto publicado documentado en ninguna parte del
+dossier: ni en `busqueda-ampliada.md`, ni en su `motivo`, ni en el plan de
+replicaciones, que dice que «el artículo no publica una tabla de necesidad» y
+sostiene la celda sobre afirmaciones del texto. **No se baja aquí**: no está
+auditada contra el artículo, y apagarla sin mirarlo sería el mismo error en la
+otra dirección.
+
 Una fila sólo puede tener `decision = incluir` cuando los cuatro criterios
 materiales (`datos_brutos`, `anclas_reconstruibles`,
 `umbrales_reconstruibles` y `resultado_comparable`) y
@@ -97,8 +127,8 @@ límites de la búsqueda.
 | `registros_nuevos` | Registros identificados en la ronda. |
 | `nivel_a_nuevos` | Estudios nuevos clasificados en nivel A tras evaluación completa. |
 | `nivel_b_nuevos` | Estudios nuevos clasificados en nivel B tras evaluación completa. |
-| `modulos_nuevos` | Módulos cubiertos por primera vez o `ninguno`. |
-| `modulos_cubiertos_acumulados` | Cobertura modular acumulada o `ninguno`. |
+| `modulos_nuevos` | **Derivación de `estudios.csv`, no observación de campo**: la unión de los módulos `si` de los estudios incluidos en esa ronda, o `ninguno` cuando esa unión no aporta ningún módulo que las rondas anteriores no cubrieran ya. `test-busqueda-ampliada.R` lo genera y lo exige. |
+| `modulos_cubiertos_acumulados` | Derivación de `estudios.csv`: unión de los módulos `si` de los incluidos hasta esa ronda, en orden canónico, o `ninguno`. Se genera y se exige igual. |
 | `saturada` | Si la ronda alcanzó saturación: `si` o `no`. |
 | `observaciones` | Notas de trazabilidad de la ronda. |
 

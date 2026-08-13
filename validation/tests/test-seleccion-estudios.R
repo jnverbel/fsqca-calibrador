@@ -280,6 +280,47 @@ falla <- function(expr) {
   inherits(error, "error")
 }
 
+# `evidencia-insuficiente.md` publica el reparto modular y qué estudios
+# sostienen los dos módulos escasos. Son DATOS de `estudios.csv`, y hasta la
+# auditoría de celdas del 2026-08-13 no los ataba nada: se comprobó que
+# falsificar el documento a «tabla_verdad 9 … robustez 6» —restaurando
+# exactamente la cobertura que la auditoría desmintió— dejaba las cinco pruebas
+# en verde. Se GENERAN desde el CSV y se exigen literales, con la línea entera y
+# una sola aparición, que es la misma regla que ata las cifras del flujo en
+# `busqueda-ampliada.md`: así nada puede quedar detrás de la cifra.
+MODULOS_CANONICOS <- c("calibracion", "necesidad", "tabla_verdad",
+                       "minimizacion", "ajuste", "robustez")
+
+lineas_cobertura <- function(estudios) {
+  inc <- estudios[estudios$decision == "incluir", , drop = FALSE]
+  inc <- inc[order(inc$id), , drop = FALSE]
+  sostienen <- function(m) inc$id[inc[[paste0("mod_", m)]] == "si"]
+  c(
+    sprintf("Reparto por módulo: %s.", paste(
+      sprintf("%s %d", MODULOS_CANONICOS,
+              vapply(MODULOS_CANONICOS, function(m) length(sostienen(m)),
+                     integer(1))),
+      collapse = ", ")),
+    sprintf("Sostienen tabla_verdad: %s.",
+            paste(sostienen("tabla_verdad"), collapse = ", ")),
+    sprintf("Sostienen robustez: %s.",
+            paste(sostienen("robustez"), collapse = ", "))
+  )
+}
+
+validar_cobertura_modular <- function(ruta, estudios) {
+  texto <- readLines(ruta, warn = FALSE, encoding = "UTF-8")
+  for (linea in lineas_cobertura(estudios)) {
+    apariciones <- sum(trimws(texto) == linea)
+    if (apariciones != 1L) {
+      stop("El informe publica ", apariciones, " veces una linea que sale de ",
+           "estudios.csv y tiene que aparecer exactamente una: ", linea,
+           call. = FALSE)
+    }
+  }
+  invisible(TRUE)
+}
+
 x <- read.csv("docs/validacion/estudios.csv", stringsAsFactors = FALSE)
 busquedas <- read.csv("docs/validacion/registro-busqueda.csv", stringsAsFactors = FALSE)
 tabla <- validar_tabla(x)
@@ -324,7 +365,33 @@ stopifnot(falla(validar_cribado(cribado_colision_principales, x,
 validar_rama_muestra(
   "docs/validacion/evidencia-insuficiente.md", x, tabla, flujo
 )
+validar_cobertura_modular("docs/validacion/evidencia-insuficiente.md", x)
 validar_exclusiones("docs/validacion/exclusiones-estudios.md", tabla)
+
+# Pareja de casos opuestos, en las dos direcciones.
+#
+# 1. Se mueve el PARÁMETRO, no el documento: si la selección volviera a declarar
+#    `tabla_verdad` en los nueve —la cobertura que la auditoría desmintió—, el
+#    documento publicado dejaría de coincidir y esto tiene que abortar.
+x_cobertura_inflada <- x
+x_cobertura_inflada$mod_tabla_verdad[x_cobertura_inflada$decision == "incluir"] <-
+  "si"
+stopifnot(falla(validar_cobertura_modular(
+  "docs/validacion/evidencia-insuficiente.md", x_cobertura_inflada)))
+
+# 2. Y al revés: un documento que añada estudios a la lista del módulo escaso
+#    con el CSV intacto. Sin esta segunda mitad, un detector mudo pasaría igual.
+informe_cobertura_falsa <- tempfile(fileext = ".md")
+texto_cobertura <- readLines(
+  "docs/validacion/evidencia-insuficiente.md", warn = FALSE, encoding = "UTF-8"
+)
+linea_robustez <- lineas_cobertura(x)[3L]
+stopifnot(sum(trimws(texto_cobertura) == linea_robustez) == 1L)
+texto_cobertura[trimws(texto_cobertura) == linea_robustez] <-
+  sub("[.]$", ", E008, E009, E025.", linea_robustez)
+writeLines(texto_cobertura, informe_cobertura_falsa, useBytes = TRUE)
+stopifnot(falla(validar_cobertura_modular(informe_cobertura_falsa, x)))
+unlink(informe_cobertura_falsa)
 
 # Pruebas de mutación: estos artefactos defectuosos deben ser rechazados.
 stopifnot(falla(validar_tabla(x[0, , drop = FALSE])))

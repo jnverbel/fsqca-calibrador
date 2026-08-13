@@ -262,6 +262,46 @@ stopifnot(identical(rondas$saturada, ifelse(saturada, "si", "no")))
 ultimas <- tail(rondas, 2L)
 requeridos <- c("calibracion", "necesidad", "tabla_verdad",
                "minimizacion", "ajuste", "robustez")
+
+# `modulos_nuevos` y `modulos_cubiertos_acumulados` son DERIVACIONES de
+# `estudios.csv`, no observaciones de campo, y hasta aquí no las derivaba nadie:
+# la auditoría de celdas del 2026-08-13 apagó `E001 mod_tabla_verdad` y la fila
+# R0 siguió publicando `tabla_verdad` en los dos campos —y «cubre cinco módulos»
+# en sus observaciones— con las cinco pruebas en verde. `saturada` no lo veía
+# porque sólo mira si la cadena es `"ninguno"`, y la de R0 no lo es.
+#
+# La regla, que reproduce las cuatro filas y no sólo la que se corrigió: cada
+# ronda publica la UNIÓN de los módulos de los estudios que incorpora, o
+# `ninguno` cuando esa unión no aporta ningún módulo que las rondas anteriores
+# no cubrieran ya. El acumulado es la unión hasta esa ronda, en orden canónico.
+incluidos_dossier <- estudios[estudios$decision == "incluir", , drop = FALSE]
+modulos_de_ronda <- function(ronda) {
+  filas <- incluidos_dossier[incluidos_dossier$ronda_inclusion == ronda, ,
+                             drop = FALSE]
+  requeridos[vapply(requeridos, function(m) {
+    any(filas[[paste0("mod_", m)]] == "si")
+  }, logical(1))]
+}
+cadena <- function(x) if (length(x)) paste(x, collapse = "|") else "ninguno"
+
+acumulados <- character(0)
+for (i in seq_len(nrow(rondas))) {
+  union_ronda <- modulos_de_ronda(rondas$ronda[i])
+  nuevos <- setdiff(union_ronda, acumulados)
+  acumulados <- union(acumulados, union_ronda)
+  esperado_nuevos <- if (length(nuevos)) cadena(union_ronda) else "ninguno"
+  esperado_acum <- cadena(requeridos[requeridos %in% acumulados])
+  if (!identical(rondas$modulos_nuevos[i], esperado_nuevos)) {
+    stop("rondas-busqueda.csv R", rondas$ronda[i], " publica modulos_nuevos '",
+         rondas$modulos_nuevos[i], "' y estudios.csv da '", esperado_nuevos,
+         "'.", call. = FALSE)
+  }
+  if (!identical(rondas$modulos_cubiertos_acumulados[i], esperado_acum)) {
+    stop("rondas-busqueda.csv R", rondas$ronda[i], " publica un acumulado '",
+         rondas$modulos_cubiertos_acumulados[i], "' y estudios.csv da '",
+         esperado_acum, "'.", call. = FALSE)
+  }
+}
 mods_finales <- strsplit(tail(rondas$modulos_cubiertos_acumulados, 1L),
                          "|", fixed = TRUE)[[1L]]
 objetivo_alcanzado <- sum(rondas$nivel_a_nuevos) >= 3L &&

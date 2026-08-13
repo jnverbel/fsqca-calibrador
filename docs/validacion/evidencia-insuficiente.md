@@ -58,7 +58,19 @@ reglas operativas.
 ## Cobertura B que sí existe
 
 Los B cubren calibración, necesidad, tabla de verdad, minimización, ajuste y
-robustez de forma modular. Esto no resuelve la falta de A: no autoriza afirmar
+robustez de forma modular, pero **muy desigualmente**: tras la auditoría de
+celdas del 2026-08-13, que contrastó cada celda `mod_*` contra el artículo
+original, sólo el ajuste llega a los nueve.
+
+Reparto por módulo: calibracion 8, necesidad 8, tabla_verdad 2, minimizacion 4, ajuste 9, robustez 3.
+
+Sostienen tabla_verdad: E012, E015.
+
+Sostienen robustez: E001, E012, E026.
+
+En los demás, lo que el artículo publica es la tabla de **soluciones**, que ya
+es minimización y ajuste, y lo que llama robustez es un párrafo sin cifras
+alternativas. Esto no resuelve la falta de A: no autoriza afirmar
 validación integral, validación externa ni varias replicaciones completas.
 `busqueda-ampliada.md` identifica por B archivos, licencia, constructos,
 anclas, umbrales, soluciones y la limitación que bloquea A.

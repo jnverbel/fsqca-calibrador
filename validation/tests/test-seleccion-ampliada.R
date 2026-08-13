@@ -110,9 +110,17 @@ for (id_b in niveles$b$id) {
 # La matriz `id × mod_*` de los incluidos es tan parte de la congelación como el
 # recuento 0/9/19, y hasta aquí no tenía guardián: apagar `E014 mod_ajuste` de
 # `si` a `no_evaluable` dejaba las cinco pruebas en verde. `validar_niveles()`
-# sólo exige que cada B tenga AL MENOS un módulo en `si`, así que las 44 celdas
+# sólo exige que cada B tenga AL MENOS un módulo en `si`, así que las 34 celdas
 # `si` podían encogerse hasta 9 sin que nada chillara. Se congela igual que las
 # atribuciones por ronda: una firma SHA-256 sobre el volcado ordenado.
+#
+# La cuenta bajó de 44 a 34 el 2026-08-13, al auditar cada celda contra el
+# artículo: `mod_tabla_verdad` estaba en `si` en los nueve —el único módulo con
+# pleno— y en siete de ellos ninguna tabla publicada lo sostenía. El patrón era
+# siempre el mismo: el artículo DESCRIBE la tabla de verdad al explicar el
+# método y publica SÓLO la tabla de soluciones, que es `minimizacion` y
+# `ajuste`. Cayeron también tres celdas de `mod_robustez` que eran prosa sin
+# cifras alternativas, o —en E025— validez predictiva con los mismos cortes.
 firma_matriz_modulos <- function(estudios) {
   inc <- estudios[estudios$decision == "incluir", , drop = FALSE]
   m <- inc[order(inc$id), c("id", modulos), drop = FALSE]
@@ -127,12 +135,12 @@ firma_matriz_modulos <- function(estudios) {
 }
 
 FIRMA_MATRIZ_MODULOS <-
-  "b1430917907bd10f0baee655114621404a9dac07dc6f405bd2bb6f893b1f7d78"
+  "6a72a81d8c78454a6f355f8d0e6ab39166e824d7e9b9791b00b96b29f2db6a4c"
 stopifnot(identical(firma_matriz_modulos(estudios), FIRMA_MATRIZ_MODULOS))
-stopifnot(sum(niveles$b[modulos] == "si") == 44L)
+stopifnot(sum(niveles$b[modulos] == "si") == 34L)
 
 # Mutación en las dos direcciones: apagar CUALQUIER celda `si` de CUALQUIER
-# incluido tiene que mover la firma. Se recorren las 44, no una de muestra.
+# incluido tiene que mover la firma. Se recorren las 34, no una de muestra.
 for (id_incluido in niveles$b$id) {
   for (m in modulos) {
     if (!identical(estudios[[m]][estudios$id == id_incluido], "si")) next
@@ -224,6 +232,32 @@ if (length(sin_cobertura)) {
        "estos no la tienen en estudios.csv: ",
        paste(sin_cobertura, collapse = ", "), call. = FALSE)
 }
+
+# «Ningún módulo en cero» es cierto y a la vez esconde lo importante: tras la
+# auditoría de celdas del 2026-08-13, `tabla_verdad` lo sostienen DOS estudios y
+# `robustez` TRES. Que la frase siga siendo cierta no autoriza a publicarla sola,
+# así que el reparto por módulo también se GENERA desde el CSV y se exige
+# literal. Sin esto, el documento podía seguir diciendo la cuenta vieja con la
+# frase de cobertura intacta y las cinco pruebas en verde.
+conteo_modulos <- vapply(modulos, function(m) sum(niveles$b[[m]] == "si"),
+                         integer(1))
+reparto <- function(n) {
+  sprintf("Reparto por módulo: %s.",
+          paste(sprintf("%s %d", sub("^mod_", "", modulos), n),
+                collapse = ", "))
+}
+exige_auditoria(reparto(conteo_modulos))
+exige_auditoria(sprintf(
+  "Suma %d celdas `si` sobre %d pares estudio-módulo.",
+  sum(conteo_modulos), nrow(niveles$b) * length(modulos)
+))
+# Pareja de casos opuestos: donde toca rechazar, rechaza. La mutación mueve el
+# PARÁMETRO —la cuenta esperada—, no el documento.
+stopifnot(falla(exige_auditoria(reparto(conteo_modulos + 1L))))
+stopifnot(falla(exige_auditoria(sprintf(
+  "Suma %d celdas `si` sobre %d pares estudio-módulo.",
+  sum(conteo_modulos) + 1L, nrow(niveles$b) * length(modulos)
+))))
 
 cat(sprintf(paste0(
   "seleccion ampliada valida: %d texto completo; %d A; %d B; ",

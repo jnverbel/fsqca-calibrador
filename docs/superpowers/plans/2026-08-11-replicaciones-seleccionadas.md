@@ -179,17 +179,22 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   en la calibración de un estudio que no publica bruto—. Es lo que impide que un fallo real
   de `calibrar()` sobre las 459 × 6 membresías de E026 quede absuelto. La garantía es sobre
   el `decidible` de una fila que existe, y **no** dice que el módulo entero sea comparable:
-  `E025:tabla_verdad` no tiene ninguna fila porque el estudio no publica ninguna tabla de
-  verdad, y ese hecho se congela aparte, en `SIN_EXPECTATIVA_PUBLICADA`. Hasta la revisión
-  anterior esta frase decía «no admiten absolución de ninguna clase», que era una promesa más
-  ancha que lo que el código sostiene, y contradecía a la constante.
+  que un módulo sea comparable lo dice `estudios.csv`, y desde la auditoría de celdas del
+  2026-08-13 `tabla_verdad` sólo está declarado en **E012 y E015**, los dos únicos estudios
+  que publican una tabla de verdad de verdad —filas con su frecuencia, sus consistencias y
+  sus casos—. Los demás publican la **tabla de soluciones**, que es `minimizacion` y
+  `ajuste`. Hasta la revisión anterior esta frase decía «no admiten absolución de ninguna
+  clase», que era una promesa más ancha que lo que el código sostiene.
 - **Sin valor publicado no hay fila, y una fila sin valor aborta.** `esperado` vacío no
   devuelve `D-AMB`: **detiene el guardián**. Vaciar la celda era la absolución más barata que
-  quedaba —`is.na(esperado)` daba `D-AMB` y nadie exigía que el valor existiera—. Los
-  módulos declarados `si` en los que el estudio no publica **nada** comparable son dos en
-  toda la muestra, están congelados en `SIN_EXPECTATIVA_PUBLICADA` y se comprueban en las
-  dos direcciones: ahí tiene que haber **cero** filas, y en cualquier otro módulo declarado
-  tiene que haber **al menos una**.
+  quedaba —`is.na(esperado)` daba `D-AMB` y nadie exigía que el valor existiera—. Un módulo
+  declarado `si` en el que el estudio no publique **nada** comparable iría en
+  `SIN_EXPECTATIVA_PUBLICADA`, que se comprueba en las dos direcciones: ahí tiene que haber
+  **cero** filas y en cualquier otro módulo declarado **al menos una**. Hoy la lista está
+  **vacía**, porque los dos casos que tenía —la tabla de verdad de E025 y la robustez de
+  E008— resultaron ser exactamente lo que la auditoría de celdas comprobó: módulos que el
+  estudio no publica, y eso se declara apagando la celda en `estudios.csv`, no listando una
+  excepción al lado.
 - **El código no se cree ni se escribe: se DERIVA.** `codigo_de_la_fila()` es una función
   total de la fila, el valor obtenido, la selección congelada y el estado de la compuerta, y
   `test-consolidacion.R` exige que el código escrito en `replicaciones.csv` sea exactamente
@@ -222,7 +227,7 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   **La clave del grupo es `(id_estudio, fuente)`, y hacen falta DOS restricciones, no una.**
   Con `fuente` como única clave la comprobación se esquivaba sin inventar nada: bastaba **mudar
   la fila a la tabla hermana** del mismo estudio, impresa con menos decimales y en la misma
-  escala —E025 publica la Tabla 8 a dos decimales, la Tabla 9 a tres y la Tabla 11 a cuatro—.
+  escala —E025 publica la Tabla 8 a dos decimales y la Tabla 9 a tres—.
   Pero sustituir la clave por `modulo` **rompe con datos legítimos y abre otro agujero**, y las
   dos cosas están medidas: la `calibracion` de E012 saca dos membresías del texto a tres
   decimales y la transcripción de la S2 a dos, así que agrupar por módulo aborta el guardián; y
@@ -254,12 +259,17 @@ puede producir esa misma solución. De ahí dos reglas, fijadas antes de ejecuta
   entra en el CSV con código `D-AMB`, la fuente de la expectativa y el ajuste que la
   aplicación sí produce anotado en la columna `obtenido`, para que el informe muestre ambos
   números sin declarar equivalencia. Un `D-AMB` no cuenta como aprobación.
-- **La robustez de E009 NO entra en esa excusa.** Lo que compara es la estabilidad de los
-  veredictos de necesidad ante el barrido de anclas del propio motor: no depende del tipo de
-  solución, depende de la aplicación. Su fila lleva `decidible = si` y **tiene que poder
-  salir `D-APP`**, porque un barrido que voltea un veredicto sería un defecto de
-  `fsqca-calibrador`. Un guardián que exigiera `D-AMB` para toda la robustez de los cinco
-  estudios convertiría ese hallazgo en una prueba roja y presionaría a degradarlo.
+- **`robustez` sólo está declarada en E001, E012 y E026** desde la auditoría de celdas del
+  2026-08-13. En E001 y E012 la excusa `no_tipo_solucion` es **estructuralmente imposible**
+  —su `mod_minimizacion` es `si`—, así que sus filas de robustez sólo pueden llevar
+  `decidible = si` y **tienen que poder salir `D-APP`**: un barrido de umbrales que no
+  reproduce el escenario alternativo publicado sería un defecto de `fsqca-calibrador`. En
+  E026 sí cabe `no_tipo_solucion`, porque los dos escenarios de su Tabla 6 son soluciones
+  intermedias. La aserción que hasta esta revisión sostenía esa propiedad —«la robustez de
+  E009 lleva `decidible = si`»— **desaparece con el módulo**: E009 no publica ninguna cifra
+  alternativa (varía PRI `0.80`→`0.85` y frecuencia `3`→`4` y no publica nada), así que su
+  `mod_robustez` es `no_evaluable` y no tiene filas que exigir. El barrido del motor se sigue
+  ejecutando en E009 y se informa como **descripción**, sin comparación.
 - **Qué estudios tienen minimización comparable no se escribe a mano**: sale de
   `mod_minimizacion == "si"` en `docs/validacion/estudios.csv` (E001, E008, E012 y E015).
 - **«No ejecutable» no es un botón.** Un estudio solo puede declararse no ejecutable en su
@@ -404,8 +414,12 @@ stopifnot(identical(COLUMNAS_COMPUERTAS, c("id_estudio", "compuerta", "fuente",
                                            "estado", "detalle")))
 
 # Las listas cerradas tienen tamano fijo: crecer una es un cambio de dos
-# lineas en dos archivos, no una celda mas en un CSV.
-stopifnot(length(SIN_EXPECTATIVA_PUBLICADA) == 2L)
+# lineas en dos archivos, no una celda mas en un CSV. Tras la auditoria de
+# celdas del 2026-08-13 la primera queda VACIA: sus dos entradas eran
+# `E025:tabla_verdad` y `E008:robustez`, y esos dos modulos ya no estan
+# declarados —la seleccion los congelo en `no_evaluable`—, asi que una entrada
+# suya seria una excepcion que nadie consulta.
+stopifnot(length(SIN_EXPECTATIVA_PUBLICADA) == 0L)
 stopifnot(length(ESTUDIOS_NO_EJECUTABLES) == 1L)
 stopifnot(length(COMPUERTAS_AGREGACION) == 3L)
 stopifnot(identical(ESTADOS_COMPUERTA, c("pasa", "no_pasa", "no_aplica")))
@@ -484,16 +498,19 @@ for (m in siempre) {
 # 3. La seleccion congelada se congela AQUI: apagar una celda `si` a
 #    `no_evaluable` borraba el modulo del censo, del manifiesto y del informe
 #    —indistinguible de una limitacion genuina— y 35 de 44 pasaban en verde.
+#    Auditada celda a celda contra los articulos el 2026-08-13, la matriz baja
+#    de 44 `si` a 34: `tabla_verdad` estaba en `si` en los NUEVE —el unico
+#    modulo con pleno— y en siete de ellos ninguna tabla publicada lo sostenia.
 CONGELADO <- c(
-  "E001 si no_evaluable si si si si",
-  "E008 si si si si si si",
-  "E009 no_evaluable si si no_evaluable si si",
+  "E001 si no_evaluable no_evaluable si si si",
+  "E008 si si no_evaluable si si no_evaluable",
+  "E009 no_evaluable si no_evaluable no_evaluable si no_evaluable",
   "E012 si si si si si si",
-  "E014 si si si no_evaluable si no_evaluable",
+  "E014 si si no_evaluable no_evaluable si no_evaluable",
   "E015 si si si si si no_evaluable",
-  "E025 si si si no_evaluable si si",
-  "E026 si si si no_evaluable si si",
-  "E027 si si si no_evaluable si no_evaluable")
+  "E025 si si no_evaluable no_evaluable si no_evaluable",
+  "E026 si si no_evaluable no_evaluable si si",
+  "E027 si si no_evaluable no_evaluable si no_evaluable")
 o <- inc[order(inc$id), , drop = FALSE]
 stopifnot(identical(
   paste(o$id, apply(o[, paste0("mod_", MODULOS)], 1L, paste, collapse = " ")),
@@ -598,8 +615,14 @@ COLUMNAS_COMPUERTAS <- c("id_estudio", "compuerta", "fuente", "estado",
 DECIDIBLE <- c("si", "no_tipo_solucion", "no_ejercitado")
 
 # Excepciones cerradas a «todo modulo declarado tiene al menos una
-# comparacion»: aqui cero filas, y al menos una en todo lo demas.
-SIN_EXPECTATIVA_PUBLICADA <- c("E025:tabla_verdad", "E008:robustez")
+# comparacion»: aqui cero filas, y al menos una en todo lo demas. Vacia desde
+# la auditoria de celdas del 2026-08-13: sus dos entradas —`E025:tabla_verdad`
+# y `E008:robustez`— dejaron de ser modulos declarados, porque justamente lo
+# que la auditoria comprobo es que el estudio no publica nada comparable ahi, y
+# eso se dice apagando la celda, no listando una excepcion. La constante se
+# queda: es el sitio donde iria `E012:necesidad` si su texto resultara no fijar
+# el umbral con el que declara la necesidad (Task 7).
+SIN_EXPECTATIVA_PUBLICADA <- character(0)
 
 # Unicos estudios que pueden declararse `no_ejecutable` en su manifiesto, en
 # las dos direcciones. Sin esto seria un boton para absolver un estudio entero.
@@ -819,8 +842,8 @@ git commit -m "test: fijar contratos de replicacion"
 - Create: `validation/tests/testthat/test-replicacion-E025.R`
 
 **Interfaces:**
-- Consumes: `journal.pone.0291870.s001.csv` y las Tablas 8, 9, 10 y 11 de la publicación.
-- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad`, `tabla_verdad`, `ajuste` y `robustez`. `minimizacion` es `no_evaluable`.
+- Consumes: `journal.pone.0291870.s001.csv` y las Tablas 8, 9 y 10 de la publicación.
+- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad` y `ajuste`. `minimizacion`, `tabla_verdad` y `robustez` son `no_evaluable`.
 
 - [ ] **Step 1: Escribir el manifiesto, con el censo contado sobre las tablas**
 
@@ -829,11 +852,17 @@ la tabla publicada, no las filas escritas. Para E025: la Tabla 8 publica media, 
 típica, mínimo y máximo de las siete variables (`4 × 7 = 28`) más el `n` de casos ⇒ **29**;
 la Tabla 9 publica consistencia y cobertura de necesidad para las seis condiciones en
 presencia y en ausencia (`2 × 2 × 6`) ⇒ **24**; la Tabla 10 publica consistencia y cobertura
-de la solución ⇒ **2**; la Tabla 11 publica cobertura bruta, única y consistencia de `M1` y
-de `M2` más la cobertura y la consistencia de la solución ⇒ **8**. `tabla_verdad` va a
-**0**: el artículo no publica ninguna, y por eso `E025:tabla_verdad` está en
-`SIN_EXPECTATIVA_PUBLICADA`. Si al transcribir la tabla el conteo no cuadra, sobra o falta
+de la solución ⇒ **2**. Si al transcribir la tabla el conteo no cuadra, sobra o falta
 una fila: el conteo no se ajusta al resultado.
+
+**No hay bloque de `tabla_verdad` ni de `robustez`**, y no porque tengan censo `0`: desde la
+auditoría de celdas del 2026-08-13 no están declarados. El artículo no publica tabla de
+verdad —la Tabla 10 son configuraciones ya minimizadas, con núcleo y periferia y sin conteo
+de casos— y lo que se leía como robustez es la **validez predictiva** de la Tabla 11, que
+parte la muestra usando «identical cutoff points for both sets of samples»: no varía ningún
+parámetro, que es justo lo contrario de un análisis de sensibilidad. Las claves de
+`comparaciones` son exactamente los `mod_* == "si"`, así que declarar cualquiera de los dos
+aborta el guardián.
 
 `validation/manifiestos/E025.json`:
 
@@ -855,13 +884,11 @@ una fila: el conteo no se ajusta al resultado.
   "comparaciones": {
     "calibracion": 29,
     "necesidad": 24,
-    "tabla_verdad": 0,
-    "ajuste": 2,
-    "robustez": 8
+    "ajuste": 2
   },
   "fuentes": {
     "calibracion": ["Tabla 8"], "necesidad": ["Tabla 9"],
-    "tabla_verdad": [], "ajuste": ["Tabla 10"], "robustez": ["Tabla 11"]
+    "ajuste": ["Tabla 10"]
   }
 }
 ```
@@ -874,7 +901,8 @@ del texto y de la S2— y puede estar vacía donde el censo es `0`.
 
 Las claves de `comparaciones` son exactamente los módulos que `estudios.csv` declara `si` para
 E025;
-`minimizacion` no aparece porque es `no_evaluable`. El manifiesto de cada estudio se escribe
+`minimizacion`, `tabla_verdad` y `robustez` no aparecen porque son `no_evaluable`.
+El manifiesto de cada estudio se escribe
 en su propia tarea y no se vuelve a tocar: cualquier cambio posterior a `comparaciones` va
 en un commit propio, con la tabla recontada.
 
@@ -925,37 +953,34 @@ en un commit propio, con la tabla recontada.
   comparación se ejecuta y entra **prerregistrada `D-AMB`**, con el ajuste de la solución que
   la aplicación sí produce anotado al lado. Es la regla general de la sección «Regla de tipo
   de solución y de ajuste».
-- **Robustez**: `mod_robustez = si`. Lo que el estudio publica como robustez es la
-  **validez predictiva** (Tabla 11 y sección «Predictive validity»): partición aleatoria en
-  submuestra y muestra de reserva, los mismos cortes, y dos modelos de la submuestra
+- **Robustez**: `mod_robustez = no_evaluable` desde la auditoría de celdas del 2026-08-13.
+  **El estudio no publica ningún análisis de sensibilidad.** Lo que este plan tomaba por
+  robustez es la **validez predictiva** (Tabla 11 y sección «Predictive validity»): partición
+  aleatoria en submuestra y muestra de reserva y dos modelos de la submuestra
   —`M1: FUN*PU*PEOU*ATTs` con cobertura bruta `0.8035`, única `0.4796` y consistencia
   `0.9306`; `M2: ~FUN*AES*~EXP*~PU*PEOU*ATTs` con `0.3435`, `0.0195` y `0.9817`; solución
-  `0.8230 / 0.9305`—. **La partición no está publicada**: ni la semilla, ni el tamaño, ni la
-  lista de casos de cada mitad; se buscó en la sección «Predictive validity» el 2026-08-11 y
-  solo consta «randomly divided into holdout samples and subsamples». Sin ella esos cuatro
-  decimales no son reproducibles, así que la comparación entra **prerregistrada `D-AMB`**
-  con las cifras publicadas en `esperado` y la razón en el informe. Su `decidible` es
-  `no_tipo_solucion`, cuya precondición —`mod_minimizacion == "no_evaluable"` en la selección
-  congelada— se cumple para E025: la validez predictiva se calcula **sobre la solución que el
-  estudio reporta**, que es la intermedia, así que la misma razón que hace no decidible su
-  ajuste hace no decidible su robustez. La marca `no_insumo_ausente` que este plan tuvo hasta
-  la revisión anterior sobraba: absolvía este mismo caso pidiendo una línea en un CSV que
-  nadie podía falsar, y de paso alcanzaba a estudios cuya solución **sí** es reproducible.
-  Los valores de la Fig 3
-  (consistencia `0.937`, cobertura `0.784`) no se usan: son de figura. Además se ejecuta el
-  barrido de anclas y umbrales del paso 7 del motor y se informa como descripción.
+  `0.8230 / 0.9305`—, y el artículo declara literalmente que se usaron «**identical cutoff
+  points** for both sets of samples». Eso es la **negación** del criterio: no hay parámetro
+  variado que comparar. A la partición le faltaba además todo —semilla, tamaño y lista de
+  casos de cada mitad; se buscó en «Predictive validity» el 2026-08-11 y solo consta
+  «randomly divided into holdout samples and subsamples»—, así que la fila `D-AMB` que este
+  plan prerregistraba estaba de más: sin módulo declarado **no hay fila**. Los ocho valores
+  de la Tabla 11 y los de la Fig 3 (consistencia `0.937`, cobertura `0.784`, que además son
+  de figura) se transcriben en el prerregistro para exhibirlos, no para compararlos. El
+  barrido de anclas y umbrales del paso 7 del motor se ejecuta y se informa como descripción.
 
 - [ ] **Step 3: Escribir las expectativas**
 
 `validation/expectativas/E025.csv` (extracto exacto del encabezado y de las primeras filas;
 se completa con las 7 medias y 7 desviaciones de la Tabla 8, las 12 consistencias y 12
-coberturas de la Tabla 9 y las cifras de las Tablas 10 y 11). **No hay ninguna fila
-`modulo = minimizacion`**: la selección la congeló como `no_evaluable`.
+coberturas de la Tabla 9 y las dos cifras de la Tabla 10). **No hay ninguna fila
+`modulo = minimizacion`, `modulo = tabla_verdad` ni `modulo = robustez`**: la selección
+congeló los tres como `no_evaluable`.
 
 **Aviso para quien monte el corpus**: este bloque y el `comparaciones` del manifiesto **no
-casan entre sí y no deben casar**. El manifiesto declara `calibracion: 29`, `necesidad: 24` y
-`robustez: 8` —contados sobre las tablas publicadas— y aquí se muestran 5, 2 y 2 filas, porque
-esto es un extracto. El censo se **deriva de la tabla publicada**, nunca se copia del extracto:
+casan entre sí y no deben casar**. El manifiesto declara `calibracion: 29` y `necesidad: 24`
+—contados sobre las tablas publicadas— y aquí se muestran 5 y 2 filas, porque esto es un
+extracto. El censo se **deriva de la tabla publicada**, nunca se copia del extracto:
 copiarlo lo bajaría de 29 a 5 en silencio.
 
 ```csv
@@ -969,8 +994,6 @@ E025,necesidad,consistencia_fs_ATTs,0.952,decimales,si,Tabla 9
 E025,necesidad,cobertura_fs_ATTs,0.860,decimales,si,Tabla 9
 E025,ajuste,consistencia_solucion,0.915,decimales,no_tipo_solucion,Tabla 10
 E025,ajuste,cobertura_solucion,0.881,decimales,no_tipo_solucion,Tabla 10
-E025,robustez,consistencia_M1_submuestra,0.9306,decimales,no_tipo_solucion,Tabla 11
-E025,robustez,cobertura_bruta_M1_submuestra,0.8035,decimales,no_tipo_solucion,Tabla 11
 ```
 
 No hay columna `decimales`: `cobertura_fs_ATTs` vale `0.860` y no `0.86` porque así lo
@@ -980,19 +1003,20 @@ alguien lo leyera como numérico, el cero final desaparecería y la tolerancia s
 multiplicaría por diez.
 
 Las de calibración y necesidad llevan `decidible = si`: **pueden dar `D-APP`** y son las que
-ejercitan el motor. Las de ajuste y robustez llevan `no_tipo_solucion`, que solo pasa porque
+ejercitan el motor. Las de ajuste llevan `no_tipo_solucion`, que solo pasa porque
 `estudios.csv` declara `mod_minimizacion = no_evaluable` para E025.
 
-**`tabla_verdad`**: `mod_tabla_verdad = si` porque el estudio declara los tres umbrales, no
-porque publique la tabla. No hay tabla de verdad impresa en el artículo ni en su suplemento;
-se buscó en las Tablas 1–11 y en la sección «Sufficient conditions analysis» el 2026-08-11.
-**No hay fila de expectativa, y por eso `E025:tabla_verdad` es una de las dos entradas de
-`SIN_EXPECTATIVA_PUBLICADA`**, con su conteo en `0` en el manifiesto; la ausencia se declara
-con localizador en `validation/prerregistros/E025.md`, que no decide ningún código. El
-informe publica igualmente el número de filas, sus frecuencias y sus consistencias como
-descripción, sin fingir una comparación. No se inventa una
-cuenta de filas a partir de las seis configuraciones de la Tabla 10: ese número no es el
-mismo objeto.
+**`tabla_verdad`**: `mod_tabla_verdad = no_evaluable`. La celda estuvo en `si` porque el
+estudio declara los tres umbrales, no porque publique la tabla, y la auditoría del 2026-08-13
+la apagó: no hay tabla de verdad impresa en el artículo ni en su suplemento —se buscó en las
+Tablas 1–11 y en «Sufficient conditions analysis» el 2026-08-11, y el S1 File es un CSV de
+225 respuestas de encuesta—. **Sin módulo declarado no hay ni fila ni entrada de censo**, y
+declarar `tabla_verdad` en el manifiesto de E025 aborta el guardián. `minimizar()` y
+`construir_tabla_verdad()` se ejecutan igual porque la cadena lo exige aguas abajo, y el
+informe publica el número de filas, sus frecuencias y sus consistencias como **descripción**,
+sin fingir una comparación. No se inventa una cuenta de filas a partir de las seis
+configuraciones de la Tabla 10: ese número no es el mismo objeto — precisamente confundir los
+dos objetos es lo que mantuvo la celda en `si` en siete de los nueve incluidos.
 
 - [ ] **Step 4: Escribir el adaptador**
 
@@ -1063,10 +1087,10 @@ perfecto para fabricarlo, y nadie lo estaba mirando.
 
 Las demás pruebas del archivo, con la misma forma: `de_fs_*`, `min/max`, `n_casos` y las
 doce consistencias y coberturas de necesidad con `analizar_necesidad()`, que son las
-comparaciones que sí pueden dar `D-OK`; y la tabla de verdad con
-`construir_tabla_verdad(..., consistencia = 0.80, pri = 0.75, frecuencia = 3)`, el ajuste
-con `diagnosticar_suficiencia()` y la validez predictiva, que se ejecutan y **se afirman
-como `D-AMB`**, no como `D-OK`:
+comparaciones que sí pueden dar `D-OK`; y el ajuste con `diagnosticar_suficiencia()`, que se
+ejecuta y **se afirma como `D-AMB`**, no como `D-OK`. `construir_tabla_verdad(...,
+consistencia = 0.80, pri = 0.75, frecuencia = 3)` se llama para poder seguir la cadena, pero
+**no tiene ninguna fila de comparación**: su módulo es `no_evaluable`.
 
 ```r
 est <- leer_csv("docs/validacion/estudios.csv")
@@ -1119,7 +1143,7 @@ git commit -m "test: replicar E025 contra sus tablas publicadas"
 
 **Interfaces:**
 - Consumes: `journal.pone.0320723.s003.csv` y las Tablas 8, 9 y 10.
-- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad`, `tabla_verdad` y `ajuste`. `minimizacion` y `robustez` son `no_evaluable`.
+- Produces: la compuerta de agregación y comparaciones de `calibracion`, `necesidad` y `ajuste`. `minimizacion`, `tabla_verdad` y `robustez` son `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -1157,6 +1181,11 @@ CC BY 4.0, verificado el 2026-08-11.
   solución**: la Tabla 10 es la intermedia —«The complex solution lacked explanatory value,
   while the parsimonious and intermediate solutions successfully made a distinction between
   the core and peripheral conditions»— y no se sustituye por la parsimoniosa.
+- **Tabla de verdad**: `mod_tabla_verdad = no_evaluable` desde la auditoría de celdas del
+  2026-08-13. Lo único publicado es esa Tabla 10 de soluciones; se inventariaron las 13
+  tablas del artículo y sus tres suplementos y ninguno contiene una tabla de verdad. Se
+  construye igualmente para poder minimizar y se informa como descripción, **sin fila de
+  comparación y sin clave en el censo**.
 - **Ajuste**: `mod_ajuste = si`, con `consistencia_solucion 0.920` y
   `cobertura_solucion 0.890` de esa misma solución intermedia ⇒ comparación ejecutada y
   **prerregistrada `D-AMB`**, con el ajuste de la solución que la aplicación sí produce
@@ -1178,7 +1207,8 @@ el módulo `necesidad`; y de la Tabla 10, `consistencia_solucion = 0.920` y
 solución intermedia y por tanto `D-AMB`. Las seis configuraciones `S-1` a `S-6` con sus
 consistencias y coberturas **no** entran como expectativas de minimización: ese módulo es
 `no_evaluable`. Se transcriben en el prerregistro para que el informe pueda enseñarlas junto
-a lo que produzca la aplicación, sin compararlas.
+a lo que produzca la aplicación, sin compararlas. El censo de E027 queda, por tanto, en tres
+claves: `calibracion`, `necesidad` y `ajuste`.
 
 - [ ] **Step 4: Adaptador y prueba**
 
@@ -1187,7 +1217,8 @@ Igual forma que E025: `definir_mapeo()` con los siete constructos y sus ítems r
 `IR` = `IR2, IR3, IR6, IR7, IR8`; `CS`, `PE`, `QEU`, `LE` con sus cinco ítems),
 `escala = c(1, 5)`, `LE` con rol `resultado`. La prueba resuelve primero la compuerta de
 agregación (Tabla 8) y solo después la cadena calibración → necesidad → tabla de verdad →
-ajuste. El ajuste se afirma con `codigo_de_la_fila()` sobre una fila con
+ajuste, en la que la tabla de verdad se ejecuta sin comparar. El ajuste se afirma con
+`codigo_de_la_fila()` sobre una fila con
 `decidible = no_tipo_solucion`, que devuelve `D-AMB` para E027 igual que en E025; la
 calibración y la necesidad, sobre filas con `decidible = si`, siguen pudiendo dar `D-APP`.
 
@@ -1206,7 +1237,7 @@ git commit -m "test: replicar E027 contra sus tablas publicadas"
 
 **Interfaces:**
 - Consumes: `journal.pone.0348315.s002.xlsx` y las Tablas 5, 8 y 9.
-- Produces: comparaciones de necesidad, tabla de verdad, ajuste y robustez. **No** de calibración ni de minimización: `mod_calibracion` y `mod_minimizacion` son `no_evaluable`.
+- Produces: comparaciones de necesidad y ajuste, y nada más. `mod_calibracion`, `mod_minimizacion`, `mod_tabla_verdad` y `mod_robustez` son `no_evaluable`, así que el censo de E009 tiene exactamente dos claves.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -1250,19 +1281,33 @@ inspeccionado, no como entrada.
   (sección de suficiencia; fsQCA 4.0).
 - **Expectativas**: Tabla 8 (necesidad, alto y bajo nivel de `EI`, 24 consistencias y 24
   coberturas, 3 decimales) para el módulo `necesidad`, que es el único de E009 que puede dar
-  `D-OK`. Del módulo **ajuste**, `consistencia_solucion` `0.923` y `0.929` y
+  `D-OK` —y desde la auditoría de celdas, el único que ejercita el motor con veredicto—.
+  Del módulo **ajuste**, `consistencia_solucion` `0.923` y `0.929` y
   `cobertura_solucion` `0.625` y `0.391` de la Tabla 9, **prerregistrados `D-AMB`**: el
   artículo declara que «This study primarily relies on the intermediate solution» y no
   publica su `include`. Las siete configuraciones de la Tabla 9 no entran como expectativas:
   `mod_minimizacion` es `no_evaluable`, y no se sustituye la intermedia por la parsimoniosa.
-- **Robustez**: se compara la estabilidad de los veredictos de necesidad de la Tabla 8 ante
-  el desplazamiento de anclas del barrido del motor. **Su fila lleva `decidible = si`**, con
-  `precision = exacta`, y por tanto **puede salir `D-APP`**: esta comparación no depende del
-  tipo de solución, depende de la aplicación, y un barrido que voltea un veredicto es un
-  defecto de `fsqca-calibrador`, no una ambigüedad del estudio. `test-consolidacion.R`
-  comprueba explícitamente que estas filas lleven `decidible = si`: `mod_minimizacion` de
-  E009 es `no_evaluable`, así que la precondición estructural de `no_tipo_solucion` se
-  cumpliría, y sin esta aserción un defecto real quedaría absuelto.
+- **Tabla de verdad**: `mod_tabla_verdad = no_evaluable` desde la auditoría de celdas del
+  2026-08-13. El artículo publica sólo la Tabla 9, que son soluciones; la única aparición de
+  «truth table» está en la nota de calibración que suma `0.001` a los valores de `0.5`, y S1
+  a S4 se revisaron sin encontrarla. Se construye para poder seguir la cadena y se informa
+  como descripción, sin comparación.
+- **Robustez**: `mod_robustez = no_evaluable` desde la misma auditoría. La sección
+  «Robustness tests» varía dos parámetros —PRI `0.80`→`0.85` y frecuencia `3`→`4`— y **no
+  publica una sola cifra alternativa**, así que no hay nada que comparar. El barrido de
+  anclas del motor se ejecuta y se informa como **descripción**.
+
+  **Lo que se pierde con ese apagado, dicho en voz alta.** Hasta esta revisión, la fila de
+  robustez de E009 era la única del plan que medía el barrido del **motor** —la estabilidad
+  de los veredictos de necesidad de la Tabla 8 ante el desplazamiento de anclas—, llevaba
+  `decidible = si` y `test-consolidacion.R` lo exigía en una línea, precisamente porque
+  `mod_minimizacion` de E009 es `no_evaluable` y sin esa aserción la excusa
+  `no_tipo_solucion` habría absuelto un defecto real. **Esa aserción desaparece con el
+  módulo**, y no se sustituye por otra: de los tres estudios que conservan `robustez`, en
+  E001 y E012 la excusa es estructuralmente imposible —`mod_minimizacion` es `si`—, así que
+  la propiedad se mantiene sola; en E026 los dos escenarios de la Tabla 6 son soluciones
+  intermedias y forzarlos a `decidible = si` sería fabricar un `D-APP` por tipo de solución.
+  Queda escrito aquí para que nadie lo lea como un descuido.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -1288,7 +1333,7 @@ git commit -m "test: replicar los modulos declarados de E009"
 
 **Interfaces:**
 - Consumes: `journal.pone.0326226.s003.xlsx` y las Tablas 4 y 7 más el párrafo de necesidad.
-- Produces: comparaciones de los seis módulos.
+- Produces: comparaciones de `calibracion`, `necesidad`, `minimizacion` y `ajuste`. `tabla_verdad` y `robustez` son `no_evaluable` desde la auditoría de celdas del 2026-08-13.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -1340,16 +1385,23 @@ Los tres suplementos con sus hashes de la tabla de artefactos. Entrada de datos:
   0.126, 0.084, 0.161`; solución alta `0.808 / 0.551` y baja `0.870 / 0.418`; tres
   decimales. De la Tabla 4 se comparan además media, desviación, mínimo y máximo de los
   cinco conjuntos calibrados (2 decimales).
-- **Robustez**: `mod_robustez = si`, pero el estudio **no publica un escenario alternativo
-  de umbrales ni de anclas**. Se buscaron «robust» y «sensitivity» en el texto completo el
-  2026-08-11: las coincidencias son prosa de la discusión sobre la combinación de métodos
-  —regresión, NCA, fsQCA y prueba de Mann-Whitney—, no una repetición del análisis con otros
-  cortes. **No hay fila de expectativa, y por eso `E008:robustez` es la segunda entrada de
-  `SIN_EXPECTATIVA_PUBLICADA`**, con su conteo en `0` en el manifiesto: la ausencia se
-  declara con su localizador en `validation/prerregistros/E008.md`, que no decide ningún
-  código, y el barrido de anclas y umbrales del motor se informa como descripción. No cabe
-  aquí `no_tipo_solucion`: `mod_minimizacion` de E008 es `si`, así que su solución sí es
-  reproducible y ninguna fila suya puede excusarse con el tipo de solución.
+- **Tabla de verdad**: `mod_tabla_verdad = no_evaluable` desde la auditoría de celdas del
+  2026-08-13. El artículo publica sólo la Table 7 «Configurations analysis» —soluciones ya
+  minimizadas, con ● y ⊗ y filas de consistencia y coberturas—, ni siquiera usa la expresión
+  «truth table», y S1 Appendix, S2 Code y S3 Data se revisaron sin encontrarla. Se construye
+  con `consistencia = 0.8`, `pri = 0.6`, `frecuencia = 1` para `ICSM` y para `~ICSM` porque
+  la minimización lo exige, y se informa como descripción: **sin fila y sin clave de censo**.
+- **Robustez**: `mod_robustez = no_evaluable` desde la misma auditoría. La §4.4.4
+  «Robustness analysis» son dos frases y **cero cifras alternativas**: varía la consistencia
+  de `0.8` a `0.85` y afirma que «configurations… are identical to the subset of original
+  results». Se buscaron además «robust» y «sensitivity» en el texto completo el 2026-08-11 y
+  el resto son prosa de la discusión sobre la combinación de métodos —regresión, NCA, fsQCA y
+  Mann-Whitney—. Hasta esta revisión el par `E008:robustez` era una de las dos entradas de
+  `SIN_EXPECTATIVA_PUBLICADA`, con censo `0`; ahora no hay módulo que declarar, así que la
+  entrada sobra y **la lista queda vacía**. El barrido de anclas y umbrales del motor se
+  informa como descripción. Nunca cupo aquí `no_tipo_solucion`: `mod_minimizacion` de E008 es
+  `si`, así que su solución sí es reproducible y ninguna fila suya puede excusarse con el
+  tipo de solución.
 
 - [ ] **Step 3: Adaptador, expectativas y prueba**
 
@@ -1375,8 +1427,8 @@ adaptar_E008 <- function(ruta) {
 
 La prueba calibra las cinco variables con `idm = 0.95`, compara media, desviación, mínimo y
 máximo contra la Tabla 4, evalúa la proposición de necesidad, construye la tabla de verdad
-con `consistencia = 0.8`, `pri = 0.6`, `frecuencia = 1` para `ICSM` y para `~ICSM`, y
-compara la solución parsimoniosa y el ajuste contra la Tabla 7.
+con `consistencia = 0.8`, `pri = 0.6`, `frecuencia = 1` para `ICSM` y para `~ICSM` **sin
+compararla**, y compara la solución parsimoniosa y el ajuste contra la Tabla 7.
 
 - [ ] **Step 4: Commit**
 
@@ -1393,7 +1445,7 @@ git commit -m "test: replicar E008 contra sus tablas publicadas"
 
 **Interfaces:**
 - Consumes: `dataset.csv` dentro de `journal.pone.0315249.s001.zip` y las Tablas 3, 4, 5 y 6.
-- Produces: comparaciones de `calibracion` —contrastada **contra las columnas calibradas del propio archivo**—, `necesidad`, `tabla_verdad`, `ajuste` y `robustez`. `minimizacion` es `no_evaluable`.
+- Produces: comparaciones de `calibracion` —contrastada **contra las columnas calibradas del propio archivo**—, `necesidad`, `ajuste` y `robustez`. `minimizacion` y `tabla_verdad` son `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto con artefacto anidado**
 
@@ -1426,7 +1478,13 @@ adaptador extrae a la caché y vuelve a verificar el hash del archivo interno.
   tolerancia `0.005` (dos decimales publicados). Son 459 × 6 comparaciones; se registra el
   número de filas fuera de tolerancia por condición, no una sola cifra agregada.
 - **Umbrales** (encabezado de la Tabla 5): `n.cut = 4`, `incl.cut = 0.8`, `pri.cut = 0.6`.
-- **Robustez** (Tabla 6): dos escenarios publicados, `n.cut = 5` con `incl.cut = 0.8` y
+- **Tabla de verdad**: `mod_tabla_verdad = no_evaluable` desde la auditoría de celdas del
+  2026-08-13. El artículo publica sólo la Tabla 5, que son soluciones, y el S1 Dataset es
+  `dataset.csv` con 459 casos, no una tabla de verdad. Se construye para poder minimizar y se
+  informa como descripción, **sin fila y sin clave de censo**.
+- **Robustez** (Tabla 6): **se mantiene en `si`**, y es una de las tres que sobreviven a la
+  auditoría junto con las de E001 y E012, porque aquí sí hay cifras alternativas publicadas.
+  Dos escenarios, `n.cut = 5` con `incl.cut = 0.8` y
   `n.cut = 4` con `incl.cut = 0.82`; ambos se ejecutan y se comparan sus consistencias,
   coberturas y `cobertura_solucion` (`0.286` y `0.218`) y `consistencia_solucion`
   (`0.794` y `0.815`), tres decimales.
@@ -1469,7 +1527,8 @@ adaptar_E026 <- function(ruta_zip) {
 La prueba compara `calibrar()` de cada columna cruda con su columna publicada
 (459 filas × 6 condiciones, tolerancia `0.005`), recomputa los cuantiles 85/50/15 y los
 contrasta con la Tabla 3, y sigue con necesidad (Tabla 4) y la tabla de verdad
-(`consistencia = 0.8`, `pri = 0.6`, `frecuencia = 4`). El ajuste (Tabla 5) y los dos
+(`consistencia = 0.8`, `pri = 0.6`, `frecuencia = 4`), esta última sin comparar. El ajuste
+(Tabla 5) y los dos
 escenarios de robustez (Tabla 6) se ejecutan y se afirman con `codigo_de_la_fila()` sobre
 filas `no_tipo_solucion`, que devuelven `D-AMB`. Las 459 × 6 comparaciones de calibración
 van con `decidible = si` y **tienen que poder dar `D-APP`**: son las que ejercitan de
@@ -1586,8 +1645,8 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
 **Files:** los cinco archivos de `E014`.
 
 **Interfaces:**
-- Consumes: `journal.pone.0301031.s001.csv` y las Tablas 2, 3, 4 y 5.
-- Produces: comparaciones de `calibracion` —declarada **no ejercitada por la aplicación**—, `necesidad`, `tabla_verdad` y `ajuste`. `minimizacion` y `robustez` son `no_evaluable`.
+- Consumes: `journal.pone.0301031.s001.csv` y las Tablas 2, 4 y 5.
+- Produces: comparaciones de `calibracion` —declarada **no ejercitada por la aplicación**—, `necesidad` y `ajuste`. `minimizacion`, `tabla_verdad` y `robustez` son `no_evaluable`.
 
 - [ ] **Step 1: Manifiesto**
 
@@ -1634,11 +1693,25 @@ git commit -m "test: replicar E012 con su solucion intermedia declarada"
 - **Umbrales**: `incl.cut = 0.75` y `n.cut = 1` («the frequency threshold is set to 1, and
   the original consistency threshold is set to 0.75»). Umbral de necesidad `0.9`.
   **PRI ausente** ⇒ `pri = 0` y sensibilidad documentada.
+- **Tabla de verdad**: `mod_tabla_verdad = no_evaluable` desde la auditoría de celdas del
+  2026-08-13, y este es el caso en que la celda descansaba en el **rótulo**: la Table 3 se
+  titula «Truth table», pero su contenido es una matriz **caso × condición** —las diez
+  provincias por nombre × `C1`--`C10`— **sin número de casos, sin consistencia, sin PRI y sin
+  columna de resultado**. Una tabla de verdad tiene configuraciones, no casos.
 - **Expectativas**: Tabla 4 (diez consistencias y diez coberturas de necesidad,
-  2 decimales) y Tabla 3 (dicotomización `0/1` de las diez condiciones en las diez áreas,
-  igualdad exacta, 100 celdas), que son las que pueden dar `D-OK`. De la Tabla 5,
+  2 decimales), que son las que pueden dar `D-OK`. De la Tabla 5,
   `consistencia_solucion 0.91` y `cobertura_solucion 0.55` para el módulo `ajuste`,
   **prerregistradas `D-AMB`**.
+
+  **Las 100 celdas de la Table 3 se quedan sin módulo, y esto es una decisión sin tomar.**
+  Hasta esta revisión eran las expectativas de `tabla_verdad` de E014; con el módulo apagado
+  ya no pueden serlo, y no se reasignan por su cuenta: el objeto que publican —la
+  dicotomización `0/1` de las diez condiciones— se parece a una comprobación de
+  `calibracion`, pero la `calibracion` de E014 es `no_ejercitado` (`D-EST`) porque el estudio
+  no publica el bruto previo, así que meterlas ahí las convertiría en `D-EST` y no en la
+  comparación que muerde que hoy son. Mientras no se decida, **no se prerregistran**: se
+  transcriben en `validation/prerregistros/E014.md` y el informe las exhibe junto a lo que
+  produzca la aplicación. Cambiarlo exige un commit propio sobre este plan.
 - **`include`**: ausente ⇒ `mod_minimizacion = no_evaluable`. **No se compara ninguna
   solución**, y esta vez el estudio lo dice con todas las letras: «The intermediate solution
   with moderate complexity and strong rationality is selected as the analysis result from
@@ -1671,9 +1744,11 @@ adaptar_E014 <- function(ruta) {
 de encabezado —que es la que detecta que el archivo cambió en origen— dejaría de morder. La
 prueba compara primero las 100 celdas contra la Tabla 2 —fila
 `calibracion_no_ejercitada`, con las once discrepancias ya prerregistradas como `D-EST`— y
-sigue con necesidad (Tabla 4) y la dicotomización de la Tabla 3, que son las que sí ejecutan
-el motor. El ajuste de la Tabla 5 se afirma con `codigo_de_la_fila()` sobre una fila
-`no_tipo_solucion`, que devuelve `D-AMB`. No se compara ninguna solución.
+sigue con necesidad (Tabla 4), que es la única de E014 que ejecuta el motor con veredicto.
+La dicotomización de la Tabla 3 se calcula y se exhibe, pero **no se compara**: su módulo,
+`tabla_verdad`, es `no_evaluable`. El ajuste de la Tabla 5 se afirma con
+`codigo_de_la_fila()` sobre una fila `no_tipo_solucion`, que devuelve `D-AMB`. No se compara
+ninguna solución.
 
 - [ ] **Step 4: Commit**
 
@@ -1776,7 +1851,7 @@ git commit -m "test: replicar E015 desde su transcripcion verificada"
 
 **Interfaces:**
 - Consumes: el paquete CC0 `doi:10.7910/DVN/27100` y su script oficial.
-- Produces: comparaciones de calibración, tabla de verdad, minimización, ajuste y robustez contra la **capa de referencia** del propio estudio. `necesidad` es `no_evaluable`.
+- Produces: comparaciones de calibración, minimización, ajuste y robustez contra la **capa de referencia** del propio estudio. `necesidad` y `tabla_verdad` son `no_evaluable`.
 
 - [ ] **Step 1: Abrir el paquete y superar la compuerta de identidad**
 
@@ -1801,12 +1876,10 @@ artículo para simular la replicación.
   "fecha_verificacion": "2026-08-11",
   "artefactos": [],
   "comparaciones": {
-    "calibracion": 0, "tabla_verdad": 0, "minimizacion": 0,
-    "ajuste": 0, "robustez": 0
+    "calibracion": 0, "minimizacion": 0, "ajuste": 0, "robustez": 0
   },
   "fuentes": {
-    "calibracion": [], "tabla_verdad": [], "minimizacion": [],
-    "ajuste": [], "robustez": []
+    "calibracion": [], "minimizacion": [], "ajuste": [], "robustez": []
   },
   "no_ejecutable": {
     "motivo": "deposito inaccesible",
@@ -1852,9 +1925,23 @@ desde esas salidas, con `fuente` = nombre del archivo y objeto producido.
 
 - [ ] **Step 4: Adaptador y prueba**
 
-Los módulos comparados son `calibracion`, `tabla_verdad`, `minimizacion`, `ajuste` y
-`robustez`. `necesidad` queda `no_evaluable` y así se informa. Los barridos del estudio se
-comparan con `barrido_robustez()` escenario a escenario.
+Los módulos comparados son `calibracion`, `minimizacion`, `ajuste` y `robustez`.
+`necesidad` queda `no_evaluable` y así se informa, y `tabla_verdad` también desde la
+auditoría de celdas del 2026-08-13: **el artículo no publica ninguna tabla** —su aparato
+empírico son ocho figuras, y «truth table» sólo aparece en §2.2, p. 24, describiendo el
+método—, y ninguno de los 144 archivos del depósito, listados vía DataCite el 2026-08-11, es
+una tabla de verdad: son datos crudos, guiones y salidas de sensibilidad. Los barridos del
+estudio se comparan con `barrido_robustez()` escenario a escenario: la robustez de E001 se
+mantiene porque el artículo entero es un barrido de frecuencia, umbrales de inclusión y
+anclas.
+
+**Y una tensión que este plan no resuelve.** E001 es el único incluido cuya capa de
+referencia no es una tabla impresa sino su script oficial (Step 3), y el depósito lleva
+bloqueado desde el 2026-08-11, así que la enumeración de sus 144 archivos se hizo por
+metadatos de DataCite —tamaños y formatos, **sin nombres**— y no abriéndolos. Si el bloqueo
+del WAF se levanta y el script resulta emitir una tabla de verdad, si eso reabre la celda es
+una decisión **de la selección congelada**, no de este plan: se arregla en
+`docs/validacion/estudios.csv` y en su firma, en un commit propio.
 
 - [ ] **Step 5: Commit**
 
@@ -2070,10 +2157,23 @@ for (i in seq_len(nrow(res))) {
   }
 }
 
-# La robustez de E009 mide el barrido de anclas del propio motor, no el tipo
-# de solucion: TIENE que poder salir D-APP.
-r9 <- exp_todas[exp_todas$id_estudio == "E009" & exp_todas$modulo == "robustez", ]
-stopifnot(nrow(r9) > 0L, all(r9$decidible == "si"))
+# AQUI VIVIA la aserción de la robustez de E009 —`decidible == "si"`, la unica
+# fila del plan capaz de acusar al motor por un barrido—, y se retira SIN
+# sustituto porque la auditoria de celdas del 2026-08-13 dejo `mod_robustez` de
+# E009 en `no_evaluable`: varia PRI y frecuencia y no publica ni una cifra.
+#
+# No se pone otra en su lugar, y conviene saber por que. El sustituto obvio
+# —exigir `decidible == "si"` a la robustez de E001 y E012— NO PUEDE FALLAR, por
+# dos vias independientes: E001 esta en `ESTUDIOS_NO_EJECUTABLES`, asi que
+# aporta cero filas y `all(character(0) == "si")` es TRUE por vacuidad; y E012
+# no puede llevar otra cosa, porque con `modulo == "robustez"`
+# `no_tipo_solucion` aborta —su `mod_minimizacion` es `si`—, `no_ejercitado`
+# aborta —el modulo no es `calibracion`— y `DECIDIBLE` solo tiene esos tres
+# valores. Una tautologia con aspecto de guardian es peor que ningun guardian.
+# La propiedad se quedo sin portador: el unico estudio con `robustez = si` y
+# `minimizacion = no_evaluable` es E026, y ahi la excusa es legitima. Lo que
+# queda es el parrafo «Lo que se pierde con ese apagado, dicho en voz alta» de
+# la Task 4, que es documentacion y no finge ser otra cosa.
 
 # E014 no ejercita la aplicacion en calibracion: no cuenta como reproducida.
 e014 <- res[res$id_estudio == "E014" & res$modulo == "calibracion", ]
@@ -2114,9 +2214,10 @@ El recuento por módulo distingue tres estados y no dos, porque `mod_* == "si"` 
 
 - **reproducido**: hay al menos una comparación `D-OK` y ninguna `D-APP`;
 - **no decidible**: todas sus comparaciones son `D-AMB` —el ajuste de E009, E014, E025,
-  E026 y E027, y la robustez de E025—, o no tiene ninguna porque el estudio no publica nada
-  comparable —la tabla de verdad de E025 y la robustez de E008, las dos entradas de
-  `SIN_EXPECTATIVA_PUBLICADA`—;
+  E026 y E027, y la robustez de E026—, o no tiene ninguna porque el estudio no publica nada
+  comparable, caso que hoy no se da en ningún módulo declarado y por eso
+  `SIN_EXPECTATIVA_PUBLICADA` está vacía: los dos que había —la tabla de verdad de E025 y la
+  robustez de E008— dejaron de estar declarados en la auditoría de celdas del 2026-08-13;
 - **no ejercitado por la aplicación**: la comparación no ejecuta el motor. Hoy solo cae aquí
   la calibración de E014, por `decidible = no_ejercitado`.
 
@@ -2239,8 +2340,11 @@ estudio con sus módulos declarados, sus comparaciones y su veredicto; la tabla 
 compuertas previas; la tabla de discrepancias por código; los denominadores **separados**
 —`Nivel A: 0 de 0 estudios, no evaluada`, y el recuento de Nivel B por módulo, con sus tres
 estados: reproducido, no decidible y no ejercitado por la aplicación—; y los límites: la
-minimización solo es comparable en E001, E008, E012 y E015; la muestra no es exhaustiva,
-Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió credenciales.
+minimización solo es comparable en E001, E008, E012 y E015, la **tabla de verdad solo en
+E012 y E015** y la **robustez solo en E001, E012 y E026** —los demás publican la tabla de
+soluciones, no la de verdad, y llaman robustez a un párrafo sin cifras—; la muestra no es
+exhaustiva, Dataverse global, GESIS y UK Data Service no fueron enumerables e ICPSR exigió
+credenciales.
 
 **El informe no se redacta: se genera desde `docs/validacion/replicaciones.csv` y los
 manifiestos**, y `test-informe-validacion.R` lo comprueba exigiendo que aparezcan **literales**
@@ -2561,7 +2665,11 @@ Comprobado antes del commit, el 2026-08-11:
   abreviadas de títulos y párrafos, nunca una ruta, un nombre de archivo ni un valor. Donde falta un dato, hay una **declaración de
   ausencia** con qué se buscó, en qué URL y en qué fecha: agregación de E025 y E009, `PRI`
   de E012, E014, E015 y E027, `include` de siete estudios, anclas publicadas de E015 y
-  nombres de archivo de E001.
+  nombres de archivo de E001. **Desde la décima pasada (2026-08-13) hay además dos asuntos
+  sin resolver, nombrados donde tocan**: a qué módulo van las 100 celdas de la Table 3 de
+  E014 (Task 8), si `E015:calibracion` tiene alguna expectativa publicable (Task 9 y cierre
+  de la décima pasada) y la auditoría de `E012:necesidad`, declarada en esa misma pasada.
+  Ninguno se resuelve escribiendo una celda.
 - **Tolerancias posteriores**: todas las tolerancias derivan de la precisión publicada por
   la fuente citada y están fijadas antes de ejecutar. No hay ninguna tolerancia elegida
   «con holgura»; `tolerancia_de()` rechaza cualquier valor que no venga de la precisión.
@@ -2939,3 +3047,75 @@ Dónde puede mudarse ahora:
    ampliarlo. La comprobación contra el final de línea cierra **la forma prefijo**; la forma
    «publicar las dos líneas a la vez» seguía verde, y esa la cierra `unico()` en la undécima
    pasada exigiendo que cada clave aparezca **una sola vez**.
+
+### Décima pasada, 2026-08-13 (auditar el DATO, no el circuito que lo protege)
+
+Nueve pasadas endurecieron el circuito que impide **degradar** una celda de la selección
+congelada. Ninguna comprobó que las celdas fueran **ciertas**. Y no lo eran: auditadas una a
+una contra los artículos originales, **diez de las 44 estaban mal**, y la matriz baja a 34.
+
+`mod_tabla_verdad` estaba en `si` en los **nueve** incluidos —el único módulo con pleno, que
+es exactamente la forma que debería haber levantado la sospecha— y en **siete** de ellos
+ninguna tabla del artículo lo sostiene. El patrón es siempre el mismo, y explica por qué
+nueve evaluaciones independientes cometieron el mismo error: el artículo **describe** la
+tabla de verdad al explicar el método, y publica **sólo la tabla de soluciones**, que son
+configuraciones ya minimizadas con su consistencia y sus coberturas. Eso es `minimizacion` y
+`ajuste`, y se contó dos veces. La variante de forma es E014, cuya Table 3 lleva el rótulo
+«Truth table» sobre una matriz caso × condición sin casos, sin consistencia, sin PRI y sin
+resultado: la celda descansaba en el **título**, no en el contenido.
+
+Cayeron también tres celdas de `mod_robustez`. Dos eran prosa sin cifras —E008 varía la
+consistencia de `0.8` a `0.85` y afirma que las configuraciones son idénticas; E009 varía PRI
+y frecuencia y no publica nada—; la tercera, E025, es peor de leer: su Tabla 11 es **validez
+predictiva** por partición muestral y el artículo dice que usó «identical cutoff points for
+both sets of samples», que es la negación del criterio.
+
+Quedan: `tabla_verdad` en **E012 y E015**; `robustez` en **E001, E012 y E026**. El reparto
+completo —calibración 8, necesidad 8, tabla de verdad 2, minimización 4, ajuste 9, robustez
+3— se publica en `docs/validacion/busqueda-ampliada.md` y lo genera desde el CSV
+`validation/tests/test-seleccion-ampliada.R`, que también congela la matriz nueva en la firma
+`6a72a81d…`.
+
+Qué cambia en este plan, más allá de las cifras:
+
+- **`SIN_EXPECTATIVA_PUBLICADA` queda vacía.** Sus dos entradas —`E025:tabla_verdad` y
+  `E008:robustez`— eran el síntoma que la auditoría convirtió en diagnóstico: un módulo
+  declarado del que se sabía que no publica nada comparable no necesita una excepción, es que
+  la celda estaba mal.
+- **Desaparece la aserción de la robustez de E009**, que era la única fila del plan capaz de
+  acusar al motor por un barrido. Está dicho en la Task 4 y no se disimula.
+- **Las 100 celdas de la Table 3 de E014 se quedan sin módulo**, y a dónde van —si a alguno—
+  es una decisión que esta pasada **no toma**.
+- **`E012:necesidad` queda declarada como el siguiente candidato a auditar**, y no se baja.
+  Es un hallazgo de esta pasada: la celda está en `si` y **no tiene objeto publicado
+  documentado en ninguna parte del dossier** —ni en la fila de E012 de
+  `busqueda-ampliada.md`, ni en su `motivo`, ni en la Task 7 de este plan, que dice
+  literalmente que «el artículo no publica una tabla de necesidad» y sostiene la celda sobre
+  afirmaciones del texto—. Es la misma clase de celda que esta pasada condena, y sobrevivió
+  porque `necesidad` no mostraba el patrón del pleno que delató a `tabla_verdad`. **No se
+  apaga**: nadie la ha contrastado contra el artículo, y apagarla sin mirarlo sería el mismo
+  error en la otra dirección. Queda nombrada aquí y en `docs/validacion/diccionario.md`.
+
+**Y una asimetría de esta misma auditoría, dicha para que se pueda discutir.** La
+enumeración por metadatos de DataCite —144 archivos, con el depósito bloqueado y **sin poder
+abrir ninguno**— se usó como evidencia para **matar** `E001:tabla_verdad`, y esa misma base
+no se aplicó a `E001:robustez`, que se mantiene. La diferencia es defendible y es esta: la
+robustez de E001 no depende del depósito, porque el artículo entero **es** el barrido de
+frecuencia, umbrales de inclusión y anclas, con sus ocho figuras; la tabla de verdad no está
+ni en el artículo ni, hasta donde la enumeración alcanza, en el depósito. Pero la evidencia
+negativa que sostiene la primera mitad es **más débil** que la del resto de los seis
+estudios, donde sí se abrieron los suplementos, y por eso queda escrita.
+
+Dónde puede mudarse ahora, con el criterio de siempre:
+
+1. **Ningún artefacto del repositorio puede leer un artículo.** La firma congela la matriz que
+   alguien escribió; que esa matriz diga la verdad lo sostiene una auditoría humana con
+   localizador, y nada más. Esta pasada es la prueba de que el circuito puede estar perfecto
+   sobre un dato falso.
+2. **La forma de un pleno es una señal, y no hay quien la vigile.** Un módulo `si` en los
+   nueve estudios volvió a ser el indicio, igual que en la segunda pasada lo fue una tabla
+   copiada. No es automatizable, pero sí nombrable: **desconfiar de la columna sin variación**.
+3. **`E015:calibracion` puede no tener expectativas.** La Task 9 no cita ninguna tabla de
+   calibración —el artículo no publica sus anclas y la Tabla 1 se usa para aceptar la
+   transcripción—, y con `SIN_EXPECTATIVA_PUBLICADA` vacía un censo `0` ahí abortaría. Es
+   anterior a esta pasada y sigue sin resolver: se sabrá al escribir la Task 9.

@@ -53,9 +53,15 @@ completo.
 
 Se inspeccionaron la publicación PLOS, S1 (algoritmo del índice), S2 (código R),
 S3 (datos), las tablas de anclas y soluciones y la licencia CC BY 4.0. La
-publicación fija anclas, `incl.cut=0.8`, PRI 0.6, `n.cut=1`, soluciones y una
-prueba de robustez. Se clasifica B porque el suplemento ejecutable cubre NCA,
-no un `include` fsQCA que permita elevarlo al flujo A. Evidencia primaria:
+publicación fija anclas, `incl.cut=0.8`, PRI 0.6, `n.cut=1` y soluciones. Se
+clasifica B porque el suplemento ejecutable cubre NCA,
+no un `include` fsQCA que permita elevarlo al flujo A. **Auditoría de celdas
+2026-08-13**: se retira de esta ficha «una prueba de robustez». La §4.4.4
+«Robustness analysis» son dos frases sin ninguna cifra alternativa —varía la
+consistencia de 0.8 a 0.85 y afirma que las configuraciones son idénticas al
+subconjunto de los resultados originales—, y el artículo no publica tabla de
+verdad: la Table 7 «Configurations analysis» son soluciones ya minimizadas.
+`mod_tabla_verdad` y `mod_robustez` quedan en `no_evaluable`. Evidencia primaria:
 <https://doi.org/10.1371/journal.pone.0326226>,
 <https://doi.org/10.1371/journal.pone.0326226.s001>,
 <https://doi.org/10.1371/journal.pone.0326226.s002> y
@@ -95,7 +101,7 @@ complemento material necesario en las tarjetas y quedaron en metadatos.
 | 10.1371/journal.pone.0259014 | S1 CSV `a2903dd5…3814a4` | Excluir: publicación/datos/calibración/`incl.cut`/intermedia sí; `n.cut` no declarado. |
 | 10.1371/journal.pone.0282617 | S1 XLSX `ce4bdff6…e00f20`; S2 `60b8dd40…9152d`; S4 `caf06be5…33701`; S5 `080839eb…e662`; S6 `8fa25f41…81aa` | B: 80 países, reglas y variables exactas, anclas, `incl.cut=0.80`, `n.cut=1`, expectativas intermedias, necesidad, tablas, soluciones, ajuste y robustez 0.85/0.90. |
 | 10.1371/journal.pone.0300283 | S1 `69a72303…60d8`; S2 `739ee86b…6f15`; S3 `89130e85…6d70` | Excluir: PLOS retractó la publicación el 23-10-2025 por dudas de validez/procedencia, revisión y autoría. |
-| 10.1371/journal.pone.0301031 | S1 CSV `e8ee154f…9812` | B modular: diez áreas, variables/reglas, anclas directas e indirectas, `incl.cut=0.75`, `n.cut=1`, necesidad, tabla y ajuste; faltan expectativas `include` y robustez, por lo que minimización/robustez son `no_evaluable`. |
+| 10.1371/journal.pone.0301031 | S1 CSV `e8ee154f…9812` | B modular: diez áreas, variables/reglas, anclas directas e indirectas, `incl.cut=0.75`, `n.cut=1`, necesidad y ajuste; faltan expectativas `include` y robustez, por lo que minimización/robustez son `no_evaluable`. **Auditoría de celdas 2026-08-13**: también `tabla_verdad`, que decía «tabla» — la Table 3 lleva el rótulo «Truth table» sobre una matriz caso × condición, sin casos, consistencia, PRI ni resultado. |
 | 10.1371/journal.pone.0302210 | S1 PDF `c505a456…b604` | B: matrices de 60 firmas para 2018/2021, variables exactas, 95/50/5, `incl.cut=0.85`, `n.cut=1`, solución más parsimoniosa, necesidad, tablas y ajuste; robustez no publicada. |
 | 10.1371/journal.pone.0305916 | S1 `7426d9b4…f20`; S2 `a26a13cd…a08`; S3 CSV `4f8f3a8a…55ec`; S4 `bb57b4ba…f54` | Excluir: auditoría detallada abajo. |
 | 10.1371/journal.pone.0308717 | S4 XLS `2d01b2a6…9e3e` | Excluir: las 6.284 filas no incluyen el monto necesario para seleccionar el 1%/64 casos ni los insumos del K-means. |
