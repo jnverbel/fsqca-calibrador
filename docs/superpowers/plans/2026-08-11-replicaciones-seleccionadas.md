@@ -2272,6 +2272,15 @@ dejaba una poda real en verde y el lector veía el `4`. Eso acota la redacción:
 del documento puede contener `E025: `, `E025/necesidad: `, `E025/necesidad/fuentes: ` ni
 `D-APP registrados: ` fuera de su línea generada.
 
+**Y aquí está el techo del guardián, dicho para que nadie lo confunda con una garantía:**
+`unico()` ata **la línea generada** al CSV y **no puede atar la prosa que la rodea**. Un
+informe puede publicar la línea correcta y contradecirla en el párrafo de al lado —«E008 se
+reprodujo entero: las 11 comparaciones coinciden»—, o repetir la clave con un carácter
+distinto —dos puntos por coma, un espacio duro en vez de un espacio—, y las pruebas seguirán
+en verde. **La defensa contra eso es que un humano lea el documento, no el CI**, y por eso el
+informe no se publica sin revisión: lo que el CI garantiza es que las cifras generadas son las
+del CSV, no que el texto que las envuelve diga la verdad.
+
 Si la primera ejecución falla por una coma, lo que se corrige es el generador, nunca la
 comprobación.
 
@@ -2821,6 +2830,9 @@ Tres cosas, y la primera vuelve a ser la misma de siempre.
    convivir con el verdadero. Ahora el patrón va **anclado** (al número le sigue un no-dígito o
    el fin de línea) y se compara **línea a línea**; y para cada estudio se **prohíbe** que
    aparezca cualquier veredicto distinto del que dan los datos.
+   **(Superado: ese ancla y `prohibe()` se retiraron en la undécima pasada, y desde la
+   duodécima hay una sola regla —`unico()`, apariciones y final de línea— para las cuatro
+   familias. Este punto describe el diseño de la séptima, no el vigente.)**
 3. **La ambigüedad de `no_pasa` era una promesa sin guardián**: escrita en seis sitios del plan
    y en ninguno del documento público. Un `stopifnot` de distancia, ya puesto.
 
