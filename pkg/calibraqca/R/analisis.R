@@ -833,14 +833,25 @@ ajuste_de_expresion <- function(expresion, resultado, membresias,
          "secas es la condicion presente, ~ es la condicion ausente, * es ",
          "la interseccion y + la union.", call. = FALSE)
   }
-  if (!resultado %in% names(membresias)) {
+  # El resultado puede venir negado, "~YLL", igual que en
+  # construir_tabla_verdad(). La mitad de los analisis de QCA estudian la
+  # ausencia del resultado, y esta es la unica via publica para contrastar
+  # una expresion publicada contra esa mitad: exigir el nombre desnudo aqui
+  # dejaba fuera la Tabla 7 de E012 y obligaba a salirse a QCA::pof().
+  if (!sub("^~", "", resultado) %in% names(membresias)) {
     stop("El resultado ", resultado, " no esta en las membresias. Hay: ",
          paste(names(membresias), collapse = ", "), ".", call. = FALSE)
   }
 
-  ajuste <- try(suppressWarnings(
-    QCA::pof(setms = expresion, outcome = resultado,
-             data = as.data.frame(membresias), relation = relacion)),
+  # do.call y no una llamada normal: QCA::pof evalua `outcome` de forma no
+  # estandar, asi que con el literal "~YLL" niega el resultado y con una
+  # VARIABLE que contiene "~YLL" no lo niega -- devuelve el ajuste contra YLL
+  # sin avisar. Medido en E012: 0,4327 por variable frente a 0,8079 literal.
+  # Es la misma trampa que obligo a do.call con dir.exp en minimizar().
+  ajuste <- try(suppressWarnings(do.call(
+    QCA::pof,
+    list(setms = expresion, outcome = resultado,
+         data = as.data.frame(membresias), relation = relacion))),
     silent = TRUE)
   if (inherits(ajuste, "try-error")) {
     stop("QCA no pudo evaluar la expresion \"", expresion, "\" sobre estas ",

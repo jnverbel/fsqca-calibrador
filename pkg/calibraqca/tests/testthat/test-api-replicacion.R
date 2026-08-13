@@ -40,6 +40,38 @@ test_that("ajuste_de_expresion evalua la expresion del articulo sobre tus membre
                as.numeric(esperado["expression", "covS"]), tolerance = 1e-9)
 })
 
+test_that("ajuste_de_expresion evalua tambien el resultado NEGADO", {
+  # La mitad de los analisis de QCA estudian la ausencia del resultado, y esta
+  # es la unica via publica para contrastar una expresion publicada contra esa
+  # mitad. Exigir el nombre desnudo dejaba fuera, por ejemplo, la Tabla 4 de
+  # E012 y obligaba a salirse a QCA::pof().
+  d <- lipset()
+
+  obs <- ajuste_de_expresion("DEV*URB", "~SURV", d)
+
+  # Fuente independiente, con el literal: QCA::pof evalua `outcome` de forma
+  # NO ESTANDAR, asi que con el literal niega y con una variable no. Ese es el
+  # motivo de que la funcion llame por do.call; si alguien lo revierte, este
+  # valor deja de coincidir y la prueba se pone roja.
+  esperado <- QCA::pof("DEV*URB", "~SURV", d, relation = "sufficiency")$incl.cov
+
+  expect_equal(obs$ajuste$consistencia,
+               as.numeric(esperado[1L, "inclS"]), tolerance = 1e-9)
+  expect_equal(obs$ajuste$cobertura,
+               as.numeric(esperado[1L, "covS"]), tolerance = 1e-9)
+
+  # La pareja de casos opuestos: negar el resultado NO puede dar lo mismo que
+  # no negarlo. Sin esto, una funcion que ignorara el ~ pasaria la mitad de
+  # arriba por casualidad.
+  sin_negar <- ajuste_de_expresion("DEV*URB", "SURV", d)
+  expect_false(isTRUE(all.equal(obs$ajuste$consistencia,
+                                sin_negar$ajuste$consistencia)))
+
+  # Y un resultado que no existe sigue abortando, con ~ o sin el.
+  expect_error(ajuste_de_expresion("DEV*URB", "~NO_EXISTE", d),
+               "no esta en las membresias")
+})
+
 test_that("el ajuste de la expresion tiene las mismas columnas que el del paso 6", {
   # Existe para poner las dos tablas una al lado de la otra: la del
   # articulo y la que sale del motor.
