@@ -2193,18 +2193,21 @@ inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
 # cuatro familias y sin dos anclas distintas que alguien pueda unificar.
 lineas <- readLines("docs/validacion-integral.md", warn = FALSE)
 unico <- function(clave, valor) {
-  hits <- grep(clave, lineas, fixed = TRUE)
-  if (length(hits) != 1L) {
-    stop("El informe publica ", length(hits), " lineas con '", clave,
+  # APARICIONES, no lineas: `grep()` cuenta una linea que lleva la clave dos
+  # veces como una sola, y `endsWith` solo mira el final, asi que el ataque de
+  # publicar el valor viejo y el nuevo cabia entero en UNA linea —incluido el
+  # censo, que es la mitigacion central de la Task 12— y el lector veia el viejo.
+  apar <- vapply(gregexpr(clave, lineas, fixed = TRUE),
+                 function(m) if (m[1L] == -1L) 0L else length(m), integer(1))
+  if (sum(apar) != 1L) {
+    stop("El informe publica ", sum(apar), " apariciones de '", clave,
          "'; tiene que publicar exactamente una.", call. = FALSE)
   }
-  if (!endsWith(lineas[hits], paste0(clave, valor))) {
+  if (!endsWith(lineas[apar == 1L], paste0(clave, valor))) {
     stop("El informe dice otra cosa que el CSV en '", clave, "': el CSV da '",
          valor, "'.", call. = FALSE)
   }
 }
-res <- leer_csv("docs/validacion/replicaciones.csv")
-inc <- subset(leer_csv("docs/validacion/estudios.csv"), decision == "incluir")
 unico("D-APP registrados: ", sum(res$codigo == "D-APP"))
 for (i in seq_len(nrow(inc))) {
   unico(paste0(inc$id[i], ": "), veredicto(res, inc$id[i]))
@@ -2249,23 +2252,25 @@ CSV**: podía decir «E025: reproducido» con un `D-APP` registrado y las cuatro
 Y hace que bajar un conteo, o ampliar el dominio de un módulo, obligue a cambiar el documento
 público.
 
-**El formato de esas cadenas es parte del contrato, no un detalle del generador.** Las tres
-primeras familias terminan en un número y se comprueban con un ancla que distingue `2` de `24`;
-la de `fuentes` termina en texto y se comprueba **contra el final de la línea**, porque contra
-texto esa ancla numérica degrada a comprobación de prefijo y el documento podría publicar un
-dominio más ancho que el del manifiesto. De ahí que la línea de `fuentes` tenga que salir
-exactamente así:
+**El formato de esas cadenas es parte del contrato, no un detalle del generador**, y la regla
+es **una sola para las cuatro familias**: la clave aparece **exactamente una vez en todo el
+documento** y **la línea que la lleva termina en el valor**. Nada de anclas distintas para el
+número y para el texto —esa distinción existió dos revisiones y se retiró: contra texto el
+ancla numérica degradaba a comprobación de prefijo—. De ahí que la línea de `fuentes` tenga que
+salir exactamente así:
 
 - las tablas separadas por **coma y espacio** (`, `);
 - **en el orden en que están en el manifiesto**, no alfabético;
 - y `(ninguna)` cuando la lista está vacía —los módulos cuyo censo es `0`—;
 - y **nada detrás**: la línea termina en la última tabla.
 
-Y lo mismo vale para las otras tres familias: **cada clave se publica en una línea y solo en
-una**. `unico()` cuenta las líneas que contienen la clave y exige exactamente una, así que un
-informe que publique el censo dos veces —el valor verdadero y otro— falla aunque el verdadero
-esté. Eso también acota la redacción: ninguna frase del documento puede contener `E025: `,
-`E025/necesidad: ` ni `E025/necesidad/fuentes: ` fuera de su línea generada.
+Y **nada detrás** vale igual para las otras tres: `- E025/necesidad: 2` pasa y
+`- E025/necesidad: 2 comparaciones` **no**. `unico()` cuenta **apariciones, no líneas** —con
+`gregexpr()`—, porque contando líneas el ataque cabía entero en una: publicar
+`- E008/calibracion: 4 comparaciones prerregistradas; censo vigente E008/calibracion: 3`
+dejaba una poda real en verde y el lector veía el `4`. Eso acota la redacción: ninguna frase
+del documento puede contener `E025: `, `E025/necesidad: `, `E025/necesidad/fuentes: ` ni
+`D-APP registrados: ` fuera de su línea generada.
 
 Si la primera ejecución falla por una coma, lo que se corrige es el generador, nunca la
 comprobación.
