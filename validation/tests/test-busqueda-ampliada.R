@@ -269,3 +269,14 @@ objetivo_alcanzado <- sum(rondas$nivel_a_nuevos) >= 3L &&
 if (!objetivo_alcanzado) {
   stopifnot(nrow(ultimas) == 2L, all(ultimas$saturada == "si"))
 }
+
+cat(sprintf(paste0(
+  "busqueda ampliada valida: %d tarjetas (R1 %d, R2 %d, R3 %d); ",
+  "R3 con %d duplicados y %d evaluaciones completas; ",
+  "3 firmas de atribucion por ronda y 6 mutaciones coordinadas rechazadas; ",
+  "ultimas dos rondas saturadas: %s\n"
+), nrow(cribado), sum(cribado$ronda == 1L), sum(cribado$ronda == 2L),
+   sum(cribado$ronda == 3L),
+   sum(cribado$ronda == 3L & cribado$decision == "duplicado"),
+   sum(cribado$ronda == 3L & cribado$decision == "evaluacion_completa"),
+   paste(ultimas$saturada, collapse = "/")))

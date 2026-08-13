@@ -8,9 +8,22 @@ calibración difusa directa, necesidad y suficiencia, minimización booleana y b
 robustez.
 
 **No reimplementa ningún cálculo estadístico.** Envuelve `QCA`, `SetMethods`, `psych`,
-`lavaan` y `NCA` — paquetes revisados por pares y citables. Lo que aporta es lo que hoy no
-existe: validar la fiabilidad antes de promediar, diagnosticar el efecto techo, exigir que
-cada ancla se justifique y dejar rastro escrito de esa justificación en el informe.
+`lavaan` y `NCA` — paquetes revisados por pares y citables. Lo que aporta es lo que este
+universo comparado no documenta: validar la fiabilidad antes de promediar, diagnosticar el
+efecto techo, exigir que cada ancla se justifique y dejar rastro escrito de esa
+justificación en el informe.
+
+«No documenta» no es «no existe», y la diferencia la fija esta misma rama: en
+[`docs/estado-del-arte.md`](docs/estado-del-arte.md) las 14 herramientas comparadas quedan
+en `no_verificado` para `validacion_medida`, y ese código **no equivale a `no`**.
+
+## Qué evidencia externa hay, y cuál no
+
+La búsqueda de estudios publicados con los que validar esta herramienta está cerrada y
+congelada en [`docs/validacion/busqueda-ampliada.md`](docs/validacion/busqueda-ampliada.md):
+**cero estudios de Nivel A** (cadena integral reproducible), **nueve de Nivel B** (cobertura
+modular suelta) y **ninguna replicación ejecutada todavía**. No existe validación externa
+integral del flujo Likert/multiítem, y la cobertura modular no se suma para simularla.
 
 ## Estado
 

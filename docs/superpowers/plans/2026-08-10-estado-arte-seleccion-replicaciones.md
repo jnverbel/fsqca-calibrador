@@ -1,5 +1,17 @@
 # Estado del arte y selección de replicaciones: plan de implementación
 
+> **SUPERADO — no ejecutar.** Este plan quedó superado por
+> `docs/superpowers/plans/2026-08-11-busqueda-ampliada-validacion.md` y por
+> `docs/superpowers/plans/2026-08-11-replicaciones-seleccionadas.md`. Se conserva como
+> registro histórico de la ronda `0`, no como instrucción vigente.
+>
+> **Sus esquemas describen archivos que ya no existen así.** Quedó editado a medias: los
+> `stopifnot(identical(names(...)))` de la Task de esquemas afirman un
+> `registro-busqueda.csv` de 8 columnas y un `estudios.csv` de 16, cuando las rondas 1 a 3
+> los dejaron en **11** y **27** columnas respectivamente. La versión vigente de esas
+> aserciones vive en `validation/tests/test-esquemas.R`, que es la que corre; ejecutar el
+> bloque de este documento aborta.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Producir una revisión auditable del software y los flujos fsQCA y cerrar, sin sesgo por resultados, una muestra de entre tres y cinco estudios aptos para validar `fsqca-calibrador`.

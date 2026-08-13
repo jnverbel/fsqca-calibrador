@@ -62,6 +62,10 @@ jobs:
             if (omitidas > 0) stop("Hay pruebas omitidas: una prueba omitida es una prueba que no existe.")
           '
 
+      - name: Dossier de validacion externa
+        run: |
+          for t in validation/tests/*.R; do Rscript --vanilla "$t" || exit 1; done
+
       - name: Cada paquete citado en el informe se invoca de verdad
         run: |
           Rscript -e '

@@ -91,11 +91,18 @@ validar_tabla <- function(x) {
   list(incluidos = inc, excluidos = exc, categorias = categorias)
 }
 
+# La clave se casa como TEXTO, no como expresión regular: «Evaluados a texto
+# completo (tarjeta principal)» lleva paréntesis, y con `grep()` sin escapar
+# habrían actuado como un grupo de captura. Tras el número se admite un solo
+# paréntesis explicativo —«28 (24 principales + 4 reaperturas R3)»— y nada más:
+# ningún segundo entero suelto puede esconderse en esa línea.
 extraer_entero <- function(texto, clave) {
-  patron <- paste0("^- ", clave, ": [0-9]+$")
-  linea <- grep(patron, texto, value = TRUE)
+  prefijo <- paste0("- ", clave, ": ")
+  linea <- texto[startsWith(texto, prefijo)]
   stopifnot(length(linea) == 1L)
-  as.integer(sub("^.*: ", "", linea))
+  resto <- trimws(substring(linea, nchar(prefijo) + 1L))
+  stopifnot(grepl("^[0-9]+( \\([^()]*\\))?$", resto))
+  as.integer(sub("^([0-9]+).*$", "\\1", resto))
 }
 
 validar_exclusiones <- function(ruta, tabla) {
@@ -171,12 +178,20 @@ validar_cribado <- function(cribado, estudios, ids_busqueda) {
     stopifnot(sum(grupo$decision == "duplicado") == nrow(grupo) - 1L)
   }
 
+  # Son DOS conceptos y no se suman como uno. `texto_completo_principal` cuenta
+  # tarjetas con `decision == "evaluacion_completa"` y entra en el flujo de
+  # cribado: 1.689 = 985 duplicados + 680 descartes + 24 principales.
+  # `canonicos_texto_completo` cuenta estudios canónicos evaluados a texto
+  # completo, que son esas 24 más las reaperturas de R3, cuyas tarjetas viven en
+  # el cribado como `duplicado`. Sumar 985 + 680 + 28 daba 1.693 en el informe.
   list(
     identificados = nrow(cribado),
     duplicados = nrow(duplicados),
     unicos = nrow(cribado) - nrow(duplicados),
     descartados_metadatos = sum(cribado$decision == "descartar_metadatos"),
-    texto_completo = nrow(evidencias_estudio)
+    texto_completo_principal = nrow(completos),
+    canonicos_texto_completo = nrow(evidencias_estudio),
+    reaperturas = nrow(reabiertos)
   )
 }
 
@@ -193,9 +208,31 @@ validar_informe <- function(ruta, estudios, tabla, flujo) {
     "Duplicados" = flujo$duplicados,
     "Registros unicos" = flujo$unicos,
     "Descartados en metadatos" = flujo$descartados_metadatos,
-    "Evaluados a texto completo" = flujo$texto_completo
+    "Evaluados a texto completo (tarjeta principal)" =
+      flujo$texto_completo_principal,
+    "Canonicos con evaluacion a texto completo" =
+      flujo$canonicos_texto_completo
   )
   obtenidos <- vapply(names(esperados), function(k) extraer_entero(texto, k), integer(1))
+
+  # La identidad que faltaba: cada número se cotejaba contra el CSV por separado
+  # y la SUMA no se cotejaba nunca, así que el documento publicaba
+  # 985 + 680 + 28 = 1.693 y 680 + 28 = 708 con las cinco pruebas en verde.
+  # Se comprueba sobre las cifras PUBLICADAS y antes de cotejarlas con el CSV,
+  # que es como la verifica un lector: con lápiz y sin abrir el CSV.
+  # Límite conocido, escrito para que nadie lo confunda con más de lo que es:
+  # ahora que cada sumando tiene su propia clave anclada al CSV, esta identidad
+  # es la que ROMPE primero, pero no puede fallar donde el cotejo por clave
+  # pasaría. Su valor es nombrar el invariante y dar el mensaje de error útil.
+  stopifnot(
+    obtenidos[["Registros unicos"]] ==
+      obtenidos[["Descartados en metadatos"]] +
+        obtenidos[["Evaluados a texto completo (tarjeta principal)"]],
+    obtenidos[["Registros identificados"]] ==
+      obtenidos[["Duplicados"]] + obtenidos[["Registros unicos"]],
+    obtenidos[["Canonicos con evaluacion a texto completo"]] >=
+      obtenidos[["Evaluados a texto completo (tarjeta principal)"]]
+  )
   stopifnot(identical(unname(obtenidos), unname(as.integer(esperados))))
 
   for (motivo in motivos_permitidos) {
@@ -348,6 +385,41 @@ if (sum(tabla$incluidos$nivel == "A") < 3L) {
   writeLines(texto_informe, informe_inconsistente, useBytes = TRUE)
   stopifnot(falla(validar_informe(informe_inconsistente, x, tabla, flujo)))
   unlink(informe_inconsistente)
+
+  # El flujo publicado tiene que CUADRAR consigo mismo. Antes de esta aserción
+  # el documento decía 985 + 680 + 28 = 1.693 y pasaba en verde, porque cada
+  # sumando se cotejaba solo contra el CSV y la suma no se cotejaba nunca.
+  informe_suma_rota <- tempfile(fileext = ".md")
+  texto_suma <- readLines(
+    "docs/validacion/evidencia-insuficiente.md", warn = FALSE,
+    encoding = "UTF-8"
+  )
+  texto_suma <- sub(
+    paste0("^- Registros unicos: ", flujo$unicos, "$"),
+    paste0("- Registros unicos: ", flujo$unicos + 1L),
+    texto_suma
+  )
+  writeLines(texto_suma, informe_suma_rota, useBytes = TRUE)
+  stopifnot(falla(validar_informe(informe_suma_rota, x, tabla, flujo)))
+  unlink(informe_suma_rota)
+
+  # Y la mutación que motivó todo esto: volver a publicar los 28 canónicos como
+  # si fueran las tarjetas abiertas a texto completo rompe 704 = 680 + 24.
+  informe_conceptos_fundidos <- tempfile(fileext = ".md")
+  texto_fundido <- readLines(
+    "docs/validacion/evidencia-insuficiente.md", warn = FALSE,
+    encoding = "UTF-8"
+  )
+  texto_fundido <- sub(
+    paste0("^- Evaluados a texto completo \\(tarjeta principal\\): ",
+           flujo$texto_completo_principal, "$"),
+    paste0("- Evaluados a texto completo (tarjeta principal): ",
+           flujo$canonicos_texto_completo),
+    texto_fundido
+  )
+  writeLines(texto_fundido, informe_conceptos_fundidos, useBytes = TRUE)
+  stopifnot(falla(validar_informe(informe_conceptos_fundidos, x, tabla, flujo)))
+  unlink(informe_conceptos_fundidos)
 }
 
 # La rama de 3--5 inclusiones Nivel A no debe leer un informe ausente.
@@ -368,10 +440,12 @@ validar_rama_muestra(informe_ausente, muestra_3_5, tabla_3_5, flujo)
 cat(sprintf(
   paste0(
     "seleccion valida: %d examinados; %d incluidos; %d excluidos; ",
-    paste0(
-      "%d registros identificados; rama sintetica 3-5 valida; ",
-      "mutacion E007 sin licencia rechazada\n"
-    )
+    "%d identificados = %d duplicados + %d descartes + %d principales; ",
+    "%d canonicos a texto completo (%d principales + %d reaperturas R3); ",
+    "rama sintetica 3-5 valida; mutacion E007 sin licencia rechazada\n"
   ),
-  nrow(x), nrow(tabla$incluidos), nrow(tabla$excluidos), flujo$identificados
+  nrow(x), nrow(tabla$incluidos), nrow(tabla$excluidos), flujo$identificados,
+  flujo$duplicados, flujo$descartados_metadatos, flujo$texto_completo_principal,
+  flujo$canonicos_texto_completo, flujo$texto_completo_principal,
+  flujo$reaperturas
 ))

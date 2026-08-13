@@ -17,7 +17,7 @@ depósito y metadatos.
 | `fuente` | Base de datos, buscador o repositorio consultado. |
 | `consulta` | Texto de la consulta ejecutada. |
 | `url` | Enlace reproducible a la consulta o fuente. |
-| `resultados_revisados` | Número de resultados revisados. |
+| `resultados_revisados` | Número de resultados revisados por esa fila. **La unidad depende de la ronda y hay que decirla siempre.** En las rondas 1 a 3 cuenta **tarjetas**: una fila por registro recuperado, que es la que aparece en `cribado-estudios.csv`, de modo que `sum(resultados_revisados)` de la ronda iguala el número de tarjetas de esa ronda. En la ronda `0` cuenta **apariciones**: comprobaciones dirigidas de fichas, repositorios y código fuente, en las que un mismo elemento puede revisarse en varias filas y ninguna genera tarjeta de cribado. Por eso las 404 apariciones de la ronda `0` no son 404 registros únicos, y por eso los totales de ronda `0` y los de las rondas 1 a 3 **no son la misma magnitud y no se suman como una sola**. |
 | `universo_informado` | Total informado por la fuente o `NA` cuando no consta. |
 | `enumeracion_completa` | Si se revisó todo el universo informado: `si`, `no` o `no_aplica`. |
 | `observaciones` | Notas sobre alcance, filtros o incidencias de la búsqueda. |

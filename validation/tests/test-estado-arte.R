@@ -32,27 +32,42 @@ stopifnot(length(exclusiones) == 9L)
 stopifnot(length(fecha_corte) == 1L)
 stopifnot(grepl(fecha_corte, doc, fixed = TRUE))
 stopifnot(all(nzchar(herr$url_primaria)))
-stopifnot(grepl(sprintf("%d filas totales", nrow(registro_historico)), doc,
+# El CSV es incremental y el documento tiene que decir de QUÉ parte habla. Antes
+# publicaba las cifras de `ronda == 0` llamándolas «totales» y «en todo el
+# registro», y esta prueba las fosilizaba: corregirlas la ponía roja. Ahora se
+# anclan las cuatro cifras, cada una con su literal, y en las dos direcciones.
+formato <- function(x) {
+  formatC(as.integer(x), format = "d", big.mark = ".", decimal.mark = ",")
+}
+
+stopifnot(grepl(sprintf("%d filas del subconjunto histórico",
+                        nrow(registro_historico)), doc, fixed = TRUE))
+stopifnot(grepl(
+  sprintf("%d apariciones revisadas en ese subconjunto histórico",
+          sum(registro_historico$resultados_revisados)),
+  doc,
+  fixed = TRUE
+))
+stopifnot(grepl(sprintf("%s filas en total", formato(nrow(registro))), doc,
                 fixed = TRUE))
 stopifnot(grepl(
+  sprintf("%s apariciones en todo el registro",
+          formato(sum(registro$resultados_revisados))),
+  doc,
+  fixed = TRUE
+))
+
+# Dirección contraria: el literal global no puede volver a llevar la cifra del
+# subconjunto. Sin esto, deshacer la corrección deja la prueba en verde.
+stopifnot(!grepl(sprintf("%d filas totales", nrow(registro_historico)), doc,
+                 fixed = TRUE))
+stopifnot(!grepl(
   sprintf("%d apariciones revisadas en todo el registro",
           sum(registro_historico$resultados_revisados)),
   doc,
   fixed = TRUE
 ))
 
-# El documento conserva la fotografía de la búsqueda inicial. Una ronda futura
-# sintética no puede cambiar sus denominadores históricos.
-registro_con_ronda_futura <- rbind(registro, transform(
-  registro[1L, , drop = FALSE], id = "B-FUTURA", ronda = max(registro$ronda) + 1L,
-  resultados_revisados = 999999L
-))
-historico_mutado <- registro_con_ronda_futura[
-  registro_con_ronda_futura$ronda == 0L, , drop = FALSE
-]
-stopifnot(nrow(historico_mutado) == nrow(registro_historico))
-stopifnot(sum(historico_mutado$resultados_revisados) ==
-          sum(registro_historico$resultados_revisados))
 stopifnot(grepl(
   sprintf("%d filas de búsqueda de herramientas", nrow(registro_herramientas)),
   doc,
@@ -157,3 +172,16 @@ for (url_aviso in herr$url_primaria[filas_senaladas]) {
   stopifnot(length(lineas_aviso) == 1L)
   stopifnot(grepl("archiv", tolower(lineas_aviso), fixed = TRUE))
 }
+
+cat(sprintf(paste0(
+  "estado del arte valido: %d herramientas; %d candidatos excluidos; ",
+  "%d filas y %d apariciones en el subconjunto historico; ",
+  "%s filas y %s apariciones en todo el registro; ",
+  "%d filas y %d apariciones del alcance herramientas; ",
+  "%d capacidades en no_verificado\n"
+),
+nrow(herr), length(exclusiones),
+nrow(registro_historico), sum(registro_historico$resultados_revisados),
+formato(nrow(registro)), formato(sum(registro$resultados_revisados)),
+nrow(registro_herramientas), sum(registro_herramientas$resultados_revisados),
+sum(herr[, capacidades] == "no_verificado")))

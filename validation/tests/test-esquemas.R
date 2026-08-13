@@ -150,10 +150,26 @@ stopifnot(identical(names(herramientas), c(
 )))
 permitidos_mantenida <- c("si", "no", "incierto")
 stopifnot(all(herramientas$mantenida %in% permitidos_mantenida))
-stopifnot(!all(c("si", "no_verificado") %in% permitidos_mantenida))
 
 capacidades <- c("validacion_medida", "agregacion", "calibracion",
                  "justifica_anclas", "necesidad", "suficiencia", "nca",
                  "robustez", "casos", "informe_reproducible")
 permitidos <- c("si", "no", "parcial", "no_verificado")
 stopifnot(all(unlist(herramientas[capacidades], use.names = FALSE) %in% permitidos))
+
+# Aquí vivía `stopifnot(!all(c("si", "no_verificado") %in% permitidos_mantenida))`,
+# una tautología sobre una constante definida dos líneas antes: no podía fallar
+# con ningún contenido del CSV. Lo que quería decir —que `mantenida` tiene su
+# propio vocabulario y no toma prestado el de las capacidades— ya lo dice la
+# línea anterior contra el DATO. Lo que faltaba, y no es tautológico, es que
+# ninguna de las tres categorías esté muerta: si `incierto` no apareciera en
+# ninguna fila, `mantenida` sería de hecho binaria y su tercer valor una
+# promesa vacía. Muta poniendo a `si` las cuatro filas `incierto`.
+stopifnot(all(permitidos_mantenida %in% herramientas$mantenida))
+
+cat(sprintf(paste0(
+  "esquemas validos: %d busquedas (%d columnas); %d tarjetas de cribado; ",
+  "%d estudios (%d columnas); %d rondas; %d herramientas; ",
+  "deduplicacion y coherencia de rondas con sus 6 mutaciones rechazadas\n"
+), nrow(busquedas), ncol(busquedas), nrow(cribado), nrow(estudios),
+   ncol(estudios), nrow(rondas), nrow(herramientas)))

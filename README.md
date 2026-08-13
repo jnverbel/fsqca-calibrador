@@ -7,10 +7,22 @@ an appendix ready for a doctoral dissertation: measurement validation, aggregati
 fuzzy calibration, necessity and sufficiency, Boolean minimisation and a robustness sweep.
 
 **It reimplements no statistical computation.** It wraps `QCA`, `SetMethods`, `psych`,
-`lavaan` and `NCA` — peer-reviewed, citable packages. What it contributes is what does not
-exist today: validating reliability *before* averaging, diagnosing the ceiling effect,
-requiring that every anchor be justified, and leaving a written trace of that justification
-in the report.
+`lavaan` and `NCA` — peer-reviewed, citable packages. What it contributes is what the
+compared universe of tools does not document: validating reliability *before* averaging,
+diagnosing the ceiling effect, requiring that every anchor be justified, and leaving a
+written trace of that justification in the report.
+
+"Not documented" is not "does not exist", and this repository draws that line itself: in
+[`docs/estado-del-arte.md`](docs/estado-del-arte.md) all 14 compared tools are recorded as
+`no_verificado` for `validacion_medida`, and that code **is not equivalent to `no`**.
+
+## What external evidence exists, and what does not
+
+The search for published studies to validate this tool against is closed and frozen in
+[`docs/validacion/busqueda-ampliada.md`](docs/validacion/busqueda-ampliada.md): **zero Level
+A studies** (a reproducible end-to-end chain), **nine Level B** (isolated module coverage),
+and **no replication executed yet**. There is no integral external validation of the
+Likert/multi-item workflow, and modular coverage is not added up to simulate one.
 
 ## Status
 

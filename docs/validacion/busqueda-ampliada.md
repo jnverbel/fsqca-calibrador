@@ -11,7 +11,8 @@ ningún estudio se promovió para completar un cupo.
 | Tarjetas identificadas | 1.689 | R0: 57; R1: 1.407; R2: 217; R3: 8. |
 | Duplicados | 985 | Se preservan, pero no inflan canónicos. |
 | Descartes de metadatos | 680 | Sin señal suficiente para abrir texto completo. |
-| Texto completo | 28 | Una evaluación por canónico. |
+| Tarjetas abiertas a texto completo | 24 | Cierra el flujo: 985 + 680 + 24 = 1.689. |
+| Canónicos evaluados a texto completo | 28 | Las 24 anteriores más 4 reaperturas R3. |
 | Nivel A / B / exclusión | 0 / 9 / 19 | Selección congelada. |
 
 R1 enumeró Zenodo (31), Harvard Dataverse (44), OSF (6), DataCite (322) y

@@ -10,7 +10,8 @@ modular Nivel B.
 - Duplicados: 985
 - Registros unicos: 704
 - Descartados en metadatos: 680
-- Evaluados a texto completo: 28
+- Evaluados a texto completo (tarjeta principal): 24
+- Canonicos con evaluacion a texto completo: 28 (24 principales + 4 reaperturas R3)
 - Total examinado: 28
 - Incluidos: 9
 - Excluidos: 19
@@ -64,10 +65,15 @@ anclas, umbrales, soluciones y la limitación que bloquea A.
 
 ## Flujo y límite de alcance
 
-La búsqueda conserva 1.689 tarjetas: 985 duplicadas, 680 descartadas en
-metadatos y 28 canónicos a texto completo. R1 enumeró repositorios; R2 usó
-citas, referencias y reinspecciones; R3 abrió QDR y suplementos PLOS. R2 y R3
-son dos rondas consecutivas saturadas (0 A y ningún módulo B nuevo).
+La búsqueda conserva 1.689 tarjetas, y esas tres cifras son las que suman:
+985 duplicadas, 680 descartadas en metadatos y 24 abiertas a texto completo
+como tarjeta principal. Los canónicos con evaluación a texto completo son 28:
+esas 24 más las cuatro reaperturas de R3 (E025--E028), cuyas tarjetas siguen
+registradas como duplicados y por eso no vuelven a sumarse al flujo.
+
+R1 enumeró repositorios; R2 usó citas, referencias y reinspecciones; R3 abrió
+QDR y suplementos PLOS. R2 y R3 son dos rondas consecutivas saturadas (0 A y
+ningún módulo B nuevo).
 
 Dataverse global, GESIS y UK Data Service no expusieron un universo federado o
 exportación estable; ICPSR exigió credenciales. No se ejecutó

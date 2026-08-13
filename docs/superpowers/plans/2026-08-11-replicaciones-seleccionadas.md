@@ -2327,7 +2327,25 @@ git commit -m "docs: publicar la validacion modular de Nivel B"
 flujo de CI, para que `continue-on-error` no pueda colarse en el YAML. Prohíbe redefinir una
 constante del común con `<-`, `=`, `<<-` o `assign()` **esté donde esté en la línea**: el
 patrón anterior estaba anclado al principio y `local({ MODULOS <<- ... })` pasaba en verde.
-Y prohíbe que un adaptador calcule lo que se compara. Contenido exacto, ejecutado y mutado:
+Y prohíbe que un adaptador calcule lo que se compara.
+
+Tres huecos medidos y cerrados en esta pasada, todos de la misma forma —el guardián miraba
+la escritura literal y no la propiedad—:
+
+1. **`patron` y `patron_assign` se construían sólo con `CONSTANTES`**, así que las
+   `FUNCIONES` quedaban fuera y se podía redefinir `tolerancia_de()` en un adaptador o en
+   una prueba. Es justo la palanca ×10: `tolerancia_de <- function(...) 10 * ...` aprueba
+   cualquier comparación del circuito sin tocar ni un dato. Los dos patrones se construyen
+   ahora con `NOMBRES_DEL_COMUN <- c(CONSTANTES, FUNCIONES)`.
+2. **`PROHIBIDOS` casaba con `fixed = TRUE`**, de modo que `if(interactive())` sin espacio
+   —o `testthat :: skip`— no se detectaba. Se comparan las dos cadenas con los espacios y
+   tabuladores quitados.
+3. **`SIN_ADJUNTAR` no cubría los espacios de nombres.** `asNamespace`, `loadNamespace`,
+   `attachNamespace` y el `get(..., envir = asNamespace("calibraqca"))` esquivaban la lista
+   blanca del adaptador sin escribir `::` ni `library()`. Los tres nombres entran en la
+   lista.
+
+Contenido exacto, ejecutado y mutado:
 
 ```r
 # Ninguna omision en NINGUN archivo de validation/ ni en el YAML del CI: un
@@ -2351,9 +2369,21 @@ ADAPTADOR_PERMITE <- c("leer_datos", "definir_mapeo", "definir_anclas",
 # Sin esto la lista blanca es ciega: `library(calibraqca)` y una llamada sin
 # `::` la esquivan en una linea.
 SIN_ADJUNTAR <- c("library(", "require(", "getFromNamespace", "getExportedValue",
-                  ":::")
+                  ":::", "asNamespace", "loadNamespace", "attachNamespace")
+# `get("calibrar", envir = asNamespace("calibraqca"))` esquivaba la lista blanca
+# sin escribir `::` ni `library()`: queda cubierto por `asNamespace`.
 SOURCE <- 'source("validation/R/comun-replicacion.R")'
 YO <- "test-sin-omisiones.R"
+
+# Los nombres del comun que ningun otro archivo puede redefinir. Las FUNCIONES
+# entran aqui, no solo las CONSTANTES: lo que se escapaba era `tolerancia_de`,
+# que es justo la palanca x10 —redefinirla multiplica por diez la tolerancia de
+# todo el circuito y ninguna comparacion se pone roja—.
+NOMBRES_DEL_COMUN <- c(CONSTANTES, FUNCIONES)
+
+# `fixed = TRUE` no ve `if(interactive())` sin espacio, ni `testthat :: skip`.
+# Se comparan las dos cadenas con TODOS los espacios y tabuladores quitados.
+sin_espacios <- function(x) gsub("[ \t]+", "", x)
 
 archivos <- c(list.files("validation", full.names = TRUE, recursive = TRUE),
               ".github/workflows/pruebas.yml")
@@ -2362,27 +2392,28 @@ stopifnot(length(archivos) > 1L)
 stopifnot(any(grepl("^validation/R/adaptador-", archivos)))
 stopifnot(".github/workflows/pruebas.yml" %in% archivos)
 
-orden <- order(nchar(CONSTANTES), decreasing = TRUE)
-patron <- paste0("(^|[^[:alnum:]._])(", paste(CONSTANTES[orden],
+orden <- order(nchar(NOMBRES_DEL_COMUN), decreasing = TRUE)
+patron <- paste0("(^|[^[:alnum:]._])(", paste(NOMBRES_DEL_COMUN[orden],
                                               collapse = "|"),
                  ")[ \t]*(<<-|<-|=(?!=))")
 patron_assign <- paste0("assign[ \t]*\\([ \t]*[\"'](",
-                        paste(CONSTANTES[orden], collapse = "|"), ")")
+                        paste(NOMBRES_DEL_COMUN[orden], collapse = "|"), ")")
 
 for (f in archivos) {
   if (basename(f) == YO) next
   lineas <- readLines(f, warn = FALSE)
   texto <- paste(lineas, collapse = "\n")
+  texto_apretado <- sin_espacios(texto)
 
   for (p in PROHIBIDOS) {
-    if (grepl(p, texto, fixed = TRUE)) {
+    if (grepl(sin_espacios(p), texto_apretado, fixed = TRUE)) {
       stop("Omision en ", f, ": ", p, call. = FALSE)
     }
   }
 
   if (!grepl("[.]R$", f)) next
 
-  usa <- any(vapply(c(CONSTANTES, FUNCIONES),
+  usa <- any(vapply(NOMBRES_DEL_COMUN,
                     function(x) grepl(paste0("\\b", x, "\\b"), texto),
                     logical(1)))
   es_el_comun <- identical(basename(f), "comun-replicacion.R")
@@ -2591,6 +2622,11 @@ un juego de datos de prueba y se sometió a una mutación que la puso roja:
 3. **La copia literal no tenía quien la sostuviera.** El `print()` se sustituyó por
    `validation/tests/test-tabla-modulos-del-plan.R`, que compara las 54 celdas y aborta, y
    que corre en el CI.
+   **(Superado: la tabla de módulos y `test-tabla-modulos-del-plan.R` desaparecieron en la
+   quinta pasada —31 líneas de prueba para sostener 11 de tabla copiada—, así que ese
+   archivo no existe y no corre en ningún CI. Lo único que la tabla sostenía y sigue
+   haciendo falta es una línea de `test-contratos-replicacion.R` contra `estudios.csv`.
+   Este párrafo describe el diseño de la tercera pasada, no el vigente.)**
 4. **Una aserción que no podía fallar.** `stopifnot(is.logical(vapply(..., logical(1))))` es
    verdadera para cualquier contenido del CSV: `vapply(..., logical(1))` siempre devuelve
    `logical`. Era una aserción de FORMA donde hacía falta una de PROPIEDAD. Se sustituyó por

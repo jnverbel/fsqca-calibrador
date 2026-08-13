@@ -39,7 +39,11 @@ duplicados del mismo canónico reabierto materialmente en B071.
 
 ## Saturación
 
-R3 tiene 8 tarjetas (4 duplicados y 4 evaluaciones completas), 0 Nivel A y 3
+R3 tiene 8 tarjetas y las ocho están registradas como `duplicado` en
+`cribado-estudios.csv`: ninguna lleva `evaluacion_completa`. Las cuatro de B070
+quedan en etapa `metadatos` y las cuatro de B071 en etapa `texto_completo`, y
+son estas últimas las reaperturas que constituyen la evidencia material de
+E025--E028 sin abrir un canónico nuevo. La ronda deja 0 Nivel A y 3
 Nivel B. Sus módulos verificables ya estaban en la cobertura acumulada de R1,
 por lo que `modulos_nuevos=ninguno` y R3 es saturada. R2 y R3 son dos rondas
 consecutivas saturadas; como el total de A sigue siendo menor que tres, esta

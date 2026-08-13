@@ -1,9 +1,9 @@
 # Relevo: búsqueda ampliada y validación A/B
 
-**Fecha de checkpoint:** 2026-08-11  
-**Worktree:** `worktree local`  
-**Rama:** `codex/estado-arte-validacion`  
-**Plan rector:** `docs/superpowers/plans/2026-08-11-busqueda-ampliada-validacion.md`
+- **Fecha de checkpoint:** 2026-08-11
+- **Worktree:** worktree local de la rama, fuera del árbol principal
+- **Rama:** `codex/estado-arte-validacion`
+- **Plan rector:** `docs/superpowers/plans/2026-08-11-busqueda-ampliada-validacion.md`
 
 ## Estado científico congelado
 
