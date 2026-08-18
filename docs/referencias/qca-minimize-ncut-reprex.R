@@ -5,6 +5,18 @@
 #
 # Self-contained: uses only data shipped with QCA (Lipset 1959, `LF`).
 #   R 4.6.1 / QCA 3.25 / admisc 0.40
+#
+# STATUS (2026-08-18). Filed as dusadrian/QCA#4 and closed. The package author
+# confirmed that the rebuild is INTENDED AND DOCUMENTED behaviour of QCA, and
+# identified the defect as the route esa() uses to exclude rows -- writing into
+# tt$tt$OUT, which leaves no trace in tt$call and therefore cannot survive a
+# rebuild. The supported route is `exclude=` at construction time, or
+# change(tt, exclude = ...); both are recorded in the call and do survive.
+#
+# This file is kept because it isolates the mechanism on package data, not
+# because it reports a defect of QCA. The defect it leads to lives in
+# SetMethods::esa() -- see esa-minimize-reprex.R, which runs the published
+# ?esa example and loses 39 exclusions.
 
 library(QCA)
 
@@ -58,3 +70,11 @@ cat("Warnings emitted about the rebuild:", length(warns), "\n")
 # The branch reconstructs the truth table from the original data whenever a
 # truthTable-construction argument is present in `...`, overwriting the OUT
 # column the user (or esa()) had modified, with no warning.
+#
+# The route that survives the rebuild, for the same exclusion:
+#
+#   tt_ok <- change(tt, exclude = as.integer(target))
+#   minimize(tt_ok,             include = "?")$solution   #> "URB*STB"
+#   minimize(tt_ok, n.cut = 1,  include = "?")$solution   #> "URB*STB"  <- holds
+#
+# Both checked on 2026-08-18 with the versions in the header.

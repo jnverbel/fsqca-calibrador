@@ -560,9 +560,11 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
 #'
 #' minimize(), al recibir una tabla ya construida y cualquiera de estos
 #' argumentos, la rehace desde tt$initial.data y descarta la que se le paso,
-#' sin avisar (dusadrian/QCA#4). Se calcula igual que minimize -- los formales
-#' de truthTable menos los dos que no disparan el rebuild -- para seguir el
-#' paso de las versiones de QCA. Frontera fina: use.letters y dcc SI
+#' sin avisar. Es comportamiento intencionado y documentado de QCA, confirmado
+#' por su autor al cerrar dusadrian/QCA#4: por eso la guarda es de este lado y
+#' no cabe esperar un parche aguas arriba. Se calcula igual que minimize --
+#' los formales de truthTable menos los dos que no disparan el rebuild -- para
+#' seguir el paso de las versiones de QCA. Frontera fina: use.letters y dcc SI
 #' reconstruyen; use.labels y show.cases NO.
 .args_reconstruccion_tabla <- function() {
   setdiff(names(formals(QCA::truthTable)),
@@ -589,8 +591,9 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
     stop(sprintf(paste(
       "minimize() reconstruiria la tabla de verdad en silencio: se le paso",
       "%s, argumento(s) de construccion de tabla. QCA la rehace desde los",
-      "datos y descarta la ya calibrada (dusadrian/QCA#4). Omita ese",
-      "argumento; la tabla ya trae sus umbrales."),
+      "datos y descarta la ya calibrada; es comportamiento documentado de",
+      "QCA (dusadrian/QCA#4). Omita ese argumento; la tabla ya trae sus",
+      "umbrales."),
       paste(peligrosos, collapse = ", ")), call. = FALSE)
   }
   # do.call con los valores ya evaluados, no ...: minimize() reevalua dir.exp

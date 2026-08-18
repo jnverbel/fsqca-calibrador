@@ -111,11 +111,21 @@ documentado con un ejemplo reproducible en [`docs/referencias/`](docs/referencia
 - `SetMethods` 4.1 — `rob.cases` roto; el bucle de `helper_rob` está en tres funciones y
   corrompe `rob.fit()`
   ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
-- `QCA` — `minimize()` reconstruye en silencio una tabla de verdad modificada cuando se le
-  pasa `n.cut` ([reprex](docs/referencias/qca-minimize-ncut-reprex.R),
-  [issue #4](https://github.com/dusadrian/QCA/issues/4))
+- `SetMethods` 4.1 — `esa()` excluye filas escribiendo directamente sobre la columna `OUT`
+  del objeto. Esa vía no deja rastro en `tt$call`, así que no sobrevive a una reconstrucción
+  de la tabla: si después se llama a `minimize()` con cualquier argumento de construcción de
+  tabla, las exclusiones se pierden sin aviso y la solución «enhanced» no está enhanced
+  ([reprex](docs/referencias/esa-minimize-reprex.R))
 
 El calibrador no está afectado por ninguno de los dos.
+
+El segundo se reportó primero contra `QCA`
+([issue #4](https://github.com/dusadrian/QCA/issues/4)). Su autor respondió que la
+reconstrucción de `minimize()` es **intencionada y documentada**, y señaló el hack de
+`esa()` como lo que hay que corregir: la vía soportada es `exclude=` o
+`change(tt, exclude = ...)`, que sí quedan registradas en la llamada. El
+[reprex del comportamiento de `minimize()`](docs/referencias/qca-minimize-ncut-reprex.R)
+se conserva porque documenta el mecanismo, no porque sea un defecto de `QCA`.
 
 ## Reparto de responsabilidades
 

@@ -110,11 +110,21 @@ reproducible example under [`docs/referencias/`](docs/referencias/):
 - `SetMethods` 4.1 — `rob.cases` broken; the `helper_rob` loop appears in three functions
   and corrupts `rob.fit()`
   ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
-- `QCA` — `minimize()` silently rebuilds a modified truth table when passed `n.cut`
-  ([reprex](docs/referencias/qca-minimize-ncut-reprex.R),
-  [issue #4](https://github.com/dusadrian/QCA/issues/4))
+- `SetMethods` 4.1 — `esa()` excludes rows by writing directly into the `OUT` column of the
+  truth-table object. That route leaves no trace in `tt$call`, so it does not survive a
+  rebuild: if `minimize()` is then called with any truth-table-construction argument, the
+  exclusions are dropped with no warning and the "enhanced" solution is not enhanced
+  ([reprex](docs/referencias/esa-minimize-reprex.R))
 
 The calibrator itself is not affected by either.
+
+The second one was first reported against `QCA`
+([issue #4](https://github.com/dusadrian/QCA/issues/4)). Its author replied that the
+`minimize()` rebuild is **intended and documented**, and pointed at the `esa()` hack as
+the thing to fix: the supported route is `exclude=` or `change(tt, exclude = ...)`, which
+are recorded in the call. The
+[reprex of the `minimize()` behaviour](docs/referencias/qca-minimize-ncut-reprex.R) is
+kept because it documents the mechanism, not because it is a defect of `QCA`.
 
 ## Division of responsibility
 

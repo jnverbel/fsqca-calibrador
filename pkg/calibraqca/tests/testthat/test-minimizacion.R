@@ -266,7 +266,8 @@ test_that("con configuraciones suficientes la minimizacion si es posible", {
 # QCA::minimize(), al recibir una tabla ya construida MAS un argumento de
 # construccion de tabla (incl.cut, n.cut, pri.cut, exclude, complete,
 # sort.by, inf.test, use.labels), reconstruye la tabla desde tt$initial.data
-# y descarta la que se le paso -- sin avisar (dusadrian/QCA#4). El motor
+# y descarta la que se le paso -- sin avisar. Es comportamiento documentado
+# de QCA, confirmado por su autor al cerrar dusadrian/QCA#4. El motor
 # arma la tabla con umbrales deliberados en construir_tabla_verdad(); que
 # minimize la rehiciera con otros umbrales dejaria el anexo mostrando una
 # tabla que no corresponde a la solucion. .minimizar_seguro() lo impide.
