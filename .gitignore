@@ -57,3 +57,6 @@ informe/informe.docx
 # tocar los .pdf de docs/referencias/, que si se versionan.
 /*.html
 /*.pdf
+
+# Notas personales de Claude Code (no publicar)
+CLAUDE.local.md
