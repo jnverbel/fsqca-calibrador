@@ -120,9 +120,11 @@ The calibrator itself is not affected by either.
 
 The second one was first reported against `QCA`
 ([issue #4](https://github.com/dusadrian/QCA/issues/4)). Its author replied that the
-`minimize()` rebuild is **intended and documented**, and pointed at the `esa()` hack as
-the thing to fix: the supported route is `exclude=` or `change(tt, exclude = ...)`, which
-are recorded in the call. The
+`minimize()` rebuild is **intended**, and pointed at the `esa()` hack as the thing to fix:
+the supported route is `exclude=` or `change(tt, exclude = ...)`, which are recorded in
+the call. The rebuild is not described as such, though: `?minimize` and the QCA book
+document passing `truthTable()` arguments when the input is a data frame, not that a
+truth table already built is rebuilt and replaced. The
 [reprex of the `minimize()` behaviour](docs/referencias/qca-minimize-ncut-reprex.R) is
 kept because it documents the mechanism, not because it is a defect of `QCA`.
 

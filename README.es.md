@@ -121,9 +121,12 @@ El calibrador no está afectado por ninguno de los dos.
 
 El segundo se reportó primero contra `QCA`
 ([issue #4](https://github.com/dusadrian/QCA/issues/4)). Su autor respondió que la
-reconstrucción de `minimize()` es **intencionada y documentada**, y señaló el hack de
-`esa()` como lo que hay que corregir: la vía soportada es `exclude=` o
-`change(tt, exclude = ...)`, que sí quedan registradas en la llamada. El
+reconstrucción de `minimize()` es **intencionada**, y señaló el hack de `esa()` como lo
+que hay que corregir: la vía soportada es `exclude=` o `change(tt, exclude = ...)`, que
+sí quedan registradas en la llamada. La reconstrucción, eso sí, no está descrita como
+tal: `?minimize` y el libro de QCA documentan pasar argumentos de `truthTable()` cuando la
+entrada es una tabla de datos, no que una tabla de verdad ya construida se rehaga y se
+sustituya. El
 [reprex del comportamiento de `minimize()`](docs/referencias/qca-minimize-ncut-reprex.R)
 se conserva porque documenta el mecanismo, no porque sea un defecto de `QCA`.
 

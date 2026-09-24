@@ -36,12 +36,14 @@ sol(minimize(newtt, incl.cut = .9, include = "?"))
 
 # incl.cut = .9 es EL MISMO valor con el que se construyo TT_y. Pasarlo no
 # deberia cambiar nada. QCA::minimize() lo lee como una peticion de reconstruir
-# la tabla desde tt$initial.data (comportamiento documentado e intencional,
-# confirmado por Adrian Dusa en dusadrian/QCA#4), y al reconstruirla borra la
-# columna OUT que esa() acababa de escribir. Sin aviso.
+# la tabla desde tt$initial.data (comportamiento intencional segun Adrian Dusa
+# en dusadrian/QCA#4, aunque ?minimize solo documenta ese paso de argumentos
+# cuando la entrada es una tabla de datos), y al reconstruirla borra la columna
+# OUT que esa() acababa de escribir. Sin aviso.
 #
-# Lo mismo ocurre con n.cut, pri.cut, include, exclude y demas argumentos de
-# truthTable(). El resultado es una solucion "enhanced" que no esta enhanced.
+# Lo mismo ocurre con n.cut, pri.cut, exclude y demas argumentos de
+# truthTable(). `include` NO la dispara: no es argumento de truthTable(). El
+# resultado es una solucion "enhanced" que no esta enhanced.
 
 # --- Por que ocurre -----------------------------------------------------------
 # esa() escribe directamente sobre la columna OUT del objeto:

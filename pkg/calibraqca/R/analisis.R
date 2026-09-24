@@ -563,9 +563,10 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
 #'
 #' minimize(), al recibir una tabla ya construida y cualquiera de estos
 #' argumentos, la rehace desde tt$initial.data y descarta la que se le paso,
-#' sin avisar. Es comportamiento intencionado y documentado de QCA, confirmado
-#' por su autor al cerrar dusadrian/QCA#4: por eso la guarda es de este lado y
-#' no cabe esperar un parche aguas arriba. Se calcula igual que minimize --
+#' sin avisar. Es comportamiento intencionado de QCA segun su autor, que cerro
+#' dusadrian/QCA#4 sin cambiarlo (?minimize solo documenta ese paso de
+#' argumentos para una tabla de datos): por eso la guarda es de este lado y no
+#' cabe esperar un parche aguas arriba. Se calcula igual que minimize --
 #' los formales de truthTable menos los dos que no disparan el rebuild -- para
 #' seguir el paso de las versiones de QCA. Frontera fina: use.letters y dcc SI
 #' reconstruyen; use.labels y show.cases NO.

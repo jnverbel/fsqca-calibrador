@@ -7,11 +7,23 @@
 #   R 4.6.1 / QCA 3.25 / admisc 0.40
 #
 # STATUS (2026-08-18). Filed as dusadrian/QCA#4 and closed. The package author
-# confirmed that the rebuild is INTENDED AND DOCUMENTED behaviour of QCA, and
+# stated that the rebuild is INTENDED behaviour of QCA, and
 # identified the defect as the route esa() uses to exclude rows -- writing into
 # tt$tt$OUT, which leaves no trace in tt$call and therefore cannot survive a
 # rebuild. The supported route is `exclude=` at construction time, or
 # change(tt, exclude = ...); both are recorded in the call and do survive.
+#
+# Checked 2026-09-24 against the primary sources: ?minimize ("For the later
+# case", i.e. a data frame input) and the QCA book (section on minimize(): "if
+# a dataset it would call the truthTable() function") document passing
+# truthTable() arguments for a DATA FRAME input. Neither says that a truth
+# table object passed in is rebuilt and replaced. Intended, then; documented,
+# not as such.
+#
+# Correction to the original report: `include` does NOT trigger the rebuild --
+# it is not a formal of truthTable(). Step 3a below passes it and keeps the
+# exclusion. The triggers are the formals of truthTable() except show.cases
+# and use.labels (n.cut, incl.cut, pri.cut, exclude, use.letters, dcc, ...).
 #
 # This file is kept because it isolates the mechanism on package data, not
 # because it reports a defect of QCA. The defect it leads to lives in
