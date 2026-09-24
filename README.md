@@ -40,7 +40,7 @@ mutation that turns a test red.
 [![tests](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
 **Complete and working.** The suites hold
-**1,063 engine tests** and **81 interface tests**,
+**1,091 engine tests** and **87 interface tests**,
 none of them skipped, behind an eight-step Shiny interface and a Quarto report in HTML and
 Word. Those two figures are not typed by hand: the CI job that runs each suite requires the
 README to publish the count it has just measured, exactly once.

@@ -40,7 +40,7 @@ con la mutación que pone roja una prueba—.
 [![pruebas](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml/badge.svg)](https://github.com/jnverbel/fsqca-calibrador/actions/workflows/pruebas.yml)
 
 **Completo y funcionando.** Las suites suman
-**1.063 pruebas de motor** y **81 pruebas de interfaz**,
+**1.091 pruebas de motor** y **87 pruebas de interfaz**,
 ninguna con `skip`, detrás de una interfaz Shiny de ocho pasos y un informe Quarto en HTML y
 Word. Esas dos cifras no se teclean a mano: el trabajo de CI que corre cada suite exige que
 el README publique el recuento que acaba de medir, exactamente una vez.

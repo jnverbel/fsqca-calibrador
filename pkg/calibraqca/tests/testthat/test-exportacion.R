@@ -181,9 +181,84 @@ test_that("el guion reproduce el barrido de robustez con SetMethods", {
   )
 
   expect_true(grepl("SetMethods::rob.calibrange", guion, fixed = TRUE))
-  expect_true(grepl("step = 0.1", guion, fixed = TRUE))
   expect_true(grepl("max.runs = 10", guion, fixed = TRUE))
   expect_true(grepl("CAP_ABS", guion, fixed = TRUE))
+})
+
+test_that("el paso del barrido de anclas va en las unidades de la condicion", {
+  # robustez$paso es una fraccion de la separacion entre anclas. En una
+  # escala Likert con anclas a 1 punto la fraccion y las unidades coinciden,
+  # y por eso la prueba anterior exigia "step = 0.1" y pasaba: protegia el
+  # defecto. Con una renta en dolares (E012-INCOME) el tramo corto son
+  # 11.454 dolares, y el paso tiene que ser 1.145,4, no 0,1.
+  ingreso <- definir_anclas(63703, 12200, 746, "distribucion muestral",
+                            JUSTIFICACION_LARGA)
+  guion <- guion_reproducible(
+    ruta_datos = "paises.csv",
+    mapeo = definir_mapeo("pais", "uno", list(
+      list(nombre = "INCOME", rol = "condicion", items = "INCOME"),
+      list(nombre = "YLL", rol = "resultado", items = "YLL"))),
+    anclas = list(INCOME = ingreso,
+                  YLL = definir_anclas(4, 3, 2, "teoria", strrep("c", 40))),
+    idm = 0.95,
+    umbrales = list(frecuencia = 1, consistencia = 0.80, pri = 0.70),
+    resultado = "YLL",
+    robustez = list(ejecutado = TRUE, paso = 0.1, max_pasos = 10))
+
+  expect_true(grepl(paste0("step = ", format(0.1 * 11454)), guion,
+                    fixed = TRUE))
+  expect_false(grepl("step = 0.1,", guion, fixed = TRUE))
+})
+
+test_that("los barridos del guion llevan el PRI y las expectativas del paso 6", {
+  # Sin ellos SetMethods barre con su PRI por defecto y sobre la
+  # conservadora: los rangos del guion no serian los del informe.
+  guion <- guion_reproducible(
+    ruta_datos = "encuesta.csv",
+    mapeo = definir_mapeo("id_empresa", "uno", list(
+      list(nombre = "CAP_ABS", rol = "condicion",
+           items = c("IT01", "IT02", "IT03")),
+      list(nombre = "INNOV", rol = "resultado", items = c("RS01", "RS02")))),
+    anclas = anclas_export(), idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.80, pri = 0.65),
+    resultado = "INNOV",
+    robustez = list(ejecutado = TRUE, paso = 0.1, max_pasos = 10),
+    expectativas = c("CAP_ABS", "~REDES"))
+
+  llamadas <- regmatches(guion, gregexpr("SetMethods::rob\\.[a-z]+\\([^#]*?\\)\\)?\n",
+                                         guion))[[1]]
+  # rob.calibrange de las dos condiciones, rob.inclrange y rob.ncutrange.
+  expect_identical(length(llamadas), 4L)
+  for (l in llamadas) {
+    expect_match(l, "pri.cut = 0.65", fixed = TRUE)
+    expect_match(l, 'dir.exp = "CAP_ABS + ~REDES"', fixed = TRUE)
+    expect_match(l, 'include = "?"', fixed = TRUE)
+  }
+})
+
+test_that("el guion corrige el cruce con la misma tolerancia que el motor", {
+  # Con anclas publicadas redondeadas el caso cae en 0,5001, no en 0,5: la
+  # igualdad exacta no lo corregia y QCA lo sacaba de la tabla de verdad.
+  guion <- guion_reproducible(
+    ruta_datos = "encuesta.csv",
+    mapeo = definir_mapeo("id_empresa", "uno", list(
+      list(nombre = "CAP_ABS", rol = "condicion", items = c("IT01", "IT02")),
+      list(nombre = "INNOV", rol = "resultado", items = c("RS01", "RS02")))),
+    anclas = anclas_export(), idm = 0.95,
+    umbrales = list(frecuencia = 2, consistencia = 0.80, pri = 0.70),
+    resultado = "INNOV")
+
+  expect_false(grepl("== 0.5", guion, fixed = TRUE))
+
+  # El bloque de correccion, ejecutado sobre valores de frontera, tiene que
+  # coincidir con corregir_050() del motor.
+  bloque <- regmatches(guion, regexpr("for \\(col in [^\n]*\n(.*\n)*?\\}\n",
+                                      guion))
+  calibrado <- data.frame(id_empresa = 1:4,
+                          CAP_ABS = c(0.5, 0.5001082, 0.4996, 0.51))
+  eval(parse(text = bloque))
+  expect_equal(calibrado$CAP_ABS,
+               unname(corregir_050(c(0.5, 0.5001082, 0.4996, 0.51))$membresias))
 })
 
 test_that("el guion reproduce tambien el barrido de los dos umbrales", {

@@ -117,11 +117,15 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "calibrado <- data.frame(", id, " = ", fuente_id,
     ", stringsAsFactors = FALSE)\n\n",
     paste(bloques_calibrado, collapse = "\n\n"), "\n\n",
-    "# Correccion de los casos en 0,50 exacto: sin ella quedan excluidos\n",
-    "# de necesidad y de suficiencia.\n",
+    "# Correccion de los casos en el punto de cruce: sin ella quedan\n",
+    "# excluidos de necesidad y de suficiencia. Se cuenta como cruce todo\n",
+    "# lo que queda a ", format(TOLERANCIA_050), " o menos de 0,50, porque un\n",
+    "# ancla redondeada deja el caso en 0,5001 y no en 0,5 exacto.\n",
     "for (col in setdiff(names(calibrado), \"", id, "\")) {\n",
-    "  en_medio <- !is.na(calibrado[[col]]) & calibrado[[col]] == 0.5\n",
-    "  calibrado[en_medio, col] <- calibrado[en_medio, col] + 0.001\n",
+    "  en_medio <- !is.na(calibrado[[col]]) &\n",
+    "    abs(calibrado[[col]] - 0.5) <= ", format(TOLERANCIA_050), "\n",
+    "  calibrado[en_medio, col] <- calibrado[en_medio, col] + ",
+    format(CORRECCION_050), "\n",
     "}\n\n",
     "# --- Necesidad ----------------------------------------------------\n",
     "print(QCA::pof(calibrado[, ", .lista_r(condiciones), "], \"",
@@ -138,8 +142,29 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
     "print(QCA::minimize(tt, details = TRUE))                 # conservadora\n",
     "print(QCA::minimize(tt, include = \"?\", details = TRUE))   # parsimoniosa\n",
     .bloque_intermedia(expectativas),
-    .bloque_robustez(robustez, anclas, condiciones, resultado, umbrales)
+    .bloque_robustez(robustez, anclas, condiciones, resultado, umbrales,
+                     expectativas)
   )
+}
+
+.hay_expectativas <- function(expectativas) {
+  !is.null(expectativas) && nzchar(trimws(paste(expectativas, collapse = "")))
+}
+
+#' Los argumentos que cierran cada llamada rob.* del guion.
+#'
+#' Los tres barridos del motor reciben el PRI y, si las hay, las
+#' expectativas del paso 6 (defecto D4 y el de la intermedia). Un guion que
+#' no los pasara barreria con el PRI por defecto de SetMethods y sobre la
+#' conservadora: otros rangos que los del informe. Van como literales, que
+#' es lo que QCA::minimize() sabe reevaluar.
+.cola_rob <- function(umbrales, expectativas) {
+  paste0(
+    ",\n  pri.cut = ", format(umbrales$pri),
+    if (.hay_expectativas(expectativas)) {
+      sprintf(',\n  include = "?", dir.exp = "%s"',
+              paste(expectativas, collapse = " + "))
+    })
 }
 
 #' La minimizacion intermedia del guion, solo si hay expectativas.
@@ -150,8 +175,7 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
 #' PARSIMONIOSA, y quien ejecute el guion creyendo lo contrario reproduciria
 #' una solucion distinta de la del informe.
 .bloque_intermedia <- function(expectativas) {
-  if (is.null(expectativas) || !nzchar(trimws(paste(expectativas,
-                                                    collapse = "")))) {
+  if (!.hay_expectativas(expectativas)) {
     return(paste0(
       "\n# No se declararon expectativas direccionales, asi que no hay\n",
       "# solucion intermedia que reproducir.\n"))
@@ -172,10 +196,11 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
 #' Sin esto un tercero reproduce la solucion pero no los rangos que el
 #' informe declara. Y si el barrido no se ejecuto, el guion no lo finge.
 .bloque_robustez <- function(robustez, anclas, condiciones, resultado,
-                             umbrales) {
+                             umbrales, expectativas = NULL) {
   if (!isTRUE(robustez$ejecutado)) return("")
 
   columnas <- .lista_r(c(condiciones, resultado))
+  cola <- .cola_rob(umbrales, expectativas)
   # Una condicion crisp no tiene anclas que desplazar, y el barrido del
   # paso 7 tampoco la mide. Escribir su rob.calibrange dejaria al guion
   # calculando algo que el informe no declara. Se filtra solo el BUCLE:
@@ -184,19 +209,26 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
                        condiciones)
   llamadas <- vapply(con_anclas, function(cond) {
     a <- anclas[[cond]]
+    # robustez$paso es una FRACCION de la separacion entre anclas, no una
+    # cantidad del dato: el motor la traduce a las unidades de cada
+    # condicion. Escrita tal cual, en una renta en dolares el guion barria
+    # de 0,1 en 0,1 dolares y declaraba un margen que nadie midio.
     sprintf(paste0(
+      '# Paso: %s de la separacion entre anclas de %s.\n',
       'SetMethods::rob.calibrange(\n',
       '  raw.data = datos[, %s], calib.data = calibrado[, %s],\n',
       '  test.cond.raw = "%s", test.cond.calib = "%s",\n',
       '  test.thresholds = c(e = %s, c = %s, i = %s), type = "fuzzy",\n',
       '  step = %s, max.runs = %s,\n',
       '  outcome = "%s", conditions = %s,\n',
-      '  incl.cut = %s, n.cut = %s)'),
+      '  incl.cut = %s, n.cut = %s%s)'),
+      format(robustez$paso), cond,
       columnas, columnas, cond, cond,
       format(a$nula), format(a$cruce), format(a$plena),
-      format(robustez$paso), format(robustez$max_pasos),
+      format(desplazamiento_absoluto(a, robustez$paso)),
+      format(robustez$max_pasos),
       resultado, .lista_r(condiciones),
-      format(umbrales$consistencia), format(umbrales$frecuencia))
+      format(umbrales$consistencia), format(umbrales$frecuencia), cola)
   }, character(1))
 
   paste0(
@@ -219,19 +251,19 @@ guion_reproducible <- function(ruta_datos, mapeo, anclas, idm, umbrales,
       'SetMethods::rob.inclrange(\n',
       '  data = calibrado[, %s], step = %s, max.runs = %s,\n',
       '  outcome = "%s", conditions = %s,\n',
-      '  incl.cut = %s, n.cut = %s)\n\n',
+      '  incl.cut = %s, n.cut = %s%s)\n\n',
       '# rob.ncutrange de SetMethods 4.1 compara n.cut.tl == nrow(data)\n',
       '# despues de asignarle NA, asi que puede abortar con "missing value\n',
       '# where TRUE/FALSE needed". Va en try() para no detener el guion.\n',
       'try(SetMethods::rob.ncutrange(\n',
-      '  data = calibrado[, %s], step = 1, max.runs = %s,\n',
+      '  data = calibrado[, %s], step = %s, max.runs = %s,\n',
       '  outcome = "%s", conditions = %s,\n',
-      '  incl.cut = %s, n.cut = %s))\n'),
+      '  incl.cut = %s, n.cut = %s%s))\n'),
       columnas, format(PASO_CONSISTENCIA), format(robustez$max_pasos),
       resultado, .lista_r(condiciones),
-      format(umbrales$consistencia), format(umbrales$frecuencia),
-      columnas, format(robustez$max_pasos),
+      format(umbrales$consistencia), format(umbrales$frecuencia), cola,
+      columnas, format(PASO_FRECUENCIA), format(robustez$max_pasos),
       resultado, .lista_r(condiciones),
-      format(umbrales$consistencia), format(umbrales$frecuencia))
+      format(umbrales$consistencia), format(umbrales$frecuencia), cola)
   )
 }

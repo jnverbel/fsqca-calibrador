@@ -141,6 +141,17 @@ registrar_alertas <- function(bitacora, nuevas, paso) {
   if (nrow(siguen) > 0) {
     idx <- match(.clave(siguen$codigo, siguen$contexto), clave_nuevas)
     siguen$detalle <- nuevas$detalle[idx]
+
+    # Una resuelta que vuelve a dispararse es una alerta abierta otra vez,
+    # no una que "sigue". Conservar su estado la dejaba resuelta para
+    # siempre: la compuerta no volvia a frenar y el informe la declaraba
+    # superada. La nota tampoco se hereda: se escribio para un problema que
+    # llego a desaparecer, y quien la lea en el informe la tomaria por la
+    # justificacion del que ha vuelto.
+    reabiertas <- siguen$estado == "resuelta"
+    siguen$estado[reabiertas] <- "abierta"
+    siguen$nota[reabiertas] <- NA_character_
+    siguen$cerrada[reabiertas] <- NA_character_
   }
 
   # 3. Las que no existian.

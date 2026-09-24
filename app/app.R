@@ -375,6 +375,13 @@ server <- function(input, output, session) {
     estado$membresias <- cal$membresias
     estado$obliga_robustez <- cal$obliga_robustez
     estado$bitacora <- registrar_alertas(estado$bitacora, cal$alertas, 4)
+    # Unas anclas nuevas son otras membresias: el analisis del paso 6 y el
+    # barrido del paso 7 se calcularon sobre las anteriores. Sin vaciarlos,
+    # el paso 6 volvia a mostrar las soluciones viejas -- solo recalcula si
+    # no hay analisis -- mientras el informe, que recalcula siempre,
+    # publicaba otras.
+    estado$analisis <- NULL
+    invalidar_robustez()
 
     estado$semaforo <- diagnosticar_semaforo(
       cal$membresias, nombre_columna_id(estado$mapeo),
@@ -429,6 +436,9 @@ server <- function(input, output, session) {
                             suficiencia = suf)
     estado$expectativas <- expectativas
     estado$umbrales <- umbrales
+    # El barrido barre con estas expectativas y estos umbrales: con otros,
+    # mide la robustez de una solucion que ya no es la que se presenta.
+    invalidar_robustez()
     estado$bitacora <- registrar_alertas(
       estado$bitacora,
       rbind(nec$alertas, alertas_tabla_verdad(tt), suf$alertas,
@@ -514,6 +524,33 @@ server <- function(input, output, session) {
   # A diferencia del paso 6, este no se lanza solo al llegar: cada
   # escenario es una minimizacion completa y puede tardar minutos.
 
+  # Las alertas del paso 7 dependen de si el barrido se ejecuto, no solo de
+  # lo que encontro. Diagnosticar unicamente tras ejecutarlo dejaba A-32 --
+  # robustez obligatoria y omitida -- sin disparar nunca: si nadie pulsaba
+  # el boton no habia alertas, la compuerta quedaba abierta y del 7 se
+  # pasaba al 8, mientras el informe, que si la evalua, la declaraba.
+  registrar_robustez <- function() {
+    rob <- estado$robustez
+    diag <- diagnosticar_robustez(rob$escenarios %||% list(),
+                                  obliga_robustez = estado$obliga_robustez,
+                                  ejecutado = isTRUE(rob$ejecutado))
+    estado$bitacora <- registrar_alertas(estado$bitacora, diag$alertas, 7)
+  }
+
+  # El barrido mide UNA calibracion con UNAS expectativas y UNOS umbrales.
+  # Si cualquiera cambia, se descarta con sus alertas: el informe, el
+  # proyecto y el guion lo publicaban como si midiera la solucion vigente.
+  # Las alertas del paso 7 se vuelven a evaluar al llegar a el, y no aqui,
+  # para no anunciar en el paso 4 una omision que todavia no ocurrio.
+  invalidar_robustez <- function() {
+    estado$robustez <- NULL
+    estado$bitacora <- registrar_alertas(estado$bitacora, NULL, 7)
+  }
+
+  observeEvent(estado$paso, {
+    if (estado$paso == 7) registrar_robustez()
+  })
+
   observeEvent(input$correr_robustez, {
     req(estado$agregacion, length(estado$anclas) > 0, estado$resultado)
 
@@ -544,10 +581,7 @@ server <- function(input, output, session) {
     }
 
     estado$robustez <- rob
-    diag <- diagnosticar_robustez(rob$escenarios,
-                                  obliga_robustez = estado$obliga_robustez,
-                                  ejecutado = rob$ejecutado)
-    estado$bitacora <- registrar_alertas(estado$bitacora, diag$alertas, 7)
+    registrar_robustez()
 
     showNotification(
       if (isTRUE(rob$ejecutado)) {
@@ -788,6 +822,7 @@ server <- function(input, output, session) {
     estado$membresias <- NULL
     estado$semaforo <- NULL
     estado$analisis <- NULL
+    invalidar_robustez()
     estado$expectativas <- NULL
     borrador$expectativas <- setNames(
       lapply(condiciones, function(x)

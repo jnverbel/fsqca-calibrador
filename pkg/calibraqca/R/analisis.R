@@ -534,7 +534,10 @@ alertas_solucion_degenerada <- function(soluciones, semaforo) {
     # delante: ~DIGIT sigue siendo DIGIT y tampoco discrimina negada.
     piezas <- unlist(strsplit(paste(sol$terminos, collapse = "+"), "[*+]"))
     piezas <- toupper(trimws(gsub("~", "", piezas)))
-    afectadas <- intersect(no_discriminan, piezas)
+    # Se comparan las dos listas en mayusculas, y no solo los terminos: QCA
+    # respeta como se escribio el nombre, y una condicion llamada "Dev" no
+    # coincidia nunca con "DEV" -- A-33 callaba sin avisar.
+    afectadas <- no_discriminan[toupper(no_discriminan) %in% piezas]
     if (length(afectadas) == 0) next
 
     pct <- resumen$pct_sobre_050[match(afectadas, resumen$condicion)]

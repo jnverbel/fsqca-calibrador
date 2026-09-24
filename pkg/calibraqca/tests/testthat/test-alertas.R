@@ -32,6 +32,27 @@ test_that("una alerta que deja de dispararse pasa a resuelta", {
   expect_identical(bit$estado[bit$codigo == "A-07"], "abierta")
 })
 
+test_that("una alerta resuelta que vuelve a dispararse se reabre", {
+  # Es lo que pasa al invalidar un paso y volver a el: el paso 7 descarta
+  # su barrido al cambiar las anclas, A-32 queda resuelta, y al llegar otra
+  # vez sin barrido tiene que volver a frenar.
+  bit <- registrar_alertas(nueva_bitacora(),
+                           alerta("A-06", "CAP_ABS", "alfa = 0,58"), paso = 2)
+  bit <- cerrar_alerta(bit, "A-06", "CAP_ABS",
+                       nota = paste("La escala es corta y el constructo es",
+                                    "exploratorio; se reporta la limitacion."),
+                       fecha = FECHA)
+  bit <- registrar_alertas(bit, NULL, paso = 2)
+  expect_identical(bit$estado, "resuelta")
+
+  bit <- registrar_alertas(bit, alerta("A-06", "CAP_ABS", "alfa = 0,57"), paso = 2)
+
+  expect_identical(bit$estado, "abierta")
+  expect_identical(bit$nota, NA_character_)
+  expect_identical(bit$cerrada, NA_character_)
+  expect_false(puede_avanzar(bit, 2))
+})
+
 test_that("una alerta reconocida conserva su nota al volver a dispararse", {
   bit <- registrar_alertas(nueva_bitacora(),
                            alerta("A-06", "CAP_ABS", "alfa = 0,58"), paso = 2)

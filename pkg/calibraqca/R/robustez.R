@@ -398,6 +398,29 @@ clasificar_casos <- function(pim, ids) {
              stringsAsFactors = FALSE)
 }
 
+#' La solucion, con el resultado donde SetMethods lo va a buscar.
+#'
+#' pimdata -- y rob.fit, que lo llama por dentro -- pasa el resultado a
+#' mayusculas y busca esa columna tal cual en la tabla recodificada. QCA
+#' conserva el nombre como se escribio, asi que con un resultado llamado
+#' "Surv" no encontraba "SURV", el try() que lo envuelve se lo tragaba y el
+#' paso 7 informaba cero casos y un ajuste NA sin decir nada. Se le anade
+#' la columna con el nombre que va a buscar; no se renombra nada mas.
+.resultado_para_setmethods <- function(solucion, resultado) {
+  datos_tt <- solucion$tt$recoded.data
+  columna <- sub("^~", "", resultado)
+  buscada <- toupper(columna)
+  if (is.null(datos_tt) || buscada == columna) return(solucion)
+
+  if (buscada %in% names(datos_tt)) {
+    stop("El resultado '", columna, "' y la condicion '", buscada,
+         "' solo se distinguen por las mayusculas. SetMethods no los ",
+         "separa: renombre uno de los dos.", call. = FALSE)
+  }
+  solucion$tt$recoded.data[[buscada]] <- datos_tt[[columna]]
+  solucion
+}
+
 #' Estatus de todos los casos ante una solucion.
 #'
 #' Sustituye a SetMethods::rob.cases, que no es utilizable: falla con
@@ -410,6 +433,9 @@ estatus_de_casos <- function(solucion, resultado, ids = NULL) {
                       pertenencia_resultado = numeric(0),
                       stringsAsFactors = FALSE)
 
+  # Fuera del try(): un choque de nombres es un error del investigador y
+  # tiene que llegarle, no convertirse en una tabla vacia.
+  solucion <- .resultado_para_setmethods(solucion, resultado)
   pim <- try(suppressWarnings(
     SetMethods::pimdata(results = solucion, outcome = resultado)),
     silent = TRUE)
@@ -512,8 +538,10 @@ ejecutar_escenario <- function(crudo, anclas_por_condicion, columna_id,
   }
 
   terminos <- .terminos_presentados(intento, expectativas)
+  prueba_sm <- .resultado_para_setmethods(intento, resultado)
+  inicial_sm <- .resultado_para_setmethods(solucion_inicial, resultado)
   ajuste <- try(suppressWarnings(
-    SetMethods::rob.fit(test_sol = intento, initial_sol = solucion_inicial,
+    SetMethods::rob.fit(test_sol = prueba_sm, initial_sol = inicial_sm,
                         outcome = resultado)), silent = TRUE)
   # Se toma por NOMBRE y no por posicion: si una version de SetMethods
   # reordenara las columnas, leerlas por indice mostraria la cobertura

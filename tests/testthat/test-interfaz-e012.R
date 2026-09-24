@@ -282,3 +282,56 @@ test_that("el informe de E012 declara la intermedia y la condicion binaria", {
   # Y la justificacion de la expectativa, integra.
   expect_match(informe, "preparacion institucional", fixed = TRUE)
 })
+
+# --- Lo que depende de las anclas se rehace al cambiarlas -------------
+
+# La intermedia de E012 con el punto de cruce de INCOME subido a 40.000
+# dolares, calculada con el motor sobre las mismas anclas sugeridas y las
+# mismas expectativas y umbrales del articulo. Es otra solucion: lo que se
+# comprueba es que la pantalla deja de mostrar la de antes.
+E012_INTERMEDIA_INCOME_40000 <- c("DENSITY*INCOME", "~DELAY*~EXP*ELDERLY",
+                                  "~DELAY*ELDERLY*INCOME",
+                                  "DELAY*EXP*ELDERLY*~DENSITY")
+
+test_that("recalibrar en el paso 4 rehace el analisis del paso 6", {
+  # El paso 6 solo calcula al llegar si no hay analisis, y confirmar las
+  # anclas no lo vaciaba: se volvia al 6 y seguia la solucion de las anclas
+  # anteriores, mientras el informe -- que recalcula siempre -- publicaba
+  # la nueva.
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  preparar_e012(app)
+  minimizar_como_el_articulo(app)
+  expect_setequal(terminos_en_pantalla(app, "intermedia"), E012_INTERMEDIA)
+
+  app$run_js("Shiny.setInputValue('ir_a_paso', 4, {priority:'event'})")
+  app$wait_for_idle(timeout = 30 * 1000)
+  expect_identical(paso_actual(app), "4")
+
+  fijar_input(app, "cruce_INCOME", 40000)
+  app$click("confirmar_calibracion")
+  app$wait_for_idle(timeout = 120 * 1000)
+  avanzar_hasta(app, 6)
+
+  expect_setequal(terminos_en_pantalla(app, "intermedia"),
+                  E012_INTERMEDIA_INCOME_40000)
+})
+
+test_that("del paso 7 no se pasa sin barrido si la robustez es obligatoria", {
+  # Las anclas de E012 salen de la distribucion muestral, y eso hace
+  # obligatorio el barrido (A-32). La alerta solo se evaluaba al ejecutarlo:
+  # sin pulsar el boton no habia alerta y la compuerta quedaba abierta.
+  app <- abrir_app()
+  on.exit(app$stop(), add = TRUE)
+  preparar_e012(app)
+  avanzar_hasta(app, 7)
+
+  app$click("siguiente")
+  app$wait_for_idle(timeout = 30 * 1000)
+  expect_identical(paso_actual(app), "7")
+  expect_match(texto_de(app$get_html(".motivo-frenado")), "A-32")
+
+  # Reconocida por escrito, deja seguir: la compuerta frena, no prohibe.
+  avanzar(app)
+  expect_identical(paso_actual(app), "8")
+})
