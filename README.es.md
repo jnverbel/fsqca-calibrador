@@ -98,6 +98,7 @@ Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/
 | [`docs/development.md`](docs/development.md) | La misma guía, condensada, en inglés | Inglés |
 | [`docs/especificacion.md`](docs/especificacion.md) | Arquitectura, los 8 pasos, las 36 alertas, esquema del archivo de proyecto, informe y plan de pruebas | Español, resumen en inglés |
 | [`docs/validacion-integral.md`](docs/validacion-integral.md) | Validación externa: qué se contrastó contra estudios publicados, con qué cifras y qué queda fuera | Español, resumen en inglés |
+| [`docs/auditoria-setmethods-4.1.md`](docs/auditoria-setmethods-4.1.md) | Auditoría de `SetMethods` 4.1 y `admisc` 0.40: 9 bucles rotos, teorema detector, causa raíz de `rob.cases()` y verificación en tesis publicadas | Español, resumen en inglés |
 | [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` y los reprex de los reportes de bugs aguas arriba | Código R |
 
 > `fuzzy_likert_5.R` es **otra ruta metodológica** (Delphi difuso con números
@@ -108,9 +109,19 @@ Instrucciones completas, incluido el despliegue: [`docs/como-ejecutar.md`](docs/
 Trabajar en esta herramienta destapó defectos en los paquetes que envuelve. Cada uno está
 documentado con un ejemplo reproducible en [`docs/referencias/`](docs/referencias/):
 
-- `SetMethods` 4.1 — `rob.cases` roto; el bucle de `helper_rob` está en tres funciones y
-  corrompe `rob.fit()`
-  ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
+- `SetMethods` 4.1 — el bucle `for (i in length(test_sol))` aparece en **9 bucles de
+  5 funciones** (`rob.fit`, `rob.xyplot`, `rob.evaluation`, `robust.intersections`,
+  `robust.rank`) y corrompe en silencio `RF_SC_minTS`, `RF_SC_maxTS`, `RCR_typ`, `RCR_dev`,
+  `RCC_Rank` y `rob.xyplot()` en cuanto se pasan ≥3 soluciones de prueba (con sesgo
+  sistemáticamente optimista y una desigualdad detectora `RF_SC_minTS <= RF_cov * RF_cons`
+  verificada sobre una tesis doctoral de 2026); `rob.ncutrange()` compara la variable
+  equivocada en la línea 57 (`n.cut.tl` en el barrido superior) y aborta con `max.runs` bajo;
+  `robust.rank()` contiene `P[, 1] > -P[, 2]` en la línea 52. Además, `rob.cases()` aborta
+  con el ejemplo oficial por una regresión de *scoping* en `admisc::negate()` (`admisc >= 0.38`,
+  envoltorio de `invert()`). Reportado dos veces por correo a la mantenedora sin respuesta;
+  auditoría completa en [`docs/auditoria-setmethods-4.1.md`](docs/auditoria-setmethods-4.1.md)
+  ([reprex integral](docs/referencias/auditoria-setmethods-4.1-reprex.R),
+  [reprex `rob.fit`](docs/referencias/robfit-solucion-media-ignorada.R))
 - `SetMethods` 4.1 — `esa()` excluye filas escribiendo directamente sobre la columna `OUT`
   del objeto. Esa vía no deja rastro en `tt$call`, así que no sobrevive a una reconstrucción
   de la tabla: si después se llama a `minimize()` con cualquier argumento de construcción de

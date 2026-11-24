@@ -97,6 +97,7 @@ Full instructions, deployment included: [`docs/development.md`](docs/development
 | [`docs/como-ejecutar.md`](docs/como-ejecutar.md) | Development log with the local-environment detail | Spanish |
 | [`docs/especificacion.md`](docs/especificacion.md) | Architecture, the 8 steps, the 36 alerts, project-file schema, report and test plan | Spanish, English summary |
 | [`docs/validacion-integral.md`](docs/validacion-integral.md) | External validation: what was contrasted against published studies, with which figures, and what is left out | Spanish, English summary |
+| [`docs/auditoria-setmethods-4.1.md`](docs/auditoria-setmethods-4.1.md) | Audit of `SetMethods` 4.1 and `admisc` 0.40: 9 broken loops, algebraic detector, `rob.cases()` root cause, and verification on published theses | Spanish, English summary |
 | [`docs/referencias/`](docs/referencias/) | `fuzzy_likert_5.R` and the reprexes for the upstream bug reports | R source |
 
 > `fuzzy_likert_5.R` is **a different methodological route** (fuzzy Delphi with triangular
@@ -107,9 +108,19 @@ Full instructions, deployment included: [`docs/development.md`](docs/development
 Work on this tool surfaced defects in the packages it wraps. Each one is documented with a
 reproducible example under [`docs/referencias/`](docs/referencias/):
 
-- `SetMethods` 4.1 — `rob.cases` broken; the `helper_rob` loop appears in three functions
-  and corrupts `rob.fit()`
-  ([reprex](docs/referencias/robfit-solucion-media-ignorada.R))
+- `SetMethods` 4.1 — the `for (i in length(test_sol))` loop appears in **9 loops across
+  5 functions** (`rob.fit`, `rob.xyplot`, `rob.evaluation`, `robust.intersections`,
+  `robust.rank`) and silently corrupts `RF_SC_minTS`, `RF_SC_maxTS`, `RCR_typ`, `RCR_dev`,
+  `RCC_Rank`, and `rob.xyplot()` whenever ≥3 test solutions are supplied (introducing a
+  systematic optimistic bias and an algebraic detector `RF_SC_minTS <= RF_cov * RF_cons`,
+  verified on a published 2026 doctoral dissertation); `rob.ncutrange()` checks the wrong
+  variable on line 57 (`n.cut.tl` inside the upper sweep) and aborts on low `max.runs`;
+  `robust.rank()` writes `P[, 1] > -P[, 2]` on line 52. In addition, `rob.cases()` aborts on
+  its own documented example due to a scoping regression in `admisc::negate()` (`admisc >= 0.38`,
+  wrapper around `invert()`). Reported twice by email to the maintainer with no reply; full
+  audit in [`docs/auditoria-setmethods-4.1.md`](docs/auditoria-setmethods-4.1.md)
+  ([full reprex](docs/referencias/auditoria-setmethods-4.1-reprex.R),
+  [`rob.fit` reprex](docs/referencias/robfit-solucion-media-ignorada.R))
 - `SetMethods` 4.1 — `esa()` excludes rows by writing directly into the `OUT` column of the
   truth-table object. That route leaves no trace in `tt$call`, so it does not survive a
   rebuild: if `minimize()` is then called with any truth-table-construction argument, the
