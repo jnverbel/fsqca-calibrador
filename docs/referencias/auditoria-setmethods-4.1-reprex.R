@@ -1,8 +1,8 @@
 # Auditoria tecnica completa de SetMethods 4.1 y admisc 0.40
 #
 # Script autocontenido: usa exclusivamente datos integrados en los paquetes
-# (PAYF, SCHF) y los valores publicados en la Tabla 13 de Verdugo Rojas (2026)
-# y Tablas 1/7 de Stengl (2026).
+# (PAYF) y las cifras publicadas en los 8 estudios de acceso abierto auditados
+# (7 articulos revisados por pares de OpenAlex + 1 tesis doctoral, 2024-2026).
 #
 # Verificado el 2026-11-24 con:
 #   R 4.6.1 / SetMethods 4.1 / QCA 3.25 / admisc 0.40
@@ -14,8 +14,8 @@
 #   2. Prueba de mutacion sobre rob.fit(), rob.xyplot() y rob.case.ratio() con
 #      3 soluciones en PAYF: la del medio se ignora en silencio.
 #   3. Teorema detector `RF_SC_minTS <= RF_cov * RF_cons` (identidad algebraica
-#      exacta salvo redondeo de QCAfit a 3 decimales) y comprobacion sobre PAYF
-#      y la Tabla 13 de la tesis doctoral Verdugo Rojas (2026, Comillas).
+#      exacta salvo redondeo de QCAfit) y auditoria de los 8 estudios abiertos
+#      (incluidos Paykani & Oana 2024, Holstead et al. 2026 y Verdugo Rojas 2026).
 #   4. Causa raiz exacta del fallo de rob.cases(): regresion de scoping en
 #      admisc::negate() (wrapper de invert() desde admisc 0.38).
 #   5. Typo de variable en rob.ncutrange() linea 57 (`n.cut.tl == nrow(data)`
@@ -53,11 +53,9 @@ for (nm in sort(ls(ns, all.names = TRUE))) {
 }
 cat(sprintf("Total bucles defectuosos: %d\n", total_loops))
 
-# Typo adicional en robust.rank() linea 52
 rr_src <- deparse(get("robust.rank", envir = ns))
 cat("\nTypo en robust.rank():\n")
-rr_hit <- grep("> -P\\[, 2\\]", rr_src)
-for (h in rr_hit) cat(sprintf("  L%d: %s\n", h, trimws(rr_src[h])))
+for (h in grep("> -P\\[, 2\\]", rr_src)) cat(sprintf("  L%d: %s\n", h, trimws(rr_src[h])))
 
 ## ---------------------------------------------------------------------
 ## 2. MUTACION EN rob.fit(), rob.xyplot() Y rob.case.ratio() (PAYF)
@@ -111,7 +109,7 @@ cat("rob.xyplot()$data identico al mover M2 al final?              :",
     identical(p_M1$data, p_ult$data), "\n")
 
 ## ---------------------------------------------------------------------
-## 3. TEOREMA DETECTOR: RF_SC_minTS <= RF_cov * RF_cons
+## 3. TEOREMA DETECTOR Y AUDITORIA DEL CORPUS ABIERTO (8 ESTUDIOS)
 ## ---------------------------------------------------------------------
 cat("\n=== 3. TEOREMA DETECTOR RF_SC_minTS <= RF_cov * RF_cons ===\n")
 P1 <- pimdata(IS, "HL")$solution_formula
@@ -127,18 +125,35 @@ cat(sprintf("PAYF list(A, M2, Z) — techo exacto sum(RC)/sum(IS) : %.4f\n", cei
 cat(sprintf("PAYF list(A, M2, Z) — RF_cov * RF_cons             : %.4f\n", ceil_rf))
 cat(sprintf("PAYF list(A, M2, Z) — RF_SC_minTS REAL (parcheado) : %.4f (<= techo: %s)\n",
             sc_min_true, sc_min_true <= ceil_exact + 1e-12))
-cat(sprintf("PAYF list(A, M2, Z) — RF_SC_minTS SetMethods 4.1   : %.3f  (VIOLA techo: %s)\n",
+cat(sprintf("PAYF list(A, M2, Z) — RF_SC_minTS SetMethods 4.1   : %.3f  (VIOLA techo: %s)\n\n",
             f_M2[, "RF_SC_minTS"], f_M2[, "RF_SC_minTS"] > ceil_rf + 0.003))
 
-# Verificacion sobre Tabla 13 de Verdugo Rojas (2026, ICADE Comillas, p. 90)
-vr_cov <- 0.488
-vr_cons <- 0.952
-vr_sc_min_rep <- 0.548
-vr_ceil <- vr_cov * vr_cons
-cat(sprintf("\nVerdugo Rojas (2026, Tabla 13) — RF_cov * RF_cons  : %.4f\n", vr_ceil))
-cat(sprintf("Verdugo Rojas (2026, Tabla 13) — RF_SC_minTS pub.  : %.3f\n", vr_sc_min_rep))
-cat(sprintf("Inflacion minima demostrada                        : +%.4f (+%.1f%% relativo)\n",
-            vr_sc_min_rep - vr_ceil, 100 * (vr_sc_min_rep - vr_ceil) / vr_ceil))
+estudios <- data.frame(
+  estudio = c(
+    "Paykani & Oana (2024, BMC Public Health)",
+    "Holstead et al. (2026, Env. Policy Gov.)",
+    "Verdugo Rojas (2026, PhD ICADE Comillas)",
+    "Perez-Macias et al. (2024, TIBE) [BIK]",
+    "Perez-Macias et al. (2024, TIBE) [~BIK]",
+    "Zubizarreta Pagaldai et al. (2025, Pixel-Bit)",
+    "Medina Molina et al. (2025, JOINETECH) [MESS]",
+    "Medina Molina et al. (2025, JOINETECH) [~MESS]",
+    "Medina Molina et al. (2026, JOINETECH) [burnout]",
+    "Medina Molina et al. (2026, JOINETECH) [~burnout]",
+    "Medina Molina et al. (2025, ESIC Market) [pos]",
+    "Medina Molina et al. (2025, ESIC Market) [neg]"
+  ),
+  rf_cov  = c(0.935, 0.690, 0.488, 0.560, 0.659, 0.780, 0.907, 0.610, 1.000, 0.978, 1.000, 1.000),
+  rf_cons = c(0.878, 0.860, 0.952, 0.929, 1.001, 0.932, 0.993, 0.926, 1.000, 0.997, 1.000, 1.000),
+  sc_min  = c(0.884, 0.730, 0.548, 0.577, 0.562, 0.728, 0.901, 0.448, 1.000, 0.976, 0.946, 1.000),
+  outcome_fijo = c(TRUE, TRUE, TRUE, NA, NA, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+  stringsAsFactors = FALSE
+)
+estudios$techo <- round(estudios$rf_cov * estudios$rf_cons, 4)
+estudios$exceso <- round(estudios$sc_min - estudios$techo, 4)
+estudios$inflacion_pct <- round(100 * pmax(0, estudios$exceso) / estudios$techo, 1)
+estudios$viola <- estudios$exceso > 0.01
+print(estudios, row.names = FALSE)
 
 ## ---------------------------------------------------------------------
 ## 4. CAUSA RAIZ EXACTA DE rob.cases(): admisc::negate() vs invert()

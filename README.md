@@ -113,7 +113,10 @@ reproducible example under [`docs/referencias/`](docs/referencias/):
   `robust.rank`) and silently corrupts `RF_SC_minTS`, `RF_SC_maxTS`, `RCR_typ`, `RCR_dev`,
   `RCC_Rank`, and `rob.xyplot()` whenever ≥3 test solutions are supplied (introducing a
   systematic optimistic bias and an algebraic detector `RF_SC_minTS <= RF_cov * RF_cons`,
-  verified on a published 2026 doctoral dissertation); `rob.ncutrange()` checks the wrong
+  verified across 8 open-access 2024–2026 studies: 3 mathematically confirmed violations
+  —including Paykani & Oana (2024, *BMC Public Health*), Holstead et al. (2026,
+  *Environmental Policy and Governance*), and Verdugo Rojas (2026, ICADE PhD dissertation)—
+  plus 1 probable); `rob.ncutrange()` checks the wrong
   variable on line 57 (`n.cut.tl` inside the upper sweep) and aborts on low `max.runs`;
   `robust.rank()` writes `P[, 1] > -P[, 2]` on line 52. In addition, `rob.cases()` aborts on
   its own documented example due to a scoping regression in `admisc::negate()` (`admisc >= 0.38`,

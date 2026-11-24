@@ -114,7 +114,10 @@ documentado con un ejemplo reproducible en [`docs/referencias/`](docs/referencia
   `robust.rank`) y corrompe en silencio `RF_SC_minTS`, `RF_SC_maxTS`, `RCR_typ`, `RCR_dev`,
   `RCC_Rank` y `rob.xyplot()` en cuanto se pasan ≥3 soluciones de prueba (con sesgo
   sistemáticamente optimista y una desigualdad detectora `RF_SC_minTS <= RF_cov * RF_cons`
-  verificada sobre una tesis doctoral de 2026); `rob.ncutrange()` compara la variable
+  verificada sobre 8 estudios abiertos de 2024–2026: 3 violaciones matemáticas confirmadas
+  —incluidos Paykani & Oana (2024, *BMC Public Health*), Holstead et al. (2026,
+  *Environmental Policy and Governance*) y Verdugo Rojas (2026, tesis doctoral ICADE)— y
+  1 probable); `rob.ncutrange()` compara la variable
   equivocada en la línea 57 (`n.cut.tl` en el barrido superior) y aborta con `max.runs` bajo;
   `robust.rank()` contiene `P[, 1] > -P[, 2]` en la línea 52. Además, `rob.cases()` aborta
   con el ejemplo oficial por una regresión de *scoping* en `admisc::negate()` (`admisc >= 0.38`,
