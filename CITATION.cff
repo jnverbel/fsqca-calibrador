@@ -10,6 +10,7 @@ type: software
 authors:
   - family-names: "Núñez"
     given-names: "Javier"
+    orcid: "https://orcid.org/0009-0003-9770-4986"
 repository-code: "https://github.com/jnverbel/fsqca-calibrador"
 url: "https://github.com/jnverbel/fsqca-calibrador"
 abstract: >-

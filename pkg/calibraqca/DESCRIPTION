@@ -2,7 +2,8 @@ Package: calibraqca
 Title: Fuzzy Calibration Engine for Likert Data in fsQCA
 Version: 0.1.0
 Authors@R: person("Javier", "Núñez", role = c("aut", "cre"),
-                  email = "jnverbel@gmail.com")
+                  email = "jnverbel@gmail.com",
+                  comment = c(ORCID = "0009-0003-9770-4986"))
 Description: Pure functions to validate, aggregate, calibrate and diagnose
     five-point Likert scales bound for an fsQCA analysis. It reimplements no
     statistical computation: it wraps QCA, SetMethods, psych, multilevel,
