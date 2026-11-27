@@ -2,24 +2,27 @@
 #
 # Script autocontenido: usa exclusivamente datos integrados en los paquetes
 # (PAYF) y las cifras publicadas en los 8 estudios de acceso abierto auditados
-# (7 articulos revisados por pares de OpenAlex + 1 tesis doctoral, 2024-2026).
+# (7 articulos revisados por pares de OpenAlex + 1 tesis doctoral, 2024-2026)
+# mas los datos reconstruidos de Stengl (2026, LMU Munich, N = 9).
 #
-# Verificado el 2026-11-24 con:
+# Verificado el 2026-11-27 con:
 #   R 4.6.1 / SetMethods 4.1 / QCA 3.25 / admisc 0.40
 #
-# Demuestra cinco puntos:
+# Demuestra seis puntos:
 #   1. Escaneo del namespace completo de SetMethods: 9 bucles `in length(` en
 #      5 funciones (rob.fit, rob.xyplot, rob.evaluation, robust.intersections,
 #      robust.rank) + typo `P[, 1] > -P[, 2]` en robust.rank (linea 52).
 #   2. Prueba de mutacion sobre rob.fit(), rob.xyplot() y rob.case.ratio() con
-#      3 soluciones en PAYF: la del medio se ignora en silencio.
-#   3. Teorema detector `RF_SC_minTS <= RF_cov * RF_cons` (identidad algebraica
-#      exacta salvo redondeo de QCAfit) y auditoria de los 8 estudios abiertos
-#      (incluidos Paykani & Oana 2024, Holstead et al. 2026 y Verdugo Rojas 2026).
+#      3 soluciones en PAYF (incluidos los valores reales con bucle parcheado:
+#      RF_SC_minTS = 0.855, RF_SC_maxTS = 0.730, RCR_typ = 0.766, RCR_dev = 0.185).
+#   3. Teorema detector `RF_SC_minTS <= RF_cov * RF_cons` y auditoria de los
+#      8 estudios abiertos (techos puntuales y peor redondeo bilateral).
 #   4. Causa raiz exacta del fallo de rob.cases(): regresion de scoping en
-#      admisc::negate() (wrapper de invert() desde admisc 0.38).
-#   5. Typo de variable en rob.ncutrange() linea 57 (`n.cut.tl == nrow(data)`
-#      en el barrido superior).
+#      admisc::negate() (wrapper de invert() desde admisc 0.38) + truncamiento
+#      `test_int[1]` sobre disyuntos multiples en robust.intersections().
+#   5. Reproduccion empirica del Apendice E de Stengl (2026, LMU Munich, N = 9).
+#   6. Typo de variable en rob.ncutrange() linea 57 (`n.cut.tl == nrow(data)`
+#      en el barrido superior) y verificacion del parche `n.cut.tu >= nrow(data)`.
 
 suppressMessages({
   library(SetMethods)
@@ -60,7 +63,7 @@ for (h in grep("> -P\\[, 2\\]", rr_src)) cat(sprintf("  L%d: %s\n", h, trimws(rr
 ## ---------------------------------------------------------------------
 ## 2. MUTACION EN rob.fit(), rob.xyplot() Y rob.case.ratio() (PAYF)
 ## ---------------------------------------------------------------------
-cat("\n=== 2. MUTACION CON 3 SOLUCIONES EN PAYF ===\n")
+cat("\n=== 2. MUTACION CON 3 SOLUCIONES EN PAYF (INCLUIDO BUCLE PARCHEADO) ===\n")
 data(PAYF)
 conds <- c("HE", "GG", "AH", "HI", "HW")
 m <- function(ic, nc) {
@@ -76,14 +79,30 @@ M2 <- m(0.90, 2) # GG*AH
 
 f_M1  <- rob.fit(list(A, M1, Z), IS, "HL")
 f_M2  <- rob.fit(list(A, M2, Z), IS, "HL")
-f_ult <- rob.fit(list(A, Z, M2), IS, "HL")
 f_2   <- rob.fit(list(A, Z),     IS, "HL")
+f_ult <- rob.fit(list(A, Z, M2), IS, "HL")
+
+rob_fit_patched <- eval(
+  parse(text = paste(gsub("in length\\(test_sol\\)", "in seq_along(test_sol)", deparse(SetMethods::rob.fit)), collapse = "\n")),
+  envir = ns
+)
+rob_eval_patched <- eval(
+  parse(text = paste(gsub("in length\\(test_sol\\)", "in seq_along(test_sol)", deparse(SetMethods:::rob.evaluation)), collapse = "\n")),
+  envir = ns
+)
+env_patch <- new.env(parent = ns)
+env_patch$rob.evaluation <- rob_eval_patched
+rcr_patched <- SetMethods:::rob.case.ratio
+environment(rcr_patched) <- env_patch
+
+f_pat <- rob_fit_patched(list(A, M2, Z), IS, "HL")
 
 tab_rf <- rbind(
-  "list(A, M1, Z)" = as.numeric(f_M1),
-  "list(A, M2, Z)" = as.numeric(f_M2),
-  "list(A, Z)    " = as.numeric(f_2),
-  "list(A, Z, M2)" = as.numeric(f_ult)
+  "list(A, M1, Z)       " = as.numeric(f_M1),
+  "list(A, M2, Z)       " = as.numeric(f_M2),
+  "list(A, Z)           " = as.numeric(f_2),
+  "list(A, Z, M2)       " = as.numeric(f_ult),
+  "Parcheado (A, M2, Z) " = as.numeric(f_pat)
 )
 colnames(tab_rf) <- colnames(f_M1)
 print(round(tab_rf, 3))
@@ -91,11 +110,13 @@ print(round(tab_rf, 3))
 r_M1  <- SetMethods:::rob.case.ratio(list(A, M1, Z), IS, "HL")
 r_M2  <- SetMethods:::rob.case.ratio(list(A, M2, Z), IS, "HL")
 r_ult <- SetMethods:::rob.case.ratio(list(A, Z, M2), IS, "HL")
+r_pat <- rcr_patched(list(A, M2, Z), IS, "HL")
 cat("\nrob.case.ratio() (RCR_typ, RCR_dev, RCC_Rank):\n")
 tab_rcr <- rbind(
-  "list(A, M1, Z)" = as.numeric(r_M1),
-  "list(A, M2, Z)" = as.numeric(r_M2),
-  "list(A, Z, M2)" = as.numeric(r_ult)
+  "list(A, M1, Z)       " = as.numeric(r_M1),
+  "list(A, M2, Z)       " = as.numeric(r_M2),
+  "list(A, Z, M2)       " = as.numeric(r_ult),
+  "Parcheado (A, M2, Z) " = as.numeric(r_pat)
 )
 colnames(tab_rcr) <- colnames(r_M1)
 print(tab_rcr)
@@ -146,19 +167,25 @@ estudios <- data.frame(
   rf_cov  = c(0.935, 0.690, 0.488, 0.560, 0.659, 0.780, 0.907, 0.610, 1.000, 0.978, 1.000, 1.000),
   rf_cons = c(0.878, 0.860, 0.952, 0.929, 1.001, 0.932, 0.993, 0.926, 1.000, 0.997, 1.000, 1.000),
   sc_min  = c(0.884, 0.730, 0.548, 0.577, 0.562, 0.728, 0.901, 0.448, 1.000, 0.976, 0.946, 1.000),
+  digits  = c(3L, 2L, 3L, 3L, 3L, 2L, 3L, 3L, 3L, 3L, 3L, 3L),
   outcome_fijo = c(TRUE, TRUE, TRUE, NA, NA, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
   stringsAsFactors = FALSE
 )
 estudios$techo <- round(estudios$rf_cov * estudios$rf_cons, 4)
 estudios$exceso <- round(estudios$sc_min - estudios$techo, 4)
 estudios$inflacion_pct <- round(100 * pmax(0, estudios$exceso) / estudios$techo, 1)
-estudios$viola <- estudios$exceso > 0.01
-print(estudios, row.names = FALSE)
+half_ulp <- 0.5 * 10^(-estudios$digits)
+qca_pad  <- ifelse(estudios$digits == 3L, 0.003, 0.0)
+worst_ceil <- pmax(estudios$techo + qca_pad, (estudios$rf_cov + half_ulp) * (estudios$rf_cons + half_ulp))
+estudios$infl_min_redondeo_pct <- round(100 * pmax(0, (estudios$sc_min - half_ulp) - worst_ceil) / worst_ceil, 1)
+estudios$viola <- estudios$exceso > ifelse(estudios$digits == 2L, 0.01, 0.003)
+print(estudios[, c("estudio", "rf_cov", "rf_cons", "techo", "sc_min", "exceso", "inflacion_pct", "infl_min_redondeo_pct", "viola")],
+      row.names = FALSE)
 
 ## ---------------------------------------------------------------------
-## 4. CAUSA RAIZ EXACTA DE rob.cases(): admisc::negate() vs invert()
+## 4. CAUSA RAIZ EXACTA DE rob.cases(): admisc::negate() Y test_int[1]
 ## ---------------------------------------------------------------------
-cat("\n=== 4. CAUSA RAIZ DE rob.cases(): admisc::negate() ===\n")
+cat("\n=== 4. CAUSA RAIZ DE rob.cases(): admisc::negate() Y test_int[1] ===\n")
 cat("Definicion de admisc::negate:\n")
 print(admisc::negate)
 
@@ -180,11 +207,40 @@ prueba_scoping <- function() {
 res_scoping <- prueba_scoping()
 cat("Dentro de funcion local con invert():", res_scoping$con_invert, "\n")
 cat("Dentro de funcion local con negate():", res_scoping$con_negate, "\n")
+cat("Sin colapsar s2 c('HE','HW') con 'HW*GG' -> test_int[1]:",
+    sprintf("'%s'", intersection(c("HE", "HW"), "HW*GG")[1]), "\n")
+cat("Colapsando paste(s2, collapse='+')       -> test_int[1]:",
+    sprintf("'%s'", intersection("HE+HW", "HW*GG")[1]), "\n")
 
 ## ---------------------------------------------------------------------
-## 5. TYPO DE VARIABLE EN rob.ncutrange() LINEA 57
+## 5. REPRODUCCION DE STENGL (2026, LMU MUNICH, N = 9)
 ## ---------------------------------------------------------------------
-cat("\n=== 5. TYPO EN rob.ncutrange() LINEA 57 ===\n")
+cat("\n=== 5. REPRODUCCION DE STENGL (2026, LMU MUNICH, N = 9) ===\n")
+df_stengl <- data.frame(
+  X1 = c(1, 1, 0, 1, 1, 1, 1, 0, 1),
+  X2 = c(0, 1, 1, 1, 1, 1, 1, 0, 1),
+  X3 = c(0, 1, 1, 0, 1, 0, 0, 0, 0),
+  Y2 = c(0, 1, 1, 1, 1, 0, 0, 0, 0),
+  row.names = paste0("Case", 1:9)
+)
+c_st <- c("X1", "X2", "X3")
+IS_Y2  <- minimize(truthTable(df_stengl, outcome = "Y2", conditions = c_st, incl.cut = 1.00, n.cut = 1, complete = TRUE),
+                   include = "?", details = TRUE, use.tilde = TRUE)
+TS1_Y2 <- minimize(truthTable(df_stengl, outcome = "Y2", conditions = c_st, incl.cut = 0.95, n.cut = 1, complete = TRUE),
+                   include = "?", details = TRUE, use.tilde = TRUE)
+TS2_Y2 <- minimize(truthTable(df_stengl, outcome = "Y2", conditions = c_st, incl.cut = 0.90, n.cut = 1, complete = TRUE),
+                   include = "?", details = TRUE, use.tilde = TRUE)
+TS3_Y2 <- minimize(truthTable(df_stengl, outcome = "Y2", conditions = c_st, incl.cut = 1.00, n.cut = 2, complete = TRUE),
+                   include = "?", details = TRUE, use.tilde = TRUE)
+TS_Y2  <- list(TS1_Y2, TS2_Y2, TS3_Y2)
+print(rob.fit(TS_Y2, IS_Y2, "Y2"))
+err_st <- tryCatch({ rob.cases(TS_Y2, IS_Y2, "Y2"); "OK" }, error = function(e) conditionMessage(e))
+cat("Stengl rob.cases() -> ERROR:", err_st, "\n")
+
+## ---------------------------------------------------------------------
+## 6. TYPO DE VARIABLE EN rob.ncutrange() LINEA 57
+## ---------------------------------------------------------------------
+cat("\n=== 6. TYPO EN rob.ncutrange() LINEA 57 ===\n")
 nc_src <- deparse(SetMethods::rob.ncutrange)
 cat(paste(sprintf("%3d: %s", 53:60, nc_src[53:60]), collapse = "\n"), "\n")
 err_nc <- tryCatch(

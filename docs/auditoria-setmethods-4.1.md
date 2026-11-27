@@ -22,18 +22,20 @@
 >    - *Paykani & Oana (2024, BMC Public Health, 24:2400, co-authored by the `SetMethods`
 >      maintainer herself)*: 3 test solutions altering only `incl.cut` and two conditions
 >      (outcome unchanged); Table 6 (p. 8) reports `RF_cov = 0.935`, `RF_cons = 0.878`
->      (ceiling `0.8209`), yet `RF_SC_minTS = 0.884` (`+0.0631`, at least `+7.7 %` relative
->      inflation), along with `RCR_typ = 1`, `RCC_Rank = 3`, and Figure 1 (`rob.xyplot()`).
+>      (ceiling `0.8209`), yet `RF_SC_minTS = 0.884` (`+0.0631`, `+7.7 %` relative inflation
+>      over the point ceiling; at least `+7.2 %` under worst-case bilateral rounding), along
+>      with `RCR_typ = 1`, `RCC_Rank = 3`, and Figure 1 (`rob.xyplot()`).
 >    - *Holstead, Pakizer, Jager, Lieberherr, & Fischer (2026, Environmental Policy and
 >      Governance, Wiley)*: 5 test solutions altering only three `incl.cut` values and two
 >      conditions (outcome unchanged); Table A1 (p. 827) reports `RF_cov = 0.69`,
->      `RF_cons = 0.86` (ceiling `0.5934`), yet `RF_SC_minTS = 0.73` (`+0.1366`, at least
->      `+23.0 %` relative inflation).
+>      `RF_cons = 0.86` (ceiling `0.5934`), yet `RF_SC_minTS = 0.73` (`+0.1366`, `+23.0 %`
+>      over the point ceiling; at least `+20.6 %` under worst-case bilateral 2-decimal rounding).
 >    - *Verdugo Rojas (2026, Universidad Pontificia Comillas — ICADE, PhD dissertation,
 >      Table 13, p. 90)*: 3 test solutions (`rob.singletest()` indices `(2)`, `(3)`, `(1)`)
 >      with the strictest model (`SC = 0.369`) in middle position `(2)` and outcome unchanged;
 >      reports `RF_cov = 0.488`, `RF_cons = 0.952` (ceiling `0.4646`), yet
->      `RF_SC_minTS = 0.548` (`+0.0834`, at least `+18.0 %` relative inflation).
+>      `RF_SC_minTS = 0.548` (`+0.0834`, `+18.0 %` over the point ceiling; at least `+17.0 %`
+>      under worst-case rounding).
 >    - *Pérez-Macías, Medina Molina, & Coronado Vaca (2024, Transformations in Business &
 >      Economics)*: 3 test solutions; `BIK` reports `RF_cov = 0.560`, `RF_cons = 0.929`
 >      (ceiling `0.5202`), `RF_SC_minTS = 0.577` (`+0.0568`, `+10.9 %`) — classified as
@@ -85,8 +87,8 @@ Un barrido sistemático de todas las funciones del namespace `SetMethods` (no so
 | `rob.fit()` | **Pública** | L17 (`P2` / `minTS`) y L28 (`P3` / `maxTS`) | `RF_SC_minTS` y `RF_SC_maxTS` ignoran todas las soluciones intermedias (`2 .. k-1`). |
 | `rob.xyplot()` | **Pública** | L6 (`P2` / `minTS`) y L17 (`P3` / `maxTS`) | Coordenadas `minTS`/`maxTS` de cada caso y subtítulo (`RCR_typ`, `RCR_dev`, `RCC_Rank`). |
 | `rob.evaluation()` | Interna (usada por `rob.case.ratio()` y `rob.cases()`) | L5 (`P2`) y L16 (`P3`) | `RCR_typ`, `RCR_dev`, `RCC_Rank` y clasificación de casos *robust / shaky / possible*. |
-| `robust.intersections()` | Interna (usada por `rob.cases()`) | L42 (`test_int`) | Intersección booleana teórica `minTS` (latente hoy tras el fallo de `rob.cases()`). |
-| `robust.rank()` | Interna | L5 (`P2`) y L16 (`P3`) | Rango de robustez. Además, en **L52** contiene otro typo: `P[, 1] > -P[, 2]` en vez de `P[, 1] >= P[, 2]`. |
+| `robust.intersections()` | Interna (usada por `rob.cases()`) | L42 (`test_int`) | Intersección booleana teórica `minTS` (latente hoy tras el fallo de `rob.cases()`, y además trunca `s2` multidisyuntivo al hacer `test_int[1]` sin colapsar con `+`). |
+| `robust.rank()` | Interna | L5 (`P2`) y L16 (`P3`) | Rango de robustez (llamada sin retorno en `rob.fit()` L44). Además, en **L52** contiene otro typo: `P[, 1] > -P[, 2]` en vez de `P[, 1] >= P[, 2]`. |
 
 **Por qué `RF_cov` y `RF_cons` sí reaccionan en `rob.fit()`:** se calculan llamando a `rob.corefit()`, cuya línea 14 sí está bien escrita (`for (i in 2:length(all_sols))`). En cambio, `rob.fit()` no delega `RF_SC_minTS` y `RF_SC_maxTS` en `rob.evaluation()`, sino que duplica inline los dos bucles defectuosos (L15–L36).
 
@@ -102,6 +104,7 @@ Con `IS = minimize(PAYF, incl.cut = 0.87, n.cut = 2)`, primera fija `A = m(0.70,
 | `list(A, M2, Z)` | 0.887 | 0.963 | **0.960** | **0.724** | **0.296** | Idéntico a `M1` |
 | `list(A, Z)` (sin medio) | 0.987 | 0.973 | **0.960** | **0.724** | **0.296** | Idéntico |
 | `list(A, Z, M2)` (`M2` al final) | 0.887 | 0.963 | **0.885** | **0.730** | **0.222** | Cambia (`FALSE`) |
+| *Bucle parcheado* en `list(A, M2, Z)` | 0.887 | 0.963 | **0.855** | **0.730** | **0.185** | — |
 
 ### 1.3 Sesgo sistemáticamente optimista y desigualdad detectora para literatura publicada
 
@@ -147,9 +150,9 @@ Una consulta en OpenAlex (2021–2026) por `RF_SC_minTS`, `RF_SC_maxTS`, `RF_cov
 
 ### 2.2 Detalle de los tres casos matemáticamente confirmados
 
-1. **Paykani & Oana (2024, *BMC Public Health*, 24:2400):** coescrito por la propia mantenedora de `SetMethods`. En la p. 8 declaran explícitamente haber creado **tres soluciones alternativas** modificando únicamente el umbral de consistencia y los anclajes de calibración de dos condiciones (*state capacity* y *trust in government*), sin modificar el resultado (mortalidad COVID-19). En la Tabla 6 publican `RF_cov = 0.935`, `RF_cons = 0.878` (techo exacto `0.8209`; con redondeo máximo `0.824`) y **`RF_SC_minTS = 0.884`** (`+0.0631`, inflación mínima del `+7,7 %`). Sus métricas orientadas a casos (`RCR_typ = 1`, `RCR_dev = 0`, `RCC_Rank = 3`) y la Figura 1 (`rob.xyplot()`) también se generaron omitiendo la solución intermedia.
-2. **Holstead, Pakizer, Jager, Lieberherr, & Fischer (2026, *Environmental Policy and Governance*, Wiley):** en el Apéndice 7 (p. 827) enumeran **cinco soluciones alternativas** (tres cortes de consistencia `0.88`, `0.90`, `0.80` y dos cambios en condiciones: `UNCERTAIN` y `WATER_STRESS`, sin tocar el resultado `SUCCESS`). El bucle defectuoso descartó las 3 soluciones intermedias: frente a un techo de `0.69 × 0.86 = 0.5934` (máximo con redondeo a 2 decimales `0.6012`), la Tabla A1 publica **`RF_SC_minTS = 0.73`** (`+0.1366`, inflación relativa mínima del `+23,0 %`; `+21,4 %` aun bajo el peor redondeo).
-3. **Verdugo Rojas (2026, Universidad Pontificia Comillas — ICADE, tesis doctoral, Tabla 13, p. 90):** `rob.singletest()` muestra los índices `(2)`, `(3)`, `(1)` de **3 soluciones** donde la más exigente (`PEOU*SI*A + PEOU*PWC*DC*SI`, `SC = 0.369`) ocupa la posición intermedia `(2)`, sin alterar el resultado `PU`. Frente al techo `0.488 × 0.952 = 0.4646` (`0.468` con redondeo), la Tabla 13 publica **`RF_SC_minTS = 0.548`** (`+0.0834`, inflación mínima del `+18,0 %`), sesgando igualmente al alza `RCR_Typ = 0.358` y `RCR_dev = 0.101`.
+1. **Paykani & Oana (2024, *BMC Public Health*, 24:2400):** coescrito por la propia mantenedora de `SetMethods`. En la p. 8 declaran explícitamente haber creado **tres soluciones alternativas** modificando únicamente el umbral de consistencia y los anclajes de calibración de dos condiciones (*state capacity* y *trust in government*), sin modificar el resultado (mortalidad COVID-19). En la Tabla 6 publican `RF_cov = 0.935`, `RF_cons = 0.878` (techo puntual `0.8209`; con redondeo máximo `0.824`) y **`RF_SC_minTS = 0.884`** (`+0.0631`, inflación relativa de `+7,7 %` sobre el techo puntual; al menos `+7,2 %` bajo el peor redondeo bilateral). Sus métricas orientadas a casos (`RCR_typ = 1`, `RCR_dev = 0`, `RCC_Rank = 3`) y la Figura 1 (`rob.xyplot()`) también se generaron omitiendo la solución intermedia.
+2. **Holstead, Pakizer, Jager, Lieberherr, & Fischer (2026, *Environmental Policy and Governance*, Wiley):** en el Apéndice 7 (p. 827) enumeran **cinco soluciones alternativas** (tres cortes de consistencia `0.88`, `0.90`, `0.80` y dos cambios en condiciones: `UNCERTAIN` y `WATER_STRESS`, sin tocar el resultado `SUCCESS`). El bucle defectuoso descartó las 3 soluciones intermedias: frente a un techo de `0.69 × 0.86 = 0.5934` (máximo con redondeo a 2 decimales `0.6012`), la Tabla A1 publica **`RF_SC_minTS = 0.73`** (`+0.1366`, inflación relativa de `+23,0 %` sobre el techo puntual; al menos `+20,6 %` bajo el peor redondeo bilateral a 2 decimales, `0.725` frente a `0.6012`).
+3. **Verdugo Rojas (2026, Universidad Pontificia Comillas — ICADE, tesis doctoral, Tabla 13, p. 90):** `rob.singletest()` muestra los índices `(2)`, `(3)`, `(1)` de **3 soluciones** donde la más exigente (`PEOU*SI*A + PEOU*PWC*DC*SI`, `SC = 0.369`) ocupa la posición intermedia `(2)`, sin alterar el resultado `PU`. Frente al techo `0.488 × 0.952 = 0.4646` (`0.468` con redondeo), la Tabla 13 publica **`RF_SC_minTS = 0.548`** (`+0.0834`, inflación relativa de `+18,0 %` sobre el techo puntual; al menos `+17,0 %` bajo el peor redondeo), sesgando igualmente al alza `RCR_Typ = 0.358` y `RCR_dev = 0.101`.
 
 ### 2.3 Evidencia directa del bloqueo de `rob.cases()` en una tesis publicada
 
